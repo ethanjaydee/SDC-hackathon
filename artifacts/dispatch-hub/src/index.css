@@ -79,17 +79,17 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  --background: 222 22% 6%;
+  --background: 43 26% 95%;
 
-  --foreground: 210 20% 94%;
+  --foreground: 224 15% 15%;
 
-  --border: 217 33% 17%;
+  --border: 38 17% 88%;
 
-  --card: 222 25% 9%;
+  --card: 36 100% 99%;
 
-  --card-foreground: 210 20% 94%;
+  --card-foreground: 224 15% 15%;
 
-  --card-border: 217 33% 17%;
+  --card-border: 38 17% 88%;
 
   --sidebar: 222 25% 8%;
 
@@ -107,43 +107,43 @@
 
   --sidebar-ring: 199 89% 56%;
 
-  --popover: 222 25% 10%;
+  --popover: 36 100% 99%;
 
-  --popover-foreground: 210 20% 94%;
+  --popover-foreground: 224 15% 15%;
 
-  --popover-border: 217 33% 20%;
+  --popover-border: 38 17% 88%;
 
-  --primary: 199 89% 56%;
+  --primary: 16 88% 52%;
 
-  --primary-foreground: 222 40% 8%;
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: 217 30% 14%;
+  --secondary: 38 22% 93%;
 
-  --secondary-foreground: 210 20% 90%;
+  --secondary-foreground: 224 15% 15%;
 
-  --muted: 217 30% 13%;
+  --muted: 38 22% 93%;
 
-  --muted-foreground: 215 16% 60%;
+  --muted-foreground: 220 4% 44%;
 
-  --accent: 217 30% 15%;
+  --accent: 19 100% 96%;
 
-  --accent-foreground: 210 20% 94%;
+  --accent-foreground: 16 65% 36%;
 
   --destructive: 0 72% 55%;
 
   --destructive-foreground: 0 0% 98%;
 
-  --input: 217 30% 22%;
-  --ring: 199 89% 56%;
+  --input: 38 17% 85%;
+  --ring: 16 88% 52%;
   --chart-1: 199 89% 56%;
   --chart-2: 152 60% 48%;
   --chart-3: 38 92% 55%;
   --chart-4: 0 72% 55%;
   --chart-5: 262 50% 65%;
 
-  --app-font-sans: 'Geist', ui-sans-serif, sans-serif;
+  --app-font-sans: 'DM Sans', ui-sans-serif, sans-serif;
   --app-font-serif: Georgia, serif;
-  --app-font-mono: 'JetBrains Mono', Menlo, monospace;
+  --app-font-mono: 'Spline Sans Mono', Menlo, monospace;
   --radius: 0.5rem; /* 8px */
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
