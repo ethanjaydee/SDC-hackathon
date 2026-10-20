@@ -3,8 +3,6 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
-// @ts-expect-error The existing demo router is JavaScript and is bundled by esbuild.
-import hubRouter from "./hub.js";
 
 const app: Express = express();
 
@@ -32,7 +30,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
-app.use("/api", hubRouter);
 
 const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
   req.log.error({ err: error }, "Request failed");

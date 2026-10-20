@@ -65,8 +65,6 @@ export const GetHubDataResponse = zod.object({
   "lng": zod.number().min(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMax)
 }).describe('Labeled synthetic coordinates, never live GPS.')
 }),zod.null()])
-  "action_details": zod.string(),
-  "approved_by": zod.string()
 }))
 })
 
@@ -274,9 +272,178 @@ export const ResetTechnicianAvailabilityResponse = zod.object({
   "lng": zod.number().min(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMax)
 }).describe('Labeled synthetic coordinates, never live GPS.')
 }),zod.null()])
-  "action_details": zod.string(),
-  "approved_by": zod.string()
 }))
+})
+
+
+/**
+ * @summary Search the directly accessible Malaysian supplier catalog
+ */
+export const searchSupplierCatalogQueryQueryMin = 2;
+export const searchSupplierCatalogQueryQueryMax = 120;
+
+
+
+export const SearchSupplierCatalogQueryParams = zod.object({
+  "query": zod.coerce.string().min(searchSupplierCatalogQueryQueryMin).max(searchSupplierCatalogQueryQueryMax)
+})
+
+export const searchSupplierCatalogResponseOffersItemPriceMyrMin = 0;
+
+
+
+export const searchSupplierCatalogResponseOffersItemShippingMyrMin = 0;
+
+export const searchSupplierCatalogResponseOffersMax = 20;
+
+
+
+export const SearchSupplierCatalogResponse = zod.object({
+  "query": zod.string(),
+  "supplier_name": zod.string(),
+  "checked_at": zod.coerce.date(),
+  "offers": zod.array(zod.object({
+  "id": zod.string(),
+  "search_term": zod.string(),
+  "part_name": zod.string(),
+  "part_number": zod.string().nullable(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "product_url": zod.string().url(),
+  "shop_url": zod.string().url(),
+  "price_myr": zod.number().min(searchSupplierCatalogResponseOffersItemPriceMyrMin),
+  "package_quantity": zod.number().int().min(1).nullable(),
+  "minimum_order_packs": zod.number().int().min(1).nullable(),
+  "shipping_myr": zod.number().min(searchSupplierCatalogResponseOffersItemShippingMyrMin).nullable(),
+  "checked_at": zod.coerce.date(),
+  "source_type": zod.enum(['live_catalog', 'captured_quote']),
+  "availability_note": zod.string(),
+  "trust_evidence_url": zod.string().url().nullable(),
+  "trust_evidence_note": zod.string().nullable()
+})).max(searchSupplierCatalogResponseOffersMax)
+})
+
+
+/**
+ * @summary List manually captured current prices from other suppliers
+ */
+export const listSupplierQuotesQueryQueryMin = 2;
+export const listSupplierQuotesQueryQueryMax = 120;
+
+
+
+export const ListSupplierQuotesQueryParams = zod.object({
+  "query": zod.coerce.string().min(listSupplierQuotesQueryQueryMin).max(listSupplierQuotesQueryQueryMax)
+})
+
+export const listSupplierQuotesResponseQuotesItemPriceMyrMin = 0;
+
+
+
+export const listSupplierQuotesResponseQuotesItemShippingMyrMin = 0;
+
+
+
+export const ListSupplierQuotesResponse = zod.object({
+  "query": zod.string(),
+  "quotes": zod.array(zod.object({
+  "id": zod.string(),
+  "search_term": zod.string(),
+  "part_name": zod.string(),
+  "part_number": zod.string().nullable(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "product_url": zod.string().url(),
+  "shop_url": zod.string().url(),
+  "price_myr": zod.number().min(listSupplierQuotesResponseQuotesItemPriceMyrMin),
+  "package_quantity": zod.number().int().min(1).nullable(),
+  "minimum_order_packs": zod.number().int().min(1).nullable(),
+  "shipping_myr": zod.number().min(listSupplierQuotesResponseQuotesItemShippingMyrMin).nullable(),
+  "checked_at": zod.coerce.date(),
+  "source_type": zod.enum(['live_catalog', 'captured_quote']),
+  "availability_note": zod.string(),
+  "trust_evidence_url": zod.string().url().nullable(),
+  "trust_evidence_note": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Save a dated supplier offer for the workshop team to compare
+ */
+export const saveSupplierQuoteBodySearchTermMin = 2;
+export const saveSupplierQuoteBodySearchTermMax = 120;
+
+export const saveSupplierQuoteBodyPartNameMin = 2;
+export const saveSupplierQuoteBodyPartNameMax = 120;
+
+export const saveSupplierQuoteBodyPartNumberMax = 120;
+
+export const saveSupplierQuoteBodyProductNameMin = 2;
+export const saveSupplierQuoteBodyProductNameMax = 200;
+
+export const saveSupplierQuoteBodySupplierNameMin = 2;
+export const saveSupplierQuoteBodySupplierNameMax = 120;
+
+export const saveSupplierQuoteBodyProductUrlMax = 2048;
+
+export const saveSupplierQuoteBodyPriceMyrExclusiveMin = 0;
+export const saveSupplierQuoteBodyPriceMyrMax = 1000000;
+
+export const saveSupplierQuoteBodyPackageQuantityMax = 100000;
+
+export const saveSupplierQuoteBodyMinimumOrderPacksMax = 100000;
+
+export const saveSupplierQuoteBodyShippingMyrMin = 0;
+export const saveSupplierQuoteBodyShippingMyrMax = 1000000;
+
+export const saveSupplierQuoteBodyTrustEvidenceUrlMax = 2048;
+
+export const saveSupplierQuoteBodyTrustEvidenceNoteMax = 400;
+
+
+
+export const SaveSupplierQuoteBody = zod.object({
+  "search_term": zod.string().min(saveSupplierQuoteBodySearchTermMin).max(saveSupplierQuoteBodySearchTermMax),
+  "part_name": zod.string().min(saveSupplierQuoteBodyPartNameMin).max(saveSupplierQuoteBodyPartNameMax),
+  "part_number": zod.string().min(1).max(saveSupplierQuoteBodyPartNumberMax),
+  "product_name": zod.string().min(saveSupplierQuoteBodyProductNameMin).max(saveSupplierQuoteBodyProductNameMax),
+  "supplier_name": zod.string().min(saveSupplierQuoteBodySupplierNameMin).max(saveSupplierQuoteBodySupplierNameMax),
+  "product_url": zod.string().url().max(saveSupplierQuoteBodyProductUrlMax),
+  "price_myr": zod.number().gt(saveSupplierQuoteBodyPriceMyrExclusiveMin).max(saveSupplierQuoteBodyPriceMyrMax),
+  "package_quantity": zod.number().int().min(1).max(saveSupplierQuoteBodyPackageQuantityMax).optional(),
+  "minimum_order_packs": zod.number().int().min(1).max(saveSupplierQuoteBodyMinimumOrderPacksMax).optional(),
+  "shipping_myr": zod.number().min(saveSupplierQuoteBodyShippingMyrMin).max(saveSupplierQuoteBodyShippingMyrMax).nullish(),
+  "trust_evidence_url": zod.string().url().max(saveSupplierQuoteBodyTrustEvidenceUrlMax).optional(),
+  "trust_evidence_note": zod.string().max(saveSupplierQuoteBodyTrustEvidenceNoteMax).optional()
+})
+
+export const saveSupplierQuoteResponsePriceMyrMin = 0;
+
+
+
+export const saveSupplierQuoteResponseShippingMyrMin = 0;
+
+
+
+export const SaveSupplierQuoteResponse = zod.object({
+  "id": zod.string(),
+  "search_term": zod.string(),
+  "part_name": zod.string(),
+  "part_number": zod.string().nullable(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "product_url": zod.string().url(),
+  "shop_url": zod.string().url(),
+  "price_myr": zod.number().min(saveSupplierQuoteResponsePriceMyrMin),
+  "package_quantity": zod.number().int().min(1).nullable(),
+  "minimum_order_packs": zod.number().int().min(1).nullable(),
+  "shipping_myr": zod.number().min(saveSupplierQuoteResponseShippingMyrMin).nullable(),
+  "checked_at": zod.coerce.date(),
+  "source_type": zod.enum(['live_catalog', 'captured_quote']),
+  "availability_note": zod.string(),
+  "trust_evidence_url": zod.string().url().nullable(),
+  "trust_evidence_note": zod.string().nullable()
 })
 
 

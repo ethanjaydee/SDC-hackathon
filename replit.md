@@ -5,7 +5,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (use its managed workflow)
-- `pnpm --filter @workspace/dispatch-hub run dev` — dashboard (use its managed workflow)
+- Dashboard preview: use managed workflow `artifacts/dispatch-preview: web`, which runs the existing `@workspace/dispatch-hub` source.
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm --filter @workspace/dispatch-hub exec tsx --test ../api-server/tests/*.test.ts` — isolated SQLite migration, dispatch, completion, and availability-reset API regressions (does not modify workspace data)
 - `pnpm run build` — typecheck + build all packages
@@ -25,11 +25,14 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 ## Where things live
 
 - `artifacts/dispatch-hub/` — React/Tailwind dashboard
+- `artifacts/dispatch-preview/` — replacement managed preview registration; delegates to the existing dashboard rather than maintaining a second product.
 - `artifacts/api-server/src/hub.js` — SQLite schema, synthetic seeds, RunPod placeholder and hub API router
-- `artifacts/api-server/src/server.js` — SQLite schema, synthetic seeds, RunPod placeholder and hub API router
+- `artifacts/api-server/src/server.js` — older router retained for reference; do not mount it ahead of the current lifecycle-aware hub router.
 - `lib/api-spec/openapi.yaml` — API contract; regenerate hooks/schemas after changes
 
 ## Architecture decisions
+
+- The replacement preview registration preserves the pulled frontend source and SQLite data. **Why:** the original manifest contained duplicate TOML keys, and validated replacement rejected the malformed original before reading a corrected candidate. Its original metadata is archived unchanged under `.local/preview-recovery/`.
 
 - SQLite was explicitly requested for this MVP; do not silently replace it with PostgreSQL.
 - RunPod is a dummy helper by request, not a live AI integration. Keep mock mode explicit.

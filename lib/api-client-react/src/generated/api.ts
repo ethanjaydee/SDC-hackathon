@@ -26,9 +26,14 @@ import type {
   HealthStatus,
   HubData,
   InvalidRequestResponse,
+  ListSupplierQuotesParams,
+  SearchSupplierCatalogParams,
   ServiceRequestInput,
+  SupplierCatalogSearch,
+  SupplierOffer,
+  SupplierQuoteInput,
+  SupplierQuoteList,
   TechnicianResetInput
-  ServiceRequestInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -90,16 +95,6 @@ export const getHealthCheckQueryKey = () => {
     `/api/healthz`
     ] as const;
     }
-
-
-export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getHealthCheckQueryKey();
-
-
 
 
 export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
@@ -415,8 +410,6 @@ export const completeDispatch = async (dispatchCompletionInput: DispatchCompleti
     return headers;
   };
 return customFetch<HubData>(getCompleteDispatchUrl(),
-  };
-return customFetch<Analysis>(getAnalyzeRequestUrl(),
   {
     ...options,
     method: 'POST',
@@ -436,21 +429,6 @@ export const getCompleteDispatchMutationOptions = <TError = ErrorType<InvalidReq
 ): UseMutationOptions<Awaited<ReturnType<typeof completeDispatch>>, TError,CompleteDispatchMutationVariables, TContext> => {
 
 const mutationKey = getCompleteDispatchMutationKey();
-    body: JSON.stringify(serviceRequestInput)
-  }
-);}
-
-
-
-
-
-export const getAnalyzeRequestMutationKey = () => ['analyzeRequest'] as const;
-
-export const getAnalyzeRequestMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeRequest>>, TError,AnalyzeRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof analyzeRequest>>, TError,AnalyzeRequestMutationVariables, TContext> => {
-
-const mutationKey = getAnalyzeRequestMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -464,12 +442,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           const {data} = props ?? {};
 
           return  completeDispatch(data,requestOptions)
-        }
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeRequest>>, AnalyzeRequestMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  analyzeRequest(data,requestOptions)
         }
 
 
@@ -511,31 +483,6 @@ export const getResetTechnicianAvailabilityUrl = () => {
  * @summary Reset an unassigned Busy demo technician to Available
  */
 export const resetTechnicianAvailability = async (technicianResetInput: TechnicianResetInput, options?: Parameters<typeof customFetch>[1]): Promise<HubData> => {
-    export type AnalyzeRequestMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeRequest>>>
-    export type AnalyzeRequestMutationBody = BodyType<ServiceRequestInput>
-    export type AnalyzeRequestMutationError = ErrorType<InvalidRequestResponse>
-    export type AnalyzeRequestMutationVariables = {data: BodyType<ServiceRequestInput>}
-
-    export const useAnalyzeRequest = <TError = ErrorType<InvalidRequestResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeRequest>>, TError,AnalyzeRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof analyzeRequest>>,
-        TError,
-        AnalyzeRequestMutationVariables,
-        TContext
-      > => {
-      return useMutation(getAnalyzeRequestMutationOptions(options));
-    }
-
-export const getApproveDispatchUrl = () => {
-
-
-
-
-  return `/api/approve-dispatch`
-}
-
-export const approveDispatch = async (dispatchInput: DispatchInput, options?: Parameters<typeof customFetch>[1]): Promise<HubData> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -552,7 +499,6 @@ export const approveDispatch = async (dispatchInput: DispatchInput, options?: Pa
     return headers;
   };
 return customFetch<HubData>(getResetTechnicianAvailabilityUrl(),
-return customFetch<HubData>(getApproveDispatchUrl(),
   {
     ...options,
     method: 'POST',
@@ -572,21 +518,6 @@ export const getResetTechnicianAvailabilityMutationOptions = <TError = ErrorType
 ): UseMutationOptions<Awaited<ReturnType<typeof resetTechnicianAvailability>>, TError,ResetTechnicianAvailabilityMutationVariables, TContext> => {
 
 const mutationKey = getResetTechnicianAvailabilityMutationKey();
-    body: JSON.stringify(dispatchInput)
-  }
-);}
-
-
-
-
-
-export const getApproveDispatchMutationKey = () => ['approveDispatch'] as const;
-
-export const getApproveDispatchMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveDispatch>>, TError,ApproveDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof approveDispatch>>, TError,ApproveDispatchMutationVariables, TContext> => {
-
-const mutationKey = getApproveDispatchMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -600,10 +531,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
           const {data} = props ?? {};
 
           return  resetTechnicianAvailability(data,requestOptions)
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveDispatch>>, ApproveDispatchMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  approveDispatch(data,requestOptions)
         }
 
 
@@ -630,19 +557,261 @@ export const useResetTechnicianAvailability = <TError = ErrorType<InvalidRequest
         TContext
       > => {
       return useMutation(getResetTechnicianAvailabilityMutationOptions(options));
-    export type ApproveDispatchMutationResult = NonNullable<Awaited<ReturnType<typeof approveDispatch>>>
-    export type ApproveDispatchMutationBody = BodyType<DispatchInput>
-    export type ApproveDispatchMutationError = ErrorType<InvalidRequestResponse>
-    export type ApproveDispatchMutationVariables = {data: BodyType<DispatchInput>}
+    }
 
-    export const useApproveDispatch = <TError = ErrorType<InvalidRequestResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveDispatch>>, TError,ApproveDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+export const getSearchSupplierCatalogUrl = (params: SearchSupplierCatalogParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/supplier-catalog?${stringifiedParams}` : `/api/supplier-catalog`
+}
+
+/**
+ * @summary Search the directly accessible Malaysian supplier catalog
+ */
+export const searchSupplierCatalog = async (params: SearchSupplierCatalogParams, options?: Parameters<typeof customFetch>[1]): Promise<SupplierCatalogSearch> => {
+
+  return customFetch<SupplierCatalogSearch>(getSearchSupplierCatalogUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchSupplierCatalogQueryKey = (params?: SearchSupplierCatalogParams,) => {
+    return [
+    `/api/supplier-catalog`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchSupplierCatalogQueryOptions = <TData = Awaited<ReturnType<typeof searchSupplierCatalog>>, TError = ErrorType<InvalidRequestResponse>>(params: SearchSupplierCatalogParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchSupplierCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchSupplierCatalogQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchSupplierCatalog>>> = ({ signal }) => searchSupplierCatalog(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchSupplierCatalog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchSupplierCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof searchSupplierCatalog>>>
+export type SearchSupplierCatalogQueryError = ErrorType<InvalidRequestResponse>
+
+
+/**
+ * @summary Search the directly accessible Malaysian supplier catalog
+ */
+
+export function useSearchSupplierCatalog<TData = Awaited<ReturnType<typeof searchSupplierCatalog>>, TError = ErrorType<InvalidRequestResponse>>(
+ params: SearchSupplierCatalogParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchSupplierCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchSupplierCatalogQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSupplierQuotesUrl = (params: ListSupplierQuotesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/supplier-quotes?${stringifiedParams}` : `/api/supplier-quotes`
+}
+
+/**
+ * @summary List manually captured current prices from other suppliers
+ */
+export const listSupplierQuotes = async (params: ListSupplierQuotesParams, options?: Parameters<typeof customFetch>[1]): Promise<SupplierQuoteList> => {
+
+  return customFetch<SupplierQuoteList>(getListSupplierQuotesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSupplierQuotesQueryKey = (params?: ListSupplierQuotesParams,) => {
+    return [
+    `/api/supplier-quotes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSupplierQuotesQueryOptions = <TData = Awaited<ReturnType<typeof listSupplierQuotes>>, TError = ErrorType<InvalidRequestResponse>>(params: ListSupplierQuotesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupplierQuotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSupplierQuotesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSupplierQuotes>>> = ({ signal }) => listSupplierQuotes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSupplierQuotes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSupplierQuotesQueryResult = NonNullable<Awaited<ReturnType<typeof listSupplierQuotes>>>
+export type ListSupplierQuotesQueryError = ErrorType<InvalidRequestResponse>
+
+
+/**
+ * @summary List manually captured current prices from other suppliers
+ */
+
+export function useListSupplierQuotes<TData = Awaited<ReturnType<typeof listSupplierQuotes>>, TError = ErrorType<InvalidRequestResponse>>(
+ params: ListSupplierQuotesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupplierQuotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSupplierQuotesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveSupplierQuoteUrl = () => {
+
+
+
+
+  return `/api/supplier-quotes`
+}
+
+/**
+ * @summary Save a dated supplier offer for the workshop team to compare
+ */
+export const saveSupplierQuote = async (supplierQuoteInput: SupplierQuoteInput, options?: Parameters<typeof customFetch>[1]): Promise<SupplierOffer> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SupplierOffer>(getSaveSupplierQuoteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(supplierQuoteInput)
+  }
+);}
+
+
+
+
+
+export const getSaveSupplierQuoteMutationKey = () => ['saveSupplierQuote'] as const;
+
+export const getSaveSupplierQuoteMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSupplierQuote>>, TError,SaveSupplierQuoteMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveSupplierQuote>>, TError,SaveSupplierQuoteMutationVariables, TContext> => {
+
+const mutationKey = getSaveSupplierQuoteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveSupplierQuote>>, SaveSupplierQuoteMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveSupplierQuote(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveSupplierQuoteMutationResult = NonNullable<Awaited<ReturnType<typeof saveSupplierQuote>>>
+    export type SaveSupplierQuoteMutationBody = BodyType<SupplierQuoteInput>
+    export type SaveSupplierQuoteMutationError = ErrorType<InvalidRequestResponse>
+    export type SaveSupplierQuoteMutationVariables = {data: BodyType<SupplierQuoteInput>}
+
+    /**
+ * @summary Save a dated supplier offer for the workshop team to compare
+ */
+export const useSaveSupplierQuote = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSupplierQuote>>, TError,SaveSupplierQuoteMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof approveDispatch>>,
+        Awaited<ReturnType<typeof saveSupplierQuote>>,
         TError,
-        ApproveDispatchMutationVariables,
+        SaveSupplierQuoteMutationVariables,
         TContext
       > => {
-      return useMutation(getApproveDispatchMutationOptions(options));
+      return useMutation(getSaveSupplierQuoteMutationOptions(options));
     }
 

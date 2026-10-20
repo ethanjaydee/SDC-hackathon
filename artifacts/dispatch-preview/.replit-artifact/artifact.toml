@@ -1,17 +1,15 @@
 kind = "web"
 previewPath = "/"
 title = "Dispatch Hub"
-description = "A field-service dispatch dashboard for intake of repair notes, technician and spare-part matching, approved stock allocation, van inventory, and audit history."
-title = "Field Service Dispatch Hub"
-description = "A field service dispatch and spare-part matching SME hub with synthetic technicians, SQLite van inventory, mock AI request analysis, and approved dispatch audit logs."
+description = "Managed preview for the current pulled Field Service Dispatch Hub, reusing its existing frontend and API without changing stored data."
 version = "1.0.0"
-id = "artifacts/dispatch-hub"
+id = "artifacts/dispatch-preview"
 router = "path"
 
 [[services]]
 name = "web"
 paths = [ "/" ]
-localPort = 24896
+localPort = 23464
 
 [services.development]
 run = "pnpm --filter @workspace/dispatch-hub run dev"
@@ -26,5 +24,5 @@ from = "/*"
 to = "/index.html"
 
 [services.env]
-PORT = "24896"
+PORT = "23464"
 BASE_PATH = "/"

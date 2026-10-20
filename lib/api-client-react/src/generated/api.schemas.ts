@@ -96,11 +96,6 @@ export interface Activity {
   action_details: string;
   approved_by: string;
   dispatch: SavedDispatch | null;
-export interface Activity {
-  id: number;
-  timestamp: string;
-  action_details: string;
-  approved_by: string;
 }
 
 export interface HubData {
@@ -172,6 +167,118 @@ export interface TechnicianResetInput {
   reset_by: string;
 }
 
+export type SupplierOfferSourceType = typeof SupplierOfferSourceType[keyof typeof SupplierOfferSourceType];
+
+
+export const SupplierOfferSourceType = {
+  live_catalog: 'live_catalog',
+  captured_quote: 'captured_quote',
+} as const;
+
+export interface SupplierOffer {
+  id: string;
+  search_term: string;
+  part_name: string;
+  /** @nullable */
+  part_number: string | null;
+  product_name: string;
+  supplier_name: string;
+  product_url: string;
+  shop_url: string;
+  /** @minimum 0 */
+  price_myr: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  package_quantity: number | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  minimum_order_packs: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  shipping_myr: number | null;
+  checked_at: string;
+  source_type: SupplierOfferSourceType;
+  availability_note: string;
+  /** @nullable */
+  trust_evidence_url: string | null;
+  /** @nullable */
+  trust_evidence_note: string | null;
+}
+
+export interface SupplierCatalogSearch {
+  query: string;
+  supplier_name: string;
+  checked_at: string;
+  /** @maxItems 20 */
+  offers: SupplierOffer[];
+}
+
+export interface SupplierQuoteList {
+  query: string;
+  quotes: SupplierOffer[];
+}
+
+export interface SupplierQuoteInput {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  search_term: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  part_name: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  part_number: string;
+  /**
+     * @minLength 2
+     * @maxLength 200
+     */
+  product_name: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  supplier_name: string;
+  /** @maxLength 2048 */
+  product_url: string;
+  /**
+     * @maximum 1000000
+     * @exclusiveMinimum 0
+     */
+  price_myr: number;
+  /**
+     * @minimum 1
+     * @maximum 100000
+     */
+  package_quantity?: number;
+  /**
+     * @minimum 1
+     * @maximum 100000
+     */
+  minimum_order_packs?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     * @nullable
+     */
+  shipping_myr?: number | null;
+  /** @maxLength 2048 */
+  trust_evidence_url?: string;
+  /** @maxLength 400 */
+  trust_evidence_note?: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -180,4 +287,20 @@ export interface HealthStatus {
  * Invalid request or stale technician/inventory state
  */
 export type InvalidRequestResponse = ApiFailure;
+
+export type SearchSupplierCatalogParams = {
+/**
+ * @minLength 2
+ * @maxLength 120
+ */
+query: string;
+};
+
+export type ListSupplierQuotesParams = {
+/**
+ * @minLength 2
+ * @maxLength 120
+ */
+query: string;
+};
 
