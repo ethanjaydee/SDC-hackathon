@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { demoSites } from "./demoSites.js";
+import { isOfferStale } from "./offerFreshness.js";
 import {
   AnalyzeRequestBody,
   AnalyzeRequestResponse,
@@ -387,7 +388,7 @@ const createReorderDraft = db.transaction((input) => {
     offerSnapshot.supplier_name.trim(), offerSnapshot.product_name.trim(), productUrl.toString(),
     offerSnapshot.unit_price_myr, offerSnapshot.pack_price_myr, offerSnapshot.package_quantity ?? null,
     offerSnapshot.minimum_order_packs ?? null, offerSnapshot.shipping_myr ?? null,
-    offerSnapshot.availability_note, offerCheckedAt, offerSnapshot.offer_stale ? 1 : 0,
+    offerSnapshot.availability_note, offerCheckedAt, isOfferStale(offerCheckedAt, offerSnapshot.offer_stale) ? 1 : 0,
     input.requested_quantity, createdAt, "Demo Dispatcher",
   );
   return db.prepare("SELECT * FROM reorder_drafts WHERE id = ?").get(result.lastInsertRowid);
@@ -400,15 +401,15 @@ const approveReorderDraft = db.transaction(({ id, approved_by }) => {
   const approvedAt = new Date().toISOString();
   const updated = db.prepare(`
     UPDATE reorder_drafts
-    SET status = 'Approved', approved_at = ?, approved_by = ?
+    SET status = 'Approved', approved_at = ?, approved_by = ?, offer_stale = ?
     WHERE id = ? AND status = 'Draft'
-  `).run(approvedAt, approved_by, id);
+  `).run(approvedAt, approved_by, isOfferStale(current.offer_checked_at, Boolean(current.offer_stale)) ? 1 : 0, id);
   if (updated.changes !== 1) throw new ReorderConflict("This reorder has already been approved.");
   return db.prepare("SELECT * FROM reorder_drafts WHERE id = ?").get(id);
 });
 
 function reorderResponse(record) {
-  return { ...record, offer_stale: Boolean(record.offer_stale) };
+  return { ...record, offer_stale: isOfferStale(record.offer_checked_at, Boolean(record.offer_stale)) };
 }
 
 const supplierAvailability = new Set([

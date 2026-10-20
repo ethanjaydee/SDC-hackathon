@@ -1,8 +1,9 @@
-import './autoflow.css';
-import './xiaomi.css';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
-import { Activity, Boxes, ClipboardList, FlaskConical, History, Inbox, Map as MapIcon, Menu, Radio, RefreshCw, ScanSearch, ShoppingBag, Users, X } from 'lucide-react';
+import { Activity, Boxes, ClipboardList, FlaskConical, History, Inbox, Loader2, Map as MapIcon, Menu, Radio, ScanSearch, ShoppingBag, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 import { useDispatchHub } from './useDispatchHub';
 import OverviewPage from './OverviewPage';
 import IntakePage from './IntakePage';
@@ -11,43 +12,32 @@ import MapPage from './MapPage';
 import SupplierComparePage from './SupplierComparePage';
 import ReordersPage from './ReordersPage';
 import { LogPage, StockPage, TechniciansPage } from './ListPages';
-import { IntakeFirst } from './shared';
+import { InlineError, IntakeFirst, SkeletonRows, StatusBadge } from './shared';
+import { ConnectionStatus, useConnection } from './ConnectionStatus';
+import { RouteBoundary } from './RouteBoundary';
+import { ThemeToggle } from './theme';
 import NotFound from '@/pages/not-found';
+
+function Brand() {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground"><Radio size={16} strokeWidth={2.5} /></span>
+      <span className="font-display text-[17px] font-semibold tracking-tight">Dispatch Hub</span>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const hub = useDispatchHub();
-  const { hubQ, analysis, match, approveDispatch } = hub;
+  const { hubQ, analysis, match, approveDispatch, openReorderCount, lowStockCount, pendingAction } = hub;
+  const connection = useConnection(hubQ);
   const [location, navigate] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
   const [notice, setNotice] = useState('');
   const [completingDispatch, setCompletingDispatch] = useState(false);
-  const mainRef = useRef<HTMLDivElement>(null);
-  const sidebarRef = useRef<HTMLElement>(null);
 
   useEffect(() => { setMenuOpen(false); window.scrollTo(0, 0); }, [location]);
-  useEffect(() => {
-    const desktop = window.matchMedia('(min-width: 651px)');
-    const closeOnDesktop = () => { if (desktop.matches) setMenuOpen(false); };
-    desktop.addEventListener('change', closeOnDesktop);
-    return () => desktop.removeEventListener('change', closeOnDesktop);
-  }, []);
-  useEffect(() => {
-    if (!menuOpen) return;
-    document.body.style.overflow = 'hidden';
-    const previousFocus = document.activeElement as HTMLElement | null;
-    const controls = sidebarRef.current?.querySelectorAll<HTMLElement>('a[href], button');
-    controls?.[0]?.focus();
-    const k = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
-      if (e.key === 'Tab' && controls?.length) {
-        const first = controls[0], last = controls[controls.length - 1];
-        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-      }
-    };
-    window.addEventListener('keydown', k);
-    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = ''; previousFocus?.focus(); };
-  }, [menuOpen]);
 
   const approve = async () => {
     if (completingDispatch) return;
@@ -63,71 +53,112 @@ export default function Dashboard() {
   const items = [
     { to: '/', label: 'Overview', Icon: Activity },
     { to: '/intake', label: 'Repair intake', Icon: Inbox },
-    ...(analysis ? [{ to: '/analysis', label: 'Analysis & approval', Icon: ScanSearch }] : []),
+    ...(analysis ? [{ to: '/analysis', label: 'Analysis & approval', Icon: ScanSearch, badge: 'Draft' }] : []),
     { to: '/map', label: 'Technician map', Icon: MapIcon },
     { to: '/technicians', label: 'Technicians', Icon: Users },
-    { to: '/stock', label: 'Van stock', Icon: Boxes },
+    { to: '/stock', label: 'Van stock', Icon: Boxes, count: lowStockCount || undefined },
     { to: '/suppliers', label: 'Store comparison', Icon: ShoppingBag },
-    { to: '/reorders', label: 'Reorder requests', Icon: ClipboardList },
+    { to: '/reorders', label: 'Reorder requests', Icon: ClipboardList, count: openReorderCount || undefined },
     { to: '/log', label: 'Dispatch log', Icon: History },
-  ];
+  ] as { to: string; label: string; Icon: typeof Activity; badge?: string; count?: number }[];
+
+  const nav = (id: string) => (
+    <nav id={id} aria-label="Dashboard sections" className="space-y-0.5">
+      {items.map(({ to, label, Icon, badge, count }) => {
+        const active = to === '/' ? location === '/' : to === '/log' ? location === '/log' || location === '/today' : location.startsWith(to);
+        return (
+          <Link key={to} href={to} aria-current={active ? 'page' : undefined}
+            className={cn('flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors',
+              active ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-sm' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground')}>
+            <Icon size={16} strokeWidth={1.8} className={active ? 'text-primary' : ''} />
+            <span className="flex-1 truncate">{label}</span>
+            {badge && <StatusBadge tone="pending">{badge}</StatusBadge>}
+            {count != null && <span className="rounded-full bg-pending/15 px-1.5 font-mono text-[11px] text-pending">{count}</span>}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
+  const sideFooter = (
+    <div className="rounded-lg border border-sidebar-border bg-card/60 p-3 text-xs text-muted-foreground">
+      <p className="font-mono text-[10px] uppercase tracking-widest text-primary">Dispatch desk</p>
+      <p className="mt-1 font-medium text-foreground">One clear handoff.</p>
+      <p className="mt-1">Check people and parts, then route a repair into its workflow.</p>
+    </div>
+  );
+
+  const analysisRoute = analysis
+    ? <AnalysisPage hub={hub} onApprove={approve} />
+    : completingDispatch ? <div role="status"><SkeletonRows rows={3} label="Completing dispatch" /></div>
+    : hub.analyze.isPending ? <IntakeFirst text="Analysis in progress" />
+    : <Redirect to="/intake" replace />;
 
   return (
-    <div className="autoflow xiaomi-overview">
-      <div className="xo-mobilebar">
-        <div className="xo-mobile-brand"><span className="xo-mobile-mark"><Radio size={14} /></span>Dispatch Hub</div>
-        <button type="button" className="xo-menu-button" aria-controls="dispatch-navigation" aria-expanded={menuOpen} aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={() => setMenuOpen(!menuOpen)}>
-          {menuOpen ? <X size={17} /> : <Menu size={17} />}
-        </button>
-      </div>
-      {menuOpen && <button type="button" className="xo-backdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)} />}
-      <aside ref={sidebarRef} className={`xo-sidebar ${menuOpen ? 'open' : ''}`} aria-label="Dispatch Hub navigation">
-        <div className="xo-brand"><span className="xo-brand-mark"><Radio size={16} strokeWidth={2.5} /></span><span className="xo-brand-name">Dispatch Hub</span><button type="button" className="xo-nav-close" aria-label="Close menu" onClick={() => setMenuOpen(false)}><X size={15} /></button></div>
-        <div className="xo-nav-label">Workshop</div>
-        <nav id="dispatch-navigation" className="xo-nav" aria-label="Dashboard sections">
-          {items.map(({ to, label, Icon }) => {
-            const active = to === '/'
-              ? location === '/'
-              : to === '/log'
-                ? location === '/log' || location === '/today'
-                : location.startsWith(to);
-            return <Link key={to} href={to} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}><Icon size={16} strokeWidth={1.8} /><span>{label}</span></Link>;
-          })}
-        </nav>
-        <div className="xo-side-card">
-          <span className="xo-mono">Dispatch desk</span>
-          <strong>One clear handoff.</strong>
-          <p>Check people and parts at a glance, then route a repair into its dedicated workflow.</p>
-        </div>
+    <div className="min-h-[100dvh] lg:grid lg:grid-cols-[256px_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-5 border-r border-sidebar-border bg-sidebar p-4 lg:flex" aria-label="Dispatch Hub navigation">
+        <Brand />
+        <p className="px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Workshop</p>
+        <div className="-mt-3 flex-1 overflow-y-auto">{nav('dispatch-navigation-desktop')}</div>
+        {sideFooter}
       </aside>
 
-      <div className="xo-main" ref={mainRef}>
-        <div className="xo-demo-note" role="note">
-          <FlaskConical size={13} />
-          <span><strong>Demo workspace.</strong> Synthetic dispatch data and mock AI. Approvals update demo inventory and history.</span>
-          <span className="xo-note-tag" data-testid="status-connection"><span className={`xo-note-dot ${hubQ.isError ? 'offline' : hubQ.isLoading ? 'loading' : ''}`} /> {hubQ.isError ? 'Connection lost' : hubQ.isLoading ? 'Connecting…' : 'Live · 10s refresh'}</span>
-        </div>
-        <main className="xo-content">
-          {(hubQ.isLoading || hubQ.isError) && <div className={hubQ.isError ? 'af-error af-hub-message' : 'af-hub-message'} role={hubQ.isError ? 'alert' : 'status'}>
-            {hubQ.isError ? <><span>{hubQ.data ? 'Connection lost. Showing the last hub data; approvals are paused until reconnected.' : 'Unable to load technicians, inventory, or dispatch history.'}</span><button className="af-quiet-btn" onClick={() => void hubQ.refetch()} disabled={hubQ.isFetching}><RefreshCw size={13} /> Retry connection</button></> : 'Loading technicians, inventory, and dispatch history…'}
-          </div>}
-          <div key={location} className="af-route">
-            <Switch>
-              <Route path="/"><OverviewPage hub={hub} /></Route>
-              <Route path="/intake"><IntakePage hub={hub} /></Route>
-              <Route path="/analysis">{analysis ? <AnalysisPage hub={hub} onApprove={approve} /> : completingDispatch ? <div className="af-hub-message" role="status">Completing dispatch…</div> : hub.analyze.isPending ? <IntakeFirst text="Analysis in progress" /> : <Redirect to="/intake" replace />}</Route>
-              <Route path="/map"><MapPage hub={hub} /></Route>
-              <Route path="/technicians"><TechniciansPage hub={hub} /></Route>
-              <Route path="/stock/low"><StockPage hub={hub} lowOnly /></Route>
-              <Route path="/stock"><StockPage hub={hub} /></Route>
-              <Route path="/suppliers"><SupplierComparePage hub={hub} /></Route>
-              <Route path="/reorders"><ReordersPage hub={hub} /></Route>
-              <Route path="/today"><LogPage hub={hub} notice={notice} todayOnly /></Route>
-              <Route path="/log"><LogPage hub={hub} notice={notice} /></Route>
-              <Route component={NotFound} />
-            </Switch>
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <SheetContent side="left" className="flex w-[280px] flex-col gap-5 bg-sidebar p-4"
+          onCloseAutoFocus={(event) => { event.preventDefault(); menuButton.current?.focus(); }}>
+          <SheetTitle asChild><div><Brand /></div></SheetTitle>
+          <SheetDescription className="sr-only">Navigate between Dispatch Hub sections</SheetDescription>
+          <div className="flex-1 overflow-y-auto">{nav('dispatch-navigation-mobile')}</div>
+          {sideFooter}
+        </SheetContent>
+      </Sheet>
+
+      <div className="flex min-w-0 flex-col">
+        <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+          <div className="flex min-h-14 items-center gap-2 px-3 sm:px-6">
+            <Button ref={menuButton} type="button" variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu" aria-controls="dispatch-navigation-mobile" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} data-testid="button-menu">
+              <Menu size={18} />
+            </Button>
+            <div className="lg:hidden"><Brand /></div>
+            <div className="ml-auto flex min-w-0 items-center gap-2">
+              {pendingAction && <StatusBadge tone="busy" pulse className="hidden sm:inline-flex"><Loader2 size={10} className="animate-spin" /> {pendingAction}</StatusBadge>}
+              <ConnectionStatus q={hubQ} />
+              <ThemeToggle />
+            </div>
           </div>
-          <div className="xo-footer">Dispatch Hub · API-backed synthetic demo · Mock AI analysis</div>
+          <div className="flex items-center gap-2 border-t bg-muted/40 px-3 py-1.5 text-[11px] text-muted-foreground sm:px-6" role="note">
+            <FlaskConical size={12} className="shrink-0" />
+            <span className="truncate"><strong className="text-foreground">Demo workspace.</strong> Synthetic dispatch data and mock AI. Approvals update demo inventory and history.</span>
+          </div>
+        </header>
+
+        <main className="mx-auto w-full max-w-[1320px] flex-1 space-y-4 px-3 py-6 sm:px-6 md:py-8">
+          {hub.connectionLost && (
+            <InlineError onRetry={connection.retryIn && connection.retryIn > 0 ? undefined : () => void hubQ.refetch()} retrying={hubQ.isFetching} retryLabel="Retry connection">
+              {connection.status === 429
+                ? 'The hub is rate limiting requests. Updates resume automatically after the retry window.'
+                : hubQ.data ? 'Connection lost. Showing the last hub data; approvals are paused until reconnected.' : 'Unable to load technicians, inventory or dispatch history.'}
+            </InlineError>
+          )}
+          <div key={location} className="dh-rise">
+            <RouteBoundary route={location}>
+              <Switch>
+                <Route path="/"><OverviewPage hub={hub} /></Route>
+                <Route path="/intake"><IntakePage hub={hub} /></Route>
+                <Route path="/analysis">{analysisRoute}</Route>
+                <Route path="/map"><MapPage hub={hub} /></Route>
+                <Route path="/technicians"><TechniciansPage hub={hub} /></Route>
+                <Route path="/stock/low"><StockPage hub={hub} lowOnly /></Route>
+                <Route path="/stock"><StockPage hub={hub} /></Route>
+                <Route path="/suppliers"><SupplierComparePage hub={hub} /></Route>
+                <Route path="/reorders"><ReordersPage hub={hub} /></Route>
+                <Route path="/today"><LogPage hub={hub} notice={notice} todayOnly /></Route>
+                <Route path="/log"><LogPage hub={hub} notice={notice} /></Route>
+                <Route component={NotFound} />
+              </Switch>
+            </RouteBoundary>
+          </div>
+          <footer className="pt-6 font-mono text-[11px] text-muted-foreground">Dispatch Hub · API-backed synthetic demo · Mock AI analysis</footer>
         </main>
       </div>
     </div>

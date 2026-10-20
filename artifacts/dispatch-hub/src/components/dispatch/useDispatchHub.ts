@@ -4,11 +4,14 @@ import {
   getGetHubDataQueryKey, useAnalyzeRequest, useApproveDispatch, useCompleteDispatch,
   getListReorderDraftsQueryKey, useGetHubData, useListReorderDrafts,
   useResetTechnicianAvailability,
-  type Analysis,
+  type Analysis, type HubData,
 } from '@workspace/api-client-react';
 import { useToast } from '@/hooks/use-toast';
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
 import { rankQualifiedTechnicians } from './matching';
+import { canAutoRefresh, pollInterval } from '@/lib/reliability';
+import { intakeSchema, positiveIdSchema } from '@/lib/validation';
+import { WriteGate, performHubWrite, optimisticAvailable, optimisticDispatch } from '@/lib/hub-write';
 
 export const APPROVER = 'Demo Dispatcher';
 
@@ -20,26 +23,28 @@ function message(error: unknown) {
 export function useDispatchHub() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const gate = useRef(new WriteGate());
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const writePending = pendingAction !== null;
   const hubQ = useGetHubData({
     query: {
       queryKey: getGetHubDataQueryKey(),
-      refetchInterval: 10000,
-      refetchOnWindowFocus: true,
+      enabled: !writePending,
+      refetchInterval: pollInterval(),
+      refetchOnWindowFocus: canAutoRefresh,
     },
   });
   const reordersQ = useListReorderDrafts({
     query: {
       queryKey: getListReorderDraftsQueryKey(),
-      refetchInterval: 10000,
-      refetchOnWindowFocus: true,
+      refetchInterval: pollInterval(),
+      refetchOnWindowFocus: canAutoRefresh,
     },
   });
   const analyze = useAnalyzeRequest();
   const approve = useApproveDispatch();
   const complete = useCompleteDispatch();
   const reset = useResetTechnicianAvailability();
-  const completionLock = useRef(false);
-  const resetLock = useRef(false);
   const [completionError, setCompletionError] = useState('');
   const [resetError, setResetError] = useState('');
   const [notes, setNotes] = useState('');
@@ -49,6 +54,7 @@ export function useDispatchHub() {
   const [approveError, setApproveError] = useState('');
   const requestId = useRef(0);
   const hub = hubQ.data;
+  const connectionLost = hubQ.isError || hubQ.failureCount > 0 || hubQ.fetchStatus === 'paused';
   const customerSite = DEMO_CUSTOMER_SITES.find((site) => site.id === customerSiteId)!;
   const matches = useMemo(
     () => rankQualifiedTechnicians(hub, analysis?.result.parts || [], customerSite),
@@ -72,15 +78,31 @@ export function useDispatchHub() {
     new Date(entry.timestamp).toDateString() === new Date().toDateString(),
   ).length;
 
+  const writeHub = async (
+    action: string,
+    optimistic: (current: HubData) => HubData,
+    request: () => Promise<HubData>,
+  ): Promise<HubData | null> => {
+    if (connectionLost || !hubQ.data) return null;
+    const key = getGetHubDataQueryKey();
+    return performHubWrite(gate.current, {
+      cancel: () => qc.cancelQueries({ queryKey: key }),
+      read: () => qc.getQueryData<HubData>(key),
+      write: (value) => { qc.setQueryData(key, value); },
+      optimistic, request,
+      pending: (value) => setPendingAction(value ? action : null),
+      markStale: () => qc.invalidateQueries({ queryKey: key, refetchType: 'none' }),
+    });
+  };
+
   const completeJob = async (dispatchId: number) => {
-    if (completionLock.current || resetLock.current || approve.isPending || hubQ.isError) return false;
-    completionLock.current = true;
+    if (!positiveIdSchema.safeParse(dispatchId).success || gate.current.busy) return false;
     setCompletionError('');
     try {
-      const updated = await complete.mutateAsync({ data: { dispatch_id: dispatchId, completed_by: APPROVER } });
-      await qc.cancelQueries({ queryKey: getGetHubDataQueryKey() });
-      qc.setQueryData(getGetHubDataQueryKey(), updated);
-      void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() });
+      const techId = activity.find((entry) => entry.id === dispatchId)?.dispatch?.tech_id;
+      const updated = await writeHub('Completing job', (current) => techId ? optimisticAvailable(current, techId) : current,
+        () => complete.mutateAsync({ data: { dispatch_id: dispatchId, completed_by: APPROVER } }));
+      if (!updated) return false;
       toast({ title: 'Job completed', description: `Dispatch #${dispatchId} completed. Technician available again; consumed stock unchanged.` });
       return true;
     } catch (error) {
@@ -89,22 +111,16 @@ export function useDispatchHub() {
       setCompletionError(detail);
       toast({ title: 'Completion failed', description: detail, variant: 'destructive' });
       return false;
-    } finally {
-      completionLock.current = false;
     }
   };
 
   const resetTechnician = async (technicianId: number) => {
-    if (resetLock.current || completionLock.current || approve.isPending || hubQ.isError) return false;
-    resetLock.current = true;
+    if (!positiveIdSchema.safeParse(technicianId).success || gate.current.busy) return false;
     setResetError('');
     try {
-      const updated = await reset.mutateAsync({
-        data: { technician_id: technicianId, reset_by: APPROVER },
-      });
-      await qc.cancelQueries({ queryKey: getGetHubDataQueryKey() });
-      qc.setQueryData(getGetHubDataQueryKey(), updated);
-      void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() });
+      const updated = await writeHub('Resetting technician', (current) => optimisticAvailable(current, technicianId),
+        () => reset.mutateAsync({ data: { technician_id: technicianId, reset_by: APPROVER } }));
+      if (!updated) return false;
       const technician = updated.technicians.find((item) => item.id === technicianId);
       toast({
         title: 'Technician reset',
@@ -117,13 +133,11 @@ export function useDispatchHub() {
       setResetError(detail);
       toast({ title: 'Reset failed', description: detail, variant: 'destructive' });
       return false;
-    } finally {
-      resetLock.current = false;
     }
   };
 
   const updateNotes = (value: string) => {
-    if (approve.isPending) return;
+    if (gate.current.busy) return;
     requestId.current += 1;
     setNotes(value);
     if (analysis && analysis.forText !== value.trim()) setAnalysis(null);
@@ -133,7 +147,7 @@ export function useDispatchHub() {
 
   const updateCustomerSite = (id: string) => {
     const site = DEMO_CUSTOMER_SITES.find((site) => site.id === id);
-    if (approve.isPending || !site) return;
+    if (gate.current.busy || !site) return;
     requestId.current += 1;
     setCustomerSiteId(site.id);
     setAnalysis(null);
@@ -143,7 +157,12 @@ export function useDispatchHub() {
 
   const runAnalysis = async () => {
     const text = notes.trim();
-    if (!text || analyze.isPending || approve.isPending) return false;
+    if (analyze.isPending || gate.current.busy) return false;
+    const parsed = intakeSchema.safeParse({ text, customer_site_id: customerSiteId });
+    if (!parsed.success) {
+      setAnalysisError(parsed.error.issues[0]?.message || 'Check the intake fields.');
+      return false;
+    }
     const id = ++requestId.current;
     setAnalysis(null);
     setAnalysisError('');
@@ -160,23 +179,23 @@ export function useDispatchHub() {
   };
 
   const approveDispatch = async () => {
-    if (!analysis || analysis.forText !== notes.trim() || !match || approve.isPending || completionLock.current || hubQ.isError) return false;
+    if (!analysis || analysis.forText !== notes.trim() || !match || gate.current.busy || connectionLost) return false;
     const snapshot = { tech: match, parts: analysis.result.parts, customerSite };
     setApproveError('');
     try {
-      const updated = await approve.mutateAsync({
+      const updated = await writeHub('Dispatching job',
+        (current) => optimisticDispatch(current, snapshot.tech.id, snapshot.tech.van_id, snapshot.parts),
+        () => approve.mutateAsync({
         data: {
           tech_id: snapshot.tech.id, van_id: snapshot.tech.van_id,
           parts: snapshot.parts, approved_by: APPROVER,
           customer_site_id: snapshot.customerSite.id,
         },
-      });
-      await qc.cancelQueries({ queryKey: getGetHubDataQueryKey() });
-      qc.setQueryData(getGetHubDataQueryKey(), updated);
+      }));
+      if (!updated) return false;
       setAnalysis(null);
       setNotes('');
       requestId.current += 1;
-      void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() });
       toast({
         title: 'Job dispatched',
         description: `${snapshot.tech.name} · Van ${snapshot.tech.van_id} assigned. ${snapshot.parts.length} parts reserved.`,
@@ -202,6 +221,7 @@ export function useDispatchHub() {
     updateNotes, runAnalysis, approveDispatch,
     complete, completeJob, completionError,
     reset, resetTechnician, resetError,
+    writePending, pendingAction, connectionLost,
   };
 }
 

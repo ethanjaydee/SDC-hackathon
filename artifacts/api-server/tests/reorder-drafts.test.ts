@@ -120,6 +120,11 @@ test('reorder drafts snapshot a supplier quote, require approval, and never chan
 
     assert.equal((await post(`reorder-drafts/${draft.id}/approve`, { approved_by: '  ' })).status, 400);
     assert.equal((await post('reorder-drafts/99999/approve', { approved_by: 'Demo Dispatcher' })).status, 404);
+    // A draft can become stale after it was created, even with no client flag.
+    db.prepare("UPDATE reorder_drafts SET offer_checked_at = ? WHERE id = ?")
+      .run(new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), draft.id);
+    const aged = await (await fetch(`${base}/reorder-drafts`)).json();
+    assert.equal(aged.reorders.find((item) => item.id === draft.id).offer_stale, true);
     const approvals = await Promise.all([
       post(`reorder-drafts/${draft.id}/approve`, { approved_by: 'Demo Dispatcher' }),
       post(`reorder-drafts/${draft.id}/approve`, { approved_by: 'Demo Dispatcher' }),
@@ -128,6 +133,7 @@ test('reorder drafts snapshot a supplier quote, require approval, and never chan
     const approvedResponse = approvals.find((response) => response.status === 200)!;
     const approved = await approvedResponse.json();
     assert.equal(approved.status, 'Approved');
+    assert.equal(approved.offer_stale, true);
     assert.equal(approved.approved_by, 'Demo Dispatcher');
     assert.ok(approved.approved_at);
     assert.deepEqual((await (await fetch(`${base}/hub-data`)).json()).inventory, stockBefore);

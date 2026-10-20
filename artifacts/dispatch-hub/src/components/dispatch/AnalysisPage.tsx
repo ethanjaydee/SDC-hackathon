@@ -1,56 +1,65 @@
-import { AlertTriangle, Activity, CheckCircle2, MapPin, Truck, FlaskConical, RefreshCw } from 'lucide-react';
+import { CheckCircle2, FlaskConical, Loader2, MapPin, Truck } from 'lucide-react';
 import { Link } from 'wouter';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { APPROVER } from './useDispatchHub';
 import { distanceKm, getTechnicianLocation } from './demoLocations';
-import { Card, PageHead, PartChips, initials, Check, type Hub } from './shared';
+import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, initials, type Hub } from './shared';
+
+const urgencyTone = { High: 'err', Med: 'pending', Low: 'idle' } as const;
 
 export default function AnalysisPage({ hub, onApprove }: Hub & { onApprove: () => void }) {
-  const { analysis, hubQ, matches, match, approve, approveError, customerSite } = hub;
+  const { analysis, hubQ, matches, match, approve, approveError, customerSite, writePending } = hub;
   if (!analysis) return null;
   const loc = match ? getTechnicianLocation(match.id) : undefined;
   return (
-    <div className="af-page af-narrow">
-      <PageHead kicker="Step 2" title="Analysis & approval" sub={`Customer: ${customerSite.label}`}>
-        <Link href="/intake" className="af-quiet-btn">Edit intake</Link>
+    <div className="mx-auto max-w-3xl space-y-5">
+      <PageHead kicker="Step 2 of 2" title="Analysis & approval" sub={`Customer: ${customerSite.label}`}>
+        <Button asChild variant="outline"><Link href="/intake">Edit intake</Link></Button>
       </PageHead>
-      <Card title="Diagnosis" aside={<span className="af-mock-pill"><FlaskConical size={10} /> Demo result</span>}>
-        <div className="af-result">
+      <Card title="Diagnosis" aside={<StatusBadge tone="pending"><FlaskConical size={10} /> Demo result</StatusBadge>}>
+        <div className="space-y-5">
           <div>
-            <div className="af-label">Diagnosed issue</div>
-            <div className="af-issue-row">
-              <h3 className="af-issue">{analysis.result.issue}</h3>
-              <span className="af-urgency"><AlertTriangle size={10} /> {analysis.result.urgency} urgency</span>
+            <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Diagnosed issue</p>
+            <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
+              <h3 className="text-xl font-semibold">{analysis.result.issue}</h3>
+              <StatusBadge tone={urgencyTone[analysis.result.urgency]}>{analysis.result.urgency} urgency</StatusBadge>
             </div>
           </div>
-          <div><div className="af-label">Required parts</div><PartChips parts={analysis.result.parts} /></div>
           <div>
-            <div className="af-label">Stock-aware technician match <span>{matches.length} qualified</span></div>
-            {hubQ.isLoading ? <p className="af-hint" role="status">Checking hub availability…</p>
-              : !hubQ.data ? <div className="af-error af-hub-message" role="alert"><span>Reconnect to the hub to find a technician.</span><button className="af-quiet-btn" onClick={() => void hubQ.refetch()}><RefreshCw size={12} /> Retry</button></div>
+            <p className="mb-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Required parts</p>
+            <PartChips parts={analysis.result.parts} />
+          </div>
+          <div>
+            <p className="mb-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Stock-aware technician match · <span className="text-foreground">{matches.length} qualified</span></p>
+            {hubQ.isLoading ? <Skeleton className="h-24" />
+              : !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Reconnect to the hub to find a technician.</InlineError>
               : match ? (
-                <div className="af-match">
-                  <div className="af-match-main">
-                    <div className="af-person">
-                      <span className="af-avatar">{initials(match.name)}</span>
+                <div className="rounded-lg border border-ok/30 bg-ok/[0.06] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 place-items-center rounded-full bg-card font-mono text-sm font-semibold">{initials(match.name)}</span>
                       <div>
-                        <div className="af-person-name">{match.name}</div>
-                        <div className="af-person-meta"><span><MapPin size={10} /> {match.zone}</span><span><Truck size={10} /> Van {match.van_id}</span></div>
+                        <div className="font-medium">{match.name}</div>
+                        <div className="flex gap-3 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1"><MapPin size={11} />{match.zone}</span><Mono className="inline-flex items-center gap-1"><Truck size={11} />Van {match.van_id}</Mono></div>
                       </div>
                     </div>
-                    <span className="af-available"><span className="af-dot" /> Available</span>
+                    <StatusBadge tone="idle">Available</StatusBadge>
                   </div>
-                  <p className="af-match-note"><Check size={11} /> Van {match.van_id} carries every required part in stock.</p>
-                  <p className="af-match-note">{loc ? `Straight-line ${distanceKm(loc, customerSite).toFixed(1)} km from sample position (not a driving ETA).` : 'Location unavailable for this technician.'}</p>
+                  <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                    <li className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-ok" /> Van {match.van_id} carries every required part in stock.</li>
+                    <li>{loc ? <>Straight-line <Mono>{distanceKm(loc, customerSite).toFixed(1)} km</Mono> from sample position (not a driving ETA).</> : 'Location unavailable for this technician.'}</li>
+                  </ul>
                 </div>
-              ) : <div className="af-no-match"><b>No qualified technician found.</b><br />No available technician has every required part in their van. Review van stock before approving.</div>}
+              ) : <div role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-4 text-sm"><b>No qualified technician found.</b> No available technician has every required part in their van. Review van stock before approving.</div>}
           </div>
-          {approveError && <p className="af-error" role="alert">{approveError}</p>}
-          <div className="af-divider">
-            <button className="af-approve" data-testid="button-approve" type="button" onClick={onApprove} disabled={!match || approve.isPending || hubQ.isError}>
-              {approve.isPending ? <Activity size={14} /> : <CheckCircle2 size={14} />}
+          {approveError && <InlineError>{approveError}</InlineError>}
+          <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">Approver: <b className="text-foreground">{APPROVER}</b> · saved to the audit log</p>
+            <Button type="button" variant="success" data-testid="button-approve" onClick={onApprove} disabled={!match || writePending || hub.connectionLost}>
+              {approve.isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
               {approve.isPending ? 'Allocating parts…' : approveError ? 'Retry approval' : 'Approve & dispatch job'}
-            </button>
-            <p className="af-audit-note">Approver: <b>{APPROVER}</b> · approval is saved to the audit log</p>
+            </Button>
           </div>
         </div>
       </Card>
