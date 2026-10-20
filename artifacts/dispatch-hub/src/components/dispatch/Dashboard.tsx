@@ -1,4 +1,5 @@
 import './autoflow.css';
+import './xiaomi.css';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
 import { Activity, Boxes, FlaskConical, History, Inbox, Map as MapIcon, Menu, Radio, RefreshCw, ScanSearch, Users, X } from 'lucide-react';
@@ -22,6 +23,12 @@ export default function Dashboard() {
   const sidebarRef = useRef<HTMLElement>(null);
 
   useEffect(() => { setMenuOpen(false); window.scrollTo(0, 0); }, [location]);
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 651px)');
+    const closeOnDesktop = () => { if (desktop.matches) setMenuOpen(false); };
+    desktop.addEventListener('change', closeOnDesktop);
+    return () => desktop.removeEventListener('change', closeOnDesktop);
+  }, []);
   useEffect(() => {
     if (!menuOpen) return;
     document.body.style.overflow = 'hidden';
@@ -62,37 +69,37 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="autoflow">
-      <div className="af-mobilebar">
-        <span className="af-brand-name">Dispatch Hub</span>
-        <button className="af-menu-toggle" aria-controls="dispatch-navigation" aria-expanded={menuOpen} aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={() => setMenuOpen(!menuOpen)}>
+    <div className="autoflow xiaomi-overview">
+      <div className="xo-mobilebar">
+        <div className="xo-mobile-brand"><span className="xo-mobile-mark"><Radio size={14} /></span>Dispatch Hub</div>
+        <button type="button" className="xo-menu-button" aria-controls="dispatch-navigation" aria-expanded={menuOpen} aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X size={17} /> : <Menu size={17} />}
         </button>
       </div>
-      {menuOpen && <div className="af-backdrop" onClick={() => setMenuOpen(false)} />}
-      <aside ref={sidebarRef} className={`af-sidebar ${menuOpen ? 'open' : ''}`}>
-        <div className="af-brand"><span className="af-brand-mark"><Radio size={15} strokeWidth={2.5} /></span><span className="af-brand-name">Dispatch Hub</span><button className="af-sidebar-close af-menu-toggle" aria-label="Close menu" onClick={() => setMenuOpen(false)}><X size={17} /></button></div>
-        <div className="af-nav-label">Workshop</div>
-        <nav id="dispatch-navigation" className="af-nav" aria-label="Dashboard sections">
+      {menuOpen && <button type="button" className="xo-backdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)} />}
+      <aside ref={sidebarRef} className={`xo-sidebar ${menuOpen ? 'open' : ''}`} aria-label="Dispatch Hub navigation">
+        <div className="xo-brand"><span className="xo-brand-mark"><Radio size={16} strokeWidth={2.5} /></span><span className="xo-brand-name">Dispatch Hub</span><button type="button" className="xo-nav-close" aria-label="Close menu" onClick={() => setMenuOpen(false)}><X size={15} /></button></div>
+        <div className="xo-nav-label">Workshop</div>
+        <nav id="dispatch-navigation" className="xo-nav" aria-label="Dashboard sections">
           {items.map(({ to, label, Icon }) => {
             const active = to === '/' ? location === '/' : location.startsWith(to);
-            return <Link key={to} href={to} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}><Icon size={14} /> {label}</Link>;
+            return <Link key={to} href={to} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}><Icon size={16} strokeWidth={1.8} /><span>{label}</span></Link>;
           })}
         </nav>
-        <div className="af-side-note">
-          <span className="af-eyebrow">Dispatch desk</span>
+        <div className="xo-side-card">
+          <span className="xo-mono">Dispatch desk</span>
           <strong>One clear handoff.</strong>
-          <p>Fault notes become an accountable technician and stocked parts allocation.</p>
+          <p>Check people and parts at a glance, then route a repair into its dedicated workflow.</p>
         </div>
       </aside>
 
-      <div className="af-main" ref={mainRef}>
-        <div className="af-demo-banner">
-          <FlaskConical size={12} />
-          <span><b>Demo workspace: Dispatch Hub.</b> Synthetic data and mock AI analysis. Approvals update the demo inventory and audit log through the API.</span>
-          <span className="af-status" data-testid="status-connection"><span className={`af-dot ${hubQ.isError ? 'offline' : ''}`} /> {hubQ.isError ? 'Connection lost' : hubQ.isLoading ? 'Connecting…' : 'Live · 10s refresh'}</span>
+      <div className="xo-main" ref={mainRef}>
+        <div className="xo-demo-note" role="note">
+          <FlaskConical size={13} />
+          <span><strong>Demo workspace.</strong> Synthetic dispatch data and mock AI. Approvals update demo inventory and history.</span>
+          <span className="xo-note-tag" data-testid="status-connection"><span className={`xo-note-dot ${hubQ.isError ? 'offline' : hubQ.isLoading ? 'loading' : ''}`} /> {hubQ.isError ? 'Connection lost' : hubQ.isLoading ? 'Connecting…' : 'Live · 10s refresh'}</span>
         </div>
-        <main className="af-content">
+        <main className="xo-content">
           {(hubQ.isLoading || hubQ.isError) && <div className={hubQ.isError ? 'af-error af-hub-message' : 'af-hub-message'} role={hubQ.isError ? 'alert' : 'status'}>
             {hubQ.isError ? <><span>{hubQ.data ? 'Connection lost. Showing the last hub data; approvals are paused until reconnected.' : 'Unable to load technicians, inventory, or dispatch history.'}</span><button className="af-quiet-btn" onClick={() => void hubQ.refetch()} disabled={hubQ.isFetching}><RefreshCw size={13} /> Retry connection</button></> : 'Loading technicians, inventory, and dispatch history…'}
           </div>}
@@ -108,7 +115,7 @@ export default function Dashboard() {
               <Route component={NotFound} />
             </Switch>
           </div>
-          <div className="af-footer">Dispatch Hub · API-backed synthetic demo · Mock AI analysis</div>
+          <div className="xo-footer">Dispatch Hub · API-backed synthetic demo · Mock AI analysis</div>
         </main>
       </div>
     </div>
