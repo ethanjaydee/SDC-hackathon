@@ -311,7 +311,7 @@ components:
         reset_by: { type: string, minLength: 1, maxLength: 80 }
     SupplierOffer:
       type: object
-      required: [id, search_term, part_name, part_number, product_name, supplier_name, product_url, shop_url, price_myr, package_quantity, minimum_order_packs, shipping_myr, checked_at, source_type, availability_note, trust_evidence_url, trust_evidence_note]
+      required: [id, search_term, part_name, part_number, product_name, supplier_name, product_url, shop_url, price_myr, package_quantity, minimum_order_packs, shipping_myr, checked_at, source_type, availability_note, trust_evidence_url, trust_evidence_note, quality_rating, quality_evidence_note]
       properties:
         id: { type: string }
         search_term: { type: string }
@@ -330,6 +330,8 @@ components:
         availability_note: { type: string }
         trust_evidence_url: { type: ["string", "null"], format: uri }
         trust_evidence_note: { type: ["string", "null"] }
+        quality_rating: { type: integer, minimum: 1, maximum: 5 }
+        quality_evidence_note: { type: string }
     SupplierCatalogSearch:
       type: object
       required: [query, supplier_name, checked_at, offers]
@@ -351,15 +353,17 @@ components:
           items: { $ref: "#/components/schemas/SupplierOffer" }
     SupplierQuoteInput:
       type: object
-      required: [search_term, part_name, part_number, product_name, supplier_name, product_url, price_myr]
+      required: [search_term, part_name, product_name, supplier_name, product_url, price_myr, quality_rating, quality_evidence_note]
       properties:
         search_term: { type: string, minLength: 2, maxLength: 120 }
         part_name: { type: string, minLength: 2, maxLength: 120 }
-        part_number: { type: string, minLength: 1, maxLength: 120 }
+        part_number: { type: ["string", "null"], minLength: 1, maxLength: 120 }
         product_name: { type: string, minLength: 2, maxLength: 200 }
         supplier_name: { type: string, minLength: 2, maxLength: 120 }
         product_url: { type: string, format: uri, maxLength: 2048 }
         price_myr: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+        quality_rating: { type: integer, minimum: 1, maximum: 5 }
+        quality_evidence_note: { type: string, minLength: 5, maxLength: 400 }
         package_quantity: { type: integer, minimum: 1, maximum: 100000 }
         minimum_order_packs: { type: integer, minimum: 1, maximum: 100000 }
         shipping_myr: { type: ["number", "null"], minimum: 0, maximum: 1000000 }

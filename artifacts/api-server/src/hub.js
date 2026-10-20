@@ -13,6 +13,10 @@ import {
   ResetTechnicianAvailabilityBody,
   ResetTechnicianAvailabilityResponse,
   GetHubDataResponse,
+  ListSupplierQuotesQueryParams,
+  ListSupplierQuotesResponse,
+  SaveSupplierQuoteBody,
+  SaveSupplierQuoteResponse,
 } from "@workspace/api-zod";
 
 // The managed Express service mounts this router at /api.
@@ -52,6 +56,26 @@ db.exec(`
     van_id INTEGER NOT NULL,
     parts_json TEXT NOT NULL,
     customer_site_json TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS supplier_quotes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    search_term TEXT NOT NULL,
+    part_name TEXT NOT NULL,
+    part_number TEXT,
+    product_name TEXT NOT NULL,
+    supplier_name TEXT NOT NULL,
+    product_url TEXT NOT NULL,
+    price_myr REAL NOT NULL CHECK(price_myr > 0),
+    quality_rating INTEGER NOT NULL CHECK(quality_rating BETWEEN 1 AND 5),
+    quality_evidence_note TEXT NOT NULL,
+    package_quantity INTEGER NOT NULL DEFAULT 1 CHECK(package_quantity > 0),
+    minimum_order_packs INTEGER NOT NULL DEFAULT 1 CHECK(minimum_order_packs > 0),
+    shipping_myr REAL CHECK(shipping_myr IS NULL OR shipping_myr >= 0),
+    checked_at TEXT NOT NULL,
+    source_type TEXT NOT NULL DEFAULT 'captured_quote' CHECK(source_type = 'captured_quote'),
+    availability_note TEXT NOT NULL,
+    trust_evidence_url TEXT,
+    trust_evidence_note TEXT
   );
   CREATE TRIGGER IF NOT EXISTS activity_log_no_update
     BEFORE UPDATE ON activity_log BEGIN
@@ -320,6 +344,97 @@ router.post("/reset-technician", (req, res, next) => {
     }
     next(error);
   }
+});
+
+router.get("/supplier-quotes", (req, res) => {
+  const parsed = ListSupplierQuotesQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a part name with at least two characters." });
+    return;
+  }
+  const query = parsed.data.query.trim();
+  if (query.length < 2) {
+    res.status(400).json({ error: "Enter a part name with at least two characters." });
+    return;
+  }
+  const quotes = db.prepare(`
+    SELECT id, search_term, part_name, part_number, product_name, supplier_name,
+      product_url, price_myr, quality_rating, quality_evidence_note,
+      package_quantity, minimum_order_packs, shipping_myr, checked_at, source_type,
+      availability_note, trust_evidence_url, trust_evidence_note
+    FROM supplier_quotes
+    WHERE lower(search_term) = lower(?) OR lower(part_name) = lower(?)
+    ORDER BY quality_rating DESC, price_myr ASC, checked_at DESC, id DESC
+  `).all(query, query).map((offer) => ({
+    ...offer,
+    id: String(offer.id),
+    shop_url: new URL(offer.product_url).origin,
+  }));
+  res.json(ListSupplierQuotesResponse.parse({ query, quotes }));
+});
+
+router.post("/supplier-quotes", (req, res) => {
+  const parsed = SaveSupplierQuoteBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Provide a valid supplier, price, quality score, and evidence for the selected part." });
+    return;
+  }
+  const input = parsed.data;
+  const clean = (value) => value.trim();
+  const fields = [
+    input.search_term, input.part_name, input.product_name, input.supplier_name,
+    input.quality_evidence_note,
+  ];
+  if (fields.some((value) => !clean(value)) ||
+      (input.part_number != null && !clean(input.part_number))) {
+    res.status(400).json({ error: "Supplier and quality evidence fields cannot be blank." });
+    return;
+  }
+  const validWebUrl = (value) => {
+    if (!value) return null;
+    try {
+      const url = new URL(value);
+      return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password
+        ? url.toString()
+        : null;
+    } catch {
+      return null;
+    }
+  };
+  const productUrl = validWebUrl(input.product_url);
+  const trustEvidenceUrl = validWebUrl(input.trust_evidence_url);
+  if (!productUrl || (input.trust_evidence_url && !trustEvidenceUrl)) {
+    res.status(400).json({ error: "Supplier and evidence links must be valid public http(s) URLs." });
+    return;
+  }
+  const checkedAt = new Date().toISOString();
+  const result = db.prepare(`
+    INSERT INTO supplier_quotes (
+      search_term, part_name, part_number, product_name, supplier_name, product_url,
+      price_myr, quality_rating, quality_evidence_note, package_quantity,
+      minimum_order_packs, shipping_myr, checked_at, availability_note,
+      trust_evidence_url, trust_evidence_note
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    clean(input.search_term), clean(input.part_name), input.part_number ? clean(input.part_number) : null,
+    clean(input.product_name), clean(input.supplier_name), productUrl, input.price_myr,
+    input.quality_rating, clean(input.quality_evidence_note), input.package_quantity ?? 1,
+    input.minimum_order_packs ?? 1, input.shipping_myr ?? null, checkedAt,
+    "Availability not independently verified; check the supplier listing.",
+    trustEvidenceUrl, input.trust_evidence_note ? clean(input.trust_evidence_note) : null,
+  );
+  const offer = db.prepare(`
+    SELECT id, search_term, part_name, part_number, product_name, supplier_name,
+      product_url, price_myr, quality_rating, quality_evidence_note,
+      package_quantity, minimum_order_packs, shipping_myr, checked_at, source_type,
+      availability_note, trust_evidence_url, trust_evidence_note
+    FROM supplier_quotes WHERE id = ?
+  `).get(result.lastInsertRowid);
+  res.status(201).json(SaveSupplierQuoteResponse.parse({
+    ...offer,
+    id: String(offer.id),
+    shop_url: new URL(offer.product_url).origin,
+  }));
 });
 
 export default router;

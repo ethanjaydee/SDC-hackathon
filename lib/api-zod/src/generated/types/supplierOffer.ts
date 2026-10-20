@@ -41,4 +41,10 @@ export interface SupplierOffer {
   trust_evidence_url: string | null;
   /** @nullable */
   trust_evidence_note: string | null;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  quality_rating: number;
+  quality_evidence_note: string;
 }

@@ -294,6 +294,8 @@ export const searchSupplierCatalogResponseOffersItemPriceMyrMin = 0;
 
 export const searchSupplierCatalogResponseOffersItemShippingMyrMin = 0;
 
+export const searchSupplierCatalogResponseOffersItemQualityRatingMax = 5;
+
 export const searchSupplierCatalogResponseOffersMax = 20;
 
 
@@ -319,7 +321,9 @@ export const SearchSupplierCatalogResponse = zod.object({
   "source_type": zod.enum(['live_catalog', 'captured_quote']),
   "availability_note": zod.string(),
   "trust_evidence_url": zod.string().url().nullable(),
-  "trust_evidence_note": zod.string().nullable()
+  "trust_evidence_note": zod.string().nullable(),
+  "quality_rating": zod.number().int().min(1).max(searchSupplierCatalogResponseOffersItemQualityRatingMax),
+  "quality_evidence_note": zod.string()
 })).max(searchSupplierCatalogResponseOffersMax)
 })
 
@@ -342,6 +346,8 @@ export const listSupplierQuotesResponseQuotesItemPriceMyrMin = 0;
 
 export const listSupplierQuotesResponseQuotesItemShippingMyrMin = 0;
 
+export const listSupplierQuotesResponseQuotesItemQualityRatingMax = 5;
+
 
 
 export const ListSupplierQuotesResponse = zod.object({
@@ -363,7 +369,9 @@ export const ListSupplierQuotesResponse = zod.object({
   "source_type": zod.enum(['live_catalog', 'captured_quote']),
   "availability_note": zod.string(),
   "trust_evidence_url": zod.string().url().nullable(),
-  "trust_evidence_note": zod.string().nullable()
+  "trust_evidence_note": zod.string().nullable(),
+  "quality_rating": zod.number().int().min(1).max(listSupplierQuotesResponseQuotesItemQualityRatingMax),
+  "quality_evidence_note": zod.string()
 }))
 })
 
@@ -390,6 +398,11 @@ export const saveSupplierQuoteBodyProductUrlMax = 2048;
 export const saveSupplierQuoteBodyPriceMyrExclusiveMin = 0;
 export const saveSupplierQuoteBodyPriceMyrMax = 1000000;
 
+export const saveSupplierQuoteBodyQualityRatingMax = 5;
+
+export const saveSupplierQuoteBodyQualityEvidenceNoteMin = 5;
+export const saveSupplierQuoteBodyQualityEvidenceNoteMax = 400;
+
 export const saveSupplierQuoteBodyPackageQuantityMax = 100000;
 
 export const saveSupplierQuoteBodyMinimumOrderPacksMax = 100000;
@@ -406,11 +419,13 @@ export const saveSupplierQuoteBodyTrustEvidenceNoteMax = 400;
 export const SaveSupplierQuoteBody = zod.object({
   "search_term": zod.string().min(saveSupplierQuoteBodySearchTermMin).max(saveSupplierQuoteBodySearchTermMax),
   "part_name": zod.string().min(saveSupplierQuoteBodyPartNameMin).max(saveSupplierQuoteBodyPartNameMax),
-  "part_number": zod.string().min(1).max(saveSupplierQuoteBodyPartNumberMax),
+  "part_number": zod.string().min(1).max(saveSupplierQuoteBodyPartNumberMax).nullish(),
   "product_name": zod.string().min(saveSupplierQuoteBodyProductNameMin).max(saveSupplierQuoteBodyProductNameMax),
   "supplier_name": zod.string().min(saveSupplierQuoteBodySupplierNameMin).max(saveSupplierQuoteBodySupplierNameMax),
   "product_url": zod.string().url().max(saveSupplierQuoteBodyProductUrlMax),
   "price_myr": zod.number().gt(saveSupplierQuoteBodyPriceMyrExclusiveMin).max(saveSupplierQuoteBodyPriceMyrMax),
+  "quality_rating": zod.number().int().min(1).max(saveSupplierQuoteBodyQualityRatingMax),
+  "quality_evidence_note": zod.string().min(saveSupplierQuoteBodyQualityEvidenceNoteMin).max(saveSupplierQuoteBodyQualityEvidenceNoteMax),
   "package_quantity": zod.number().int().min(1).max(saveSupplierQuoteBodyPackageQuantityMax).optional(),
   "minimum_order_packs": zod.number().int().min(1).max(saveSupplierQuoteBodyMinimumOrderPacksMax).optional(),
   "shipping_myr": zod.number().min(saveSupplierQuoteBodyShippingMyrMin).max(saveSupplierQuoteBodyShippingMyrMax).nullish(),
@@ -423,6 +438,8 @@ export const saveSupplierQuoteResponsePriceMyrMin = 0;
 
 
 export const saveSupplierQuoteResponseShippingMyrMin = 0;
+
+export const saveSupplierQuoteResponseQualityRatingMax = 5;
 
 
 
@@ -443,7 +460,9 @@ export const SaveSupplierQuoteResponse = zod.object({
   "source_type": zod.enum(['live_catalog', 'captured_quote']),
   "availability_note": zod.string(),
   "trust_evidence_url": zod.string().url().nullable(),
-  "trust_evidence_note": zod.string().nullable()
+  "trust_evidence_note": zod.string().nullable(),
+  "quality_rating": zod.number().int().min(1).max(saveSupplierQuoteResponseQualityRatingMax),
+  "quality_evidence_note": zod.string()
 })
 
 

@@ -20,8 +20,9 @@ export interface SupplierQuoteInput {
   /**
      * @minLength 1
      * @maxLength 120
+     * @nullable
      */
-  part_number: string;
+  part_number?: string | null;
   /**
      * @minLength 2
      * @maxLength 200
@@ -39,6 +40,16 @@ export interface SupplierQuoteInput {
      * @exclusiveMinimum 0
      */
   price_myr: number;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  quality_rating: number;
+  /**
+     * @minLength 5
+     * @maxLength 400
+     */
+  quality_evidence_note: string;
   /**
      * @minimum 1
      * @maximum 100000
