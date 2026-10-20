@@ -125,6 +125,63 @@ paths:
           $ref: "#/components/responses/InvalidRequest"
         "409":
           $ref: "#/components/responses/InvalidRequest"
+  /supplier-catalog:
+    get:
+      operationId: searchSupplierCatalog
+      tags: [hub]
+      summary: Search the directly accessible Malaysian supplier catalog
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 120 }
+      responses:
+        "200":
+          description: Current listings with supplier page links and check time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierCatalogSearch"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+  /supplier-quotes:
+    get:
+      operationId: listSupplierQuotes
+      tags: [hub]
+      summary: List manually captured current prices from other suppliers
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 120 }
+      responses:
+        "200":
+          description: Saved price quotes with source and evidence links
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierQuoteList"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+    post:
+      operationId: saveSupplierQuote
+      tags: [hub]
+      summary: Save a dated supplier offer for the workshop team to compare
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierQuoteInput"
+      responses:
+        "201":
+          description: Saved supplier quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOffer"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
 components:
   responses:
     InvalidRequest:
@@ -252,6 +309,62 @@ components:
       properties:
         technician_id: { type: integer, minimum: 1 }
         reset_by: { type: string, minLength: 1, maxLength: 80 }
+    SupplierOffer:
+      type: object
+      required: [id, search_term, part_name, part_number, product_name, supplier_name, product_url, shop_url, price_myr, package_quantity, minimum_order_packs, shipping_myr, checked_at, source_type, availability_note, trust_evidence_url, trust_evidence_note]
+      properties:
+        id: { type: string }
+        search_term: { type: string }
+        part_name: { type: string }
+        part_number: { type: ["string", "null"] }
+        product_name: { type: string }
+        supplier_name: { type: string }
+        product_url: { type: string, format: uri }
+        shop_url: { type: string, format: uri }
+        price_myr: { type: number, minimum: 0 }
+        package_quantity: { type: ["integer", "null"], minimum: 1 }
+        minimum_order_packs: { type: ["integer", "null"], minimum: 1 }
+        shipping_myr: { type: ["number", "null"], minimum: 0 }
+        checked_at: { type: string, format: date-time }
+        source_type: { type: string, enum: [live_catalog, captured_quote] }
+        availability_note: { type: string }
+        trust_evidence_url: { type: ["string", "null"], format: uri }
+        trust_evidence_note: { type: ["string", "null"] }
+    SupplierCatalogSearch:
+      type: object
+      required: [query, supplier_name, checked_at, offers]
+      properties:
+        query: { type: string }
+        supplier_name: { type: string }
+        checked_at: { type: string, format: date-time }
+        offers:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/SupplierOffer" }
+    SupplierQuoteList:
+      type: object
+      required: [query, quotes]
+      properties:
+        query: { type: string }
+        quotes:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierOffer" }
+    SupplierQuoteInput:
+      type: object
+      required: [search_term, part_name, part_number, product_name, supplier_name, product_url, price_myr]
+      properties:
+        search_term: { type: string, minLength: 2, maxLength: 120 }
+        part_name: { type: string, minLength: 2, maxLength: 120 }
+        part_number: { type: string, minLength: 1, maxLength: 120 }
+        product_name: { type: string, minLength: 2, maxLength: 200 }
+        supplier_name: { type: string, minLength: 2, maxLength: 120 }
+        product_url: { type: string, format: uri, maxLength: 2048 }
+        price_myr: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+        package_quantity: { type: integer, minimum: 1, maximum: 100000 }
+        minimum_order_packs: { type: integer, minimum: 1, maximum: 100000 }
+        shipping_myr: { type: ["number", "null"], minimum: 0, maximum: 1000000 }
+        trust_evidence_url: { type: string, format: uri, maxLength: 2048 }
+        trust_evidence_note: { type: string, maxLength: 400 }
     HealthStatus:
       type: object
       properties:
