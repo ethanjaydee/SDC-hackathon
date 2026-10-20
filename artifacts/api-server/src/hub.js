@@ -20,6 +20,11 @@ import {
   SearchSupplierCatalogResponse,
   SaveSupplierQuoteBody,
   SaveSupplierQuoteResponse,
+  ListReorderDraftsResponse,
+  CreateReorderDraftBody,
+  CreateReorderDraftResponse,
+  ApproveReorderDraftBody,
+  ApproveReorderDraftResponse,
 } from "@workspace/api-zod";
 
 // The managed Express service mounts this router at /api.
@@ -80,6 +85,34 @@ db.exec(`
     trust_evidence_url TEXT,
     trust_evidence_note TEXT
   );
+  CREATE TABLE IF NOT EXISTS reorder_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    inventory_id INTEGER NOT NULL REFERENCES inventory(id),
+    van_id INTEGER NOT NULL,
+    part_name TEXT NOT NULL,
+    quantity_on_hand INTEGER NOT NULL CHECK(quantity_on_hand >= 0),
+    source_type TEXT NOT NULL CHECK(source_type IN ('captured_quote', 'live_catalog')),
+    source_offer_id TEXT NOT NULL,
+    supplier_name TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    product_url TEXT NOT NULL,
+    unit_price_myr REAL NOT NULL CHECK(unit_price_myr > 0),
+    pack_price_myr REAL NOT NULL CHECK(pack_price_myr > 0),
+    package_quantity INTEGER CHECK(package_quantity IS NULL OR package_quantity > 0),
+    minimum_order_packs INTEGER CHECK(minimum_order_packs IS NULL OR minimum_order_packs > 0),
+    shipping_myr REAL CHECK(shipping_myr IS NULL OR shipping_myr >= 0),
+    availability_note TEXT NOT NULL CHECK(availability_note IN ('In stock', 'Limited stock', 'Out of stock', 'Not checked')),
+    offer_checked_at TEXT NOT NULL,
+    offer_stale INTEGER NOT NULL CHECK(offer_stale IN (0, 1)),
+    requested_quantity INTEGER NOT NULL CHECK(requested_quantity > 0),
+    created_at TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Draft' CHECK(status IN ('Draft', 'Approved')),
+    approved_at TEXT,
+    approved_by TEXT
+  );
+  CREATE INDEX IF NOT EXISTS reorder_drafts_status_created
+    ON reorder_drafts(status, created_at DESC, id DESC);
   CREATE TRIGGER IF NOT EXISTS activity_log_no_update
     BEFORE UPDATE ON activity_log BEGIN
       SELECT RAISE(ABORT, 'Activity log is immutable');
@@ -275,6 +308,109 @@ const resetTechnicianAvailability = db.transaction(({ technician_id, reset_by })
 
 const router = Router();
 
+function listReorderDrafts() {
+  return {
+    reorders: db.prepare(`
+      SELECT * FROM reorder_drafts
+      ORDER BY created_at DESC, id DESC
+    `).all().map((reorder) => ({
+      ...reorder,
+      offer_stale: Boolean(reorder.offer_stale),
+    })),
+  };
+}
+
+class ReorderNotFound extends Error {}
+class ReorderConflict extends Error {}
+
+const createReorderDraft = db.transaction((input) => {
+  const stock = db.prepare("SELECT * FROM inventory WHERE id = ?").get(input.inventory_id);
+  if (!stock) throw new ReorderNotFound("The selected stock line no longer exists.");
+  if (stock.part_name.toLowerCase() !== input.part_name.trim().toLowerCase()) {
+    throw new ReorderConflict("The selected supplier offer does not match this stock line.");
+  }
+  if (input.availability_note === "Out of stock") {
+    throw new ReorderConflict("This supplier offer is marked out of stock. Choose another offer.");
+  }
+
+  let offerSnapshot = input;
+  if (input.source_type === "captured_quote") {
+    const match = /^quote-(\d+)$/.exec(input.source_offer_id);
+    if (!match) throw new ReorderConflict("The selected captured quote could not be verified.");
+    const quote = db.prepare(`
+      SELECT * FROM supplier_quotes WHERE id = ? AND lower(part_name) = lower(?)
+    `).get(Number(match[1]), stock.part_name);
+    if (!quote) throw new ReorderConflict("The selected supplier quote no longer matches this stock line.");
+    offerSnapshot = {
+      ...input,
+      supplier_name: quote.supplier_name,
+      product_name: quote.product_name,
+      product_url: quote.product_url,
+      unit_price_myr: (quote.price_myr * quote.minimum_order_packs + (quote.shipping_myr ?? 0)) /
+        (quote.package_quantity * quote.minimum_order_packs),
+      pack_price_myr: quote.price_myr,
+      package_quantity: quote.package_quantity,
+      minimum_order_packs: quote.minimum_order_packs,
+      shipping_myr: quote.shipping_myr,
+      availability_note: quote.availability_note,
+      offer_checked_at: quote.checked_at,
+      offer_stale: Date.now() - new Date(quote.checked_at).getTime() > supplierCatalogStaleAfterMs,
+    };
+    if (offerSnapshot.availability_note === "Out of stock") {
+      throw new ReorderConflict("This supplier offer is marked out of stock. Choose another offer.");
+    }
+  } else if (!input.source_offer_id.startsWith("live-")) {
+    throw new ReorderConflict("The selected live supplier offer could not be verified.");
+  }
+  let productUrl;
+  try {
+    productUrl = new URL(offerSnapshot.product_url);
+  } catch {
+    throw new ReorderConflict("The selected supplier offer has an invalid product link.");
+  }
+  if (!["http:", "https:"].includes(productUrl.protocol) || productUrl.username || productUrl.password) {
+    throw new ReorderConflict("The selected supplier offer has an invalid product link.");
+  }
+
+  const createdAt = new Date().toISOString();
+  const offerCheckedAt = new Date(offerSnapshot.offer_checked_at).toISOString();
+  const result = db.prepare(`
+    INSERT INTO reorder_drafts (
+      inventory_id, van_id, part_name, quantity_on_hand, source_type, source_offer_id,
+      supplier_name, product_name, product_url, unit_price_myr, pack_price_myr,
+      package_quantity, minimum_order_packs, shipping_myr, availability_note,
+      offer_checked_at, offer_stale, requested_quantity, created_at, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    stock.id, stock.van_id, stock.part_name, stock.quantity,
+    input.source_type, input.source_offer_id,
+    offerSnapshot.supplier_name.trim(), offerSnapshot.product_name.trim(), productUrl.toString(),
+    offerSnapshot.unit_price_myr, offerSnapshot.pack_price_myr, offerSnapshot.package_quantity ?? null,
+    offerSnapshot.minimum_order_packs ?? null, offerSnapshot.shipping_myr ?? null,
+    offerSnapshot.availability_note, offerCheckedAt, offerSnapshot.offer_stale ? 1 : 0,
+    input.requested_quantity, createdAt, "Demo Dispatcher",
+  );
+  return db.prepare("SELECT * FROM reorder_drafts WHERE id = ?").get(result.lastInsertRowid);
+});
+
+const approveReorderDraft = db.transaction(({ id, approved_by }) => {
+  const current = db.prepare("SELECT * FROM reorder_drafts WHERE id = ?").get(id);
+  if (!current) throw new ReorderNotFound("Reorder draft not found.");
+  if (current.status !== "Draft") throw new ReorderConflict("This reorder has already been approved.");
+  const approvedAt = new Date().toISOString();
+  const updated = db.prepare(`
+    UPDATE reorder_drafts
+    SET status = 'Approved', approved_at = ?, approved_by = ?
+    WHERE id = ? AND status = 'Draft'
+  `).run(approvedAt, approved_by, id);
+  if (updated.changes !== 1) throw new ReorderConflict("This reorder has already been approved.");
+  return db.prepare("SELECT * FROM reorder_drafts WHERE id = ?").get(id);
+});
+
+function reorderResponse(record) {
+  return { ...record, offer_stale: Boolean(record.offer_stale) };
+}
+
 const supplierAvailability = new Set([
   "In stock",
   "Limited stock",
@@ -451,6 +587,67 @@ router.use((_req, res, next) => {
 });
 router.get("/hub-data", (_req, res) => {
   res.json(GetHubDataResponse.parse(getHubData()));
+});
+router.get("/reorder-drafts", (_req, res) => {
+  res.json(ListReorderDraftsResponse.parse({
+    reorders: listReorderDrafts().reorders.map(reorderResponse),
+  }));
+});
+router.post("/reorder-drafts", (req, res, next) => {
+  const parsed = CreateReorderDraftBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Provide a valid stock line, supplier offer, quantity, and price." });
+    return;
+  }
+  try {
+    const input = parsed.data;
+    if ([input.supplier_name, input.product_name, input.source_offer_id].some((value) => !value.trim()) ||
+        Number.isNaN(new Date(input.offer_checked_at).getTime())) {
+      res.status(400).json({ error: "Supplier offer details cannot be blank or have an invalid check time." });
+      return;
+    }
+    let offeredProductUrl;
+    try {
+      offeredProductUrl = new URL(input.product_url);
+    } catch {
+      res.status(400).json({ error: "The supplier product link must be a public http(s) URL." });
+      return;
+    }
+    if (!["http:", "https:"].includes(offeredProductUrl.protocol) ||
+        offeredProductUrl.username || offeredProductUrl.password) {
+      res.status(400).json({ error: "The supplier product link must be a public http(s) URL." });
+      return;
+    }
+    const created = createReorderDraft.immediate(input);
+    res.status(201).json(CreateReorderDraftResponse.parse(reorderResponse(created)));
+  } catch (error) {
+    if (error instanceof ReorderNotFound || error instanceof ReorderConflict) {
+      res.status(error instanceof ReorderNotFound ? 404 : 409).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
+});
+router.post("/reorder-drafts/:id/approve", (req, res, next) => {
+  const parsed = ApproveReorderDraftBody.safeParse(req.body);
+  const id = Number(req.params.id);
+  if (!parsed.success || !Number.isSafeInteger(id) || id < 1 || !parsed.data.approved_by.trim()) {
+    res.status(400).json({ error: "Provide a valid reorder ID and approver name." });
+    return;
+  }
+  try {
+    const approved = approveReorderDraft.immediate({
+      id,
+      approved_by: parsed.data.approved_by.trim(),
+    });
+    res.json(ApproveReorderDraftResponse.parse(reorderResponse(approved)));
+  } catch (error) {
+    if (error instanceof ReorderNotFound || error instanceof ReorderConflict) {
+      res.status(error instanceof ReorderNotFound ? 404 : 409).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
 });
 
 router.get("/supplier-catalog/providers", (_req, res) => {

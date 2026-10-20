@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react';
 import { Link } from 'wouter';
-import { ArrowRight, Boxes, Check, Clock3, History, Inbox, PackageCheck, X } from 'lucide-react';
+import { ArrowRight, Boxes, Check, Clock3, ClipboardList, History, Inbox, PackageCheck, X } from 'lucide-react';
 import { dateTime, type Hub } from './shared';
 import StatusRing from './StatusRing';
 
 type MetricKey = 'available' | 'stock' | 'healthy';
 
 export default function OverviewPage({ hub }: Hub) {
-  const { hubQ, technicians, inventory, availableCount, lowStockCount, dispatchedToday, activity, analysis } = hub;
+  const { hubQ, reordersQ, technicians, inventory, availableCount, lowStockCount, openReorderCount, dispatchedToday, activity, analysis } = hub;
   const [detail, setDetail] = useState<MetricKey | null>(null);
   const triggers = useRef<Partial<Record<MetricKey, HTMLButtonElement | null>>>({});
   const ready = !!hubQ.data;
@@ -111,6 +111,13 @@ export default function OverviewPage({ hub }: Hub) {
             <div>
               <div className="xo-count-number">{ready ? lowStockCount : '—'}</div>
               <div className="xo-count-foot"><b>Low-stock lines</b> · 2 units or fewer · <b>Review lines <ArrowRight size={11} /></b></div>
+            </div>
+          </Link>
+          <Link href="/reorders" className="xo-panel xo-count-card xo-count-link xo-reorder-count" aria-label={reordersQ.data ? `Review ${openReorderCount} open reorder drafts` : 'Open reorder drafts'}>
+            <div className="xo-count-heading"><span>Open reorder drafts</span><span className="xo-count-icon"><ClipboardList size={16} /></span></div>
+            <div>
+              <div className="xo-count-number">{reordersQ.data ? openReorderCount : '—'}</div>
+              <div className="xo-count-foot"><b>Review requests <ArrowRight size={11} /></b> · separate from van stock</div>
             </div>
           </Link>
         </div>

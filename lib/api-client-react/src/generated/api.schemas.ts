@@ -383,6 +383,171 @@ export interface SupplierQuoteInput {
   trust_evidence_note?: string;
 }
 
+export type ReorderDraftSourceType = typeof ReorderDraftSourceType[keyof typeof ReorderDraftSourceType];
+
+
+export const ReorderDraftSourceType = {
+  captured_quote: 'captured_quote',
+  live_catalog: 'live_catalog',
+} as const;
+
+export type ReorderDraftAvailabilityNote = typeof ReorderDraftAvailabilityNote[keyof typeof ReorderDraftAvailabilityNote];
+
+
+export const ReorderDraftAvailabilityNote = {
+  In_stock: 'In stock',
+  Limited_stock: 'Limited stock',
+  Out_of_stock: 'Out of stock',
+  Not_checked: 'Not checked',
+} as const;
+
+export type ReorderDraftStatus = typeof ReorderDraftStatus[keyof typeof ReorderDraftStatus];
+
+
+export const ReorderDraftStatus = {
+  Draft: 'Draft',
+  Approved: 'Approved',
+} as const;
+
+export interface ReorderDraft {
+  id: number;
+  inventory_id: number;
+  van_id: number;
+  part_name: string;
+  /** @minimum 0 */
+  quantity_on_hand: number;
+  source_type: ReorderDraftSourceType;
+  source_offer_id: string;
+  supplier_name: string;
+  product_name: string;
+  product_url: string;
+  /** @exclusiveMinimum 0 */
+  unit_price_myr: number;
+  /** @exclusiveMinimum 0 */
+  pack_price_myr: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  package_quantity: number | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  minimum_order_packs: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  shipping_myr: number | null;
+  availability_note: ReorderDraftAvailabilityNote;
+  offer_checked_at: string;
+  offer_stale: boolean;
+  /** @minimum 1 */
+  requested_quantity: number;
+  created_at: string;
+  created_by: string;
+  status: ReorderDraftStatus;
+  /** @nullable */
+  approved_at: string | null;
+  /** @nullable */
+  approved_by: string | null;
+}
+
+export interface ReorderDraftList {
+  reorders: ReorderDraft[];
+}
+
+export type ReorderDraftInputSourceType = typeof ReorderDraftInputSourceType[keyof typeof ReorderDraftInputSourceType];
+
+
+export const ReorderDraftInputSourceType = {
+  captured_quote: 'captured_quote',
+  live_catalog: 'live_catalog',
+} as const;
+
+export type ReorderDraftInputAvailabilityNote = typeof ReorderDraftInputAvailabilityNote[keyof typeof ReorderDraftInputAvailabilityNote];
+
+
+export const ReorderDraftInputAvailabilityNote = {
+  In_stock: 'In stock',
+  Limited_stock: 'Limited stock',
+  Out_of_stock: 'Out of stock',
+  Not_checked: 'Not checked',
+} as const;
+
+export interface ReorderDraftInput {
+  /** @minimum 1 */
+  inventory_id: number;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  part_name: string;
+  source_type: ReorderDraftInputSourceType;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  source_offer_id: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  supplier_name: string;
+  /**
+     * @minLength 2
+     * @maxLength 200
+     */
+  product_name: string;
+  /** @maxLength 2048 */
+  product_url: string;
+  /**
+     * @maximum 1000000
+     * @exclusiveMinimum 0
+     */
+  unit_price_myr: number;
+  /**
+     * @maximum 1000000
+     * @exclusiveMinimum 0
+     */
+  pack_price_myr: number;
+  /**
+     * @minimum 1
+     * @maximum 100000
+     * @nullable
+     */
+  package_quantity?: number | null;
+  /**
+     * @minimum 1
+     * @maximum 100000
+     * @nullable
+     */
+  minimum_order_packs?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     * @nullable
+     */
+  shipping_myr?: number | null;
+  availability_note: ReorderDraftInputAvailabilityNote;
+  offer_checked_at: string;
+  offer_stale: boolean;
+  /**
+     * @minimum 1
+     * @maximum 100000
+     */
+  requested_quantity: number;
+}
+
+export interface ReorderApprovalInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  approved_by: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

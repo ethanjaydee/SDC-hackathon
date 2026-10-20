@@ -213,6 +213,68 @@ paths:
                 $ref: "#/components/schemas/SupplierOffer"
         "400":
           $ref: "#/components/responses/InvalidRequest"
+  /reorder-drafts:
+    get:
+      operationId: listReorderDrafts
+      tags: [hub]
+      summary: List saved reorder drafts and approved requests
+      responses:
+        "200":
+          description: Reorder records kept separately from van inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReorderDraftList"
+    post:
+      operationId: createReorderDraft
+      tags: [hub]
+      summary: Save a reorder draft from a selected stock line and supplier offer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderDraftInput"
+      responses:
+        "201":
+          description: Saved reorder draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReorderDraft"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "404":
+          $ref: "#/components/responses/InvalidRequest"
+  /reorder-drafts/{id}/approve:
+    post:
+      operationId: approveReorderDraft
+      tags: [hub]
+      summary: Approve a reviewed reorder draft without changing van stock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderApprovalInput"
+      responses:
+        "200":
+          description: Approved reorder request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReorderDraft"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "404":
+          $ref: "#/components/responses/InvalidRequest"
+        "409":
+          $ref: "#/components/responses/InvalidRequest"
 components:
   responses:
     InvalidRequest:
@@ -441,6 +503,66 @@ components:
         shipping_myr: { type: ["number", "null"], minimum: 0, maximum: 1000000 }
         trust_evidence_url: { type: string, format: uri, maxLength: 2048 }
         trust_evidence_note: { type: string, maxLength: 400 }
+    ReorderDraft:
+      type: object
+      required: [id, inventory_id, van_id, part_name, quantity_on_hand, source_type, source_offer_id, supplier_name, product_name, product_url, unit_price_myr, pack_price_myr, package_quantity, minimum_order_packs, shipping_myr, availability_note, offer_checked_at, offer_stale, requested_quantity, created_at, created_by, status, approved_at, approved_by]
+      properties:
+        id: { type: integer }
+        inventory_id: { type: integer }
+        van_id: { type: integer }
+        part_name: { type: string }
+        quantity_on_hand: { type: integer, minimum: 0 }
+        source_type: { type: string, enum: [captured_quote, live_catalog] }
+        source_offer_id: { type: string }
+        supplier_name: { type: string }
+        product_name: { type: string }
+        product_url: { type: string, format: uri }
+        unit_price_myr: { type: number, exclusiveMinimum: 0 }
+        pack_price_myr: { type: number, exclusiveMinimum: 0 }
+        package_quantity: { type: ["integer", "null"], minimum: 1 }
+        minimum_order_packs: { type: ["integer", "null"], minimum: 1 }
+        shipping_myr: { type: ["number", "null"], minimum: 0 }
+        availability_note: { type: string, enum: [In stock, Limited stock, Out of stock, Not checked] }
+        offer_checked_at: { type: string, format: date-time }
+        offer_stale: { type: boolean }
+        requested_quantity: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        created_by: { type: string }
+        status: { type: string, enum: [Draft, Approved] }
+        approved_at: { type: ["string", "null"], format: date-time }
+        approved_by: { type: ["string", "null"] }
+    ReorderDraftList:
+      type: object
+      required: [reorders]
+      properties:
+        reorders:
+          type: array
+          items: { $ref: "#/components/schemas/ReorderDraft" }
+    ReorderDraftInput:
+      type: object
+      required: [inventory_id, part_name, source_type, source_offer_id, supplier_name, product_name, product_url, unit_price_myr, pack_price_myr, availability_note, offer_checked_at, offer_stale, requested_quantity]
+      properties:
+        inventory_id: { type: integer, minimum: 1 }
+        part_name: { type: string, minLength: 2, maxLength: 120 }
+        source_type: { type: string, enum: [captured_quote, live_catalog] }
+        source_offer_id: { type: string, minLength: 1, maxLength: 300 }
+        supplier_name: { type: string, minLength: 2, maxLength: 120 }
+        product_name: { type: string, minLength: 2, maxLength: 200 }
+        product_url: { type: string, format: uri, maxLength: 2048 }
+        unit_price_myr: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+        pack_price_myr: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+        package_quantity: { type: ["integer", "null"], minimum: 1, maximum: 100000 }
+        minimum_order_packs: { type: ["integer", "null"], minimum: 1, maximum: 100000 }
+        shipping_myr: { type: ["number", "null"], minimum: 0, maximum: 1000000 }
+        availability_note: { type: string, enum: [In stock, Limited stock, Out of stock, Not checked] }
+        offer_checked_at: { type: string, format: date-time }
+        offer_stale: { type: boolean }
+        requested_quantity: { type: integer, minimum: 1, maximum: 100000 }
+    ReorderApprovalInput:
+      type: object
+      required: [approved_by]
+      properties:
+        approved_by: { type: string, minLength: 1, maxLength: 80 }
     HealthStatus:
       type: object
       properties:

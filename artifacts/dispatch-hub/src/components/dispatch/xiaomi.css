@@ -116,7 +116,7 @@
 .xo-ring-label { margin-top: 14px; font: 700 11px 'Manrope', sans-serif; letter-spacing: -.015em; }
 .xo-ring-criteria { margin-top: 5px; color: #778780; font-size: 9px; line-height: 1.45; }
 .xo-ring-hint { margin-top: 9px; display: inline-flex; align-items: center; gap: 4px; color: #8b9892; font-size: 8px; }
-.xo-side-stack { display: grid; gap: 14px; grid-template-rows: 1fr 1fr; }
+.xo-side-stack { display: grid; gap: 14px; grid-template-rows: repeat(3,minmax(0,1fr)); }
 .xo-count-card {
   padding: 22px 23px; display: flex; flex-direction: column; justify-content: space-between;
   overflow: hidden; position: relative;
@@ -175,7 +175,7 @@
   .xo-sidebar { width: 214px; }
   .xo-main { margin-left: 214px; }
   .xo-overview-grid { grid-template-columns: 1fr; }
-  .xo-side-stack { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: auto; }
+  .xo-side-stack { grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: auto; }
   .xo-count-card { min-height: 155px; }
 }
 @media (max-width: 650px) {
@@ -210,6 +210,7 @@
   .xo-ring-criteria { font-size: 8px; }
   .xo-ring-hint { font-size: 7px; }
   .xo-side-stack { gap: 9px; }
+  .xo-reorder-count { grid-column: 1 / -1; min-height: 125px !important; }
   .xo-count-card { min-height: 143px; padding: 16px 15px; border-radius: 19px; }
   .xo-count-heading { align-items: flex-start; font-size: 9px; }
   .xo-count-number { font-size: 38px; }

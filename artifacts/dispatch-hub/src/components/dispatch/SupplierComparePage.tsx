@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowDownWideNarrow, ArrowUpRight, BadgeCheck, LoaderCircle, Plus, RefreshCw, ShoppingBag, Star } from 'lucide-react';
+import { useLocation } from 'wouter';
+import { ArrowDownWideNarrow, ArrowUpRight, BadgeCheck, LoaderCircle, PackagePlus, Plus, RefreshCw, ShoppingBag, Star } from 'lucide-react';
 import {
+  getListReorderDraftsQueryKey,
   getListSupplierCatalogProvidersQueryKey,
   getListSupplierQuotesQueryKey,
   getSearchSupplierCatalogQueryKey,
   useListSupplierCatalogProviders,
   useListSupplierQuotes,
   useSearchSupplierCatalog,
+  useCreateReorderDraft,
   useSaveSupplierQuote,
   type SupplierCatalogOffer,
   type SupplierOffer,
   type SupplierQuoteInput,
+  type ReorderDraftInput,
 } from '@workspace/api-client-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, PageHead, type Hub } from './shared';
@@ -75,14 +79,21 @@ function unitPrice(offer: { price_myr: number; package_quantity?: number | null;
 
 export default function SupplierComparePage({ hub }: Hub) {
   const parts = useMemo(() => [...new Set(hub.inventory.map((item) => item.part_name))].sort(), [hub.inventory]);
-  const [selectedPart, setSelectedPart] = useState('');
+  const requestedInventoryId = Number(new URLSearchParams(window.location.search).get('inventory_id'));
+  const reorderStockLine = Number.isSafeInteger(requestedInventoryId) && requestedInventoryId > 0
+    ? hub.inventory.find((item) => item.id === requestedInventoryId)
+    : undefined;
+  const [selectedPart, setSelectedPart] = useState(() => new URLSearchParams(window.location.search).get('part') || '');
+  const [reorderQuantity, setReorderQuantity] = useState('');
+  const [reorderError, setReorderError] = useState('');
   const [sortMode, setSortMode] = useState<'quality' | 'price'>('quality');
   const [form, setForm] = useState<OfferForm>(emptyForm);
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
   const supplierSelectionInitialized = useRef(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const partName = selectedPart || parts[0] || '';
+  const [, navigate] = useLocation();
+  const partName = selectedPart || reorderStockLine?.part_name || parts[0] || '';
   const providersQuery = useListSupplierCatalogProviders({
     query: {
       queryKey: getListSupplierCatalogProvidersQueryKey(),
@@ -134,6 +145,10 @@ export default function SupplierComparePage({ hub }: Hub) {
     },
   );
   const saveQuote = useSaveSupplierQuote();
+  const createReorder = useCreateReorderDraft();
+  useEffect(() => {
+    if (reorderStockLine && !selectedPart) setSelectedPart(reorderStockLine.part_name);
+  }, [reorderStockLine, selectedPart]);
   const offers = useMemo(() => {
     const captured: ComparisonOffer[] = (quotesQuery.data?.quotes ?? []).map((offer) => ({
       id: `quote-${offer.id}`,
@@ -195,6 +210,41 @@ export default function SupplierComparePage({ hub }: Hub) {
   };
   const setField = (key: keyof OfferForm, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
+
+  const createDraft = async (offer: ComparisonOffer) => {
+    if (!reorderStockLine || partName.toLowerCase() !== reorderStockLine.part_name.toLowerCase()) return;
+    setReorderError('');
+    const input: ReorderDraftInput = {
+      inventory_id: reorderStockLine.id,
+      part_name: partName,
+      source_type: offer.sourceType,
+      source_offer_id: offer.id,
+      supplier_name: offer.supplierName,
+      product_name: offer.productName,
+      product_url: offer.productUrl,
+      unit_price_myr: offer.priceMyr,
+      pack_price_myr: offer.packPrice,
+      package_quantity: offer.packageQuantity,
+      minimum_order_packs: offer.minimumOrderPacks,
+      shipping_myr: offer.shippingMyr,
+      availability_note: offer.availabilityNote as ReorderDraftInput['availability_note'],
+      offer_checked_at: offer.checkedAt,
+      offer_stale: offer.stale,
+      requested_quantity: Number(reorderQuantity || Math.max(1, 5 - reorderStockLine.quantity)),
+    };
+    try {
+      await createReorder.mutateAsync({ data: input });
+      await queryClient.invalidateQueries({ queryKey: getListReorderDraftsQueryKey() });
+      toast({
+        title: 'Reorder draft saved',
+        description: `${input.requested_quantity} × ${reorderStockLine.part_name} from ${offer.supplierName}. Van stock is unchanged.`,
+      });
+      navigate('/reorders');
+    } catch (error) {
+      const detail = error as { data?: { error?: string }; message?: string };
+      setReorderError(detail?.data?.error || detail?.message || 'The reorder draft could not be saved.');
+    }
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -285,6 +335,30 @@ export default function SupplierComparePage({ hub }: Hub) {
           </div>
 
           <div className="af-supplier-results">
+            {reorderStockLine && (
+              <div className="af-reorder-context">
+                <div>
+                  <strong>Draft for Van {reorderStockLine.van_id} · {reorderStockLine.part_name}</strong>
+                  <span>{reorderStockLine.quantity} on hand · choose an offer to save a separate reorder draft.</span>
+                </div>
+                <label>
+                  <span>Quantity to request</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100000"
+                    step="1"
+                    value={reorderQuantity || Math.max(1, 5 - reorderStockLine.quantity)}
+                    onChange={(event) => setReorderQuantity(event.target.value)}
+                    aria-label="Reorder quantity"
+                  />
+                </label>
+                {partName.toLowerCase() !== reorderStockLine.part_name.toLowerCase() && (
+                  <p className="af-hint af-reorder-match-hint">Select {reorderStockLine.part_name} to use this stock line.</p>
+                )}
+              </div>
+            )}
+            {reorderError && <p className="af-error" role="alert">{reorderError}</p>}
             <div className="af-supplier-results-head">
               <div>
                 <h2>{partName || 'Supplier offers'}</h2>
@@ -355,6 +429,17 @@ export default function SupplierComparePage({ hub }: Hub) {
                         </time>
                         {offer.sourceUpdatedAt && <span>Supplier update: {new Date(offer.sourceUpdatedAt).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
                       </div>
+                      {reorderStockLine && (
+                        <button
+                          className="af-reorder-offer-btn"
+                          type="button"
+                          disabled={createReorder.isPending || offer.availabilityNote === 'Out of stock' || partName.toLowerCase() !== reorderStockLine.part_name.toLowerCase()}
+                          onClick={() => void createDraft(offer)}
+                        >
+                          <PackagePlus size={13} />
+                          {createReorder.isPending ? 'Saving draft…' : offer.availabilityNote === 'Out of stock' ? 'Unavailable' : 'Create reorder draft'}
+                        </button>
+                      )}
                     </article>
                   );
                 })}

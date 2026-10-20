@@ -27,6 +27,10 @@ import type {
   HubData,
   InvalidRequestResponse,
   ListSupplierQuotesParams,
+  ReorderApprovalInput,
+  ReorderDraft,
+  ReorderDraftInput,
+  ReorderDraftList,
   SearchSupplierCatalogParams,
   ServiceRequestInput,
   SupplierCatalogProviders,
@@ -899,5 +903,259 @@ export const useSaveSupplierQuote = <TError = ErrorType<InvalidRequestResponse>,
         TContext
       > => {
       return useMutation(getSaveSupplierQuoteMutationOptions(options));
+    }
+
+export const getListReorderDraftsUrl = () => {
+
+
+
+
+  return `/api/reorder-drafts`
+}
+
+/**
+ * @summary List saved reorder drafts and approved requests
+ */
+export const listReorderDrafts = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReorderDraftList> => {
+
+  return customFetch<ReorderDraftList>(getListReorderDraftsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReorderDraftsQueryKey = () => {
+    return [
+    `/api/reorder-drafts`
+    ] as const;
+    }
+
+
+export const getListReorderDraftsQueryOptions = <TData = Awaited<ReturnType<typeof listReorderDrafts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReorderDrafts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReorderDraftsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReorderDrafts>>> = ({ signal }) => listReorderDrafts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReorderDrafts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReorderDraftsQueryResult = NonNullable<Awaited<ReturnType<typeof listReorderDrafts>>>
+export type ListReorderDraftsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List saved reorder drafts and approved requests
+ */
+
+export function useListReorderDrafts<TData = Awaited<ReturnType<typeof listReorderDrafts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReorderDrafts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReorderDraftsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateReorderDraftUrl = () => {
+
+
+
+
+  return `/api/reorder-drafts`
+}
+
+/**
+ * @summary Save a reorder draft from a selected stock line and supplier offer
+ */
+export const createReorderDraft = async (reorderDraftInput: ReorderDraftInput, options?: Parameters<typeof customFetch>[1]): Promise<ReorderDraft> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReorderDraft>(getCreateReorderDraftUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reorderDraftInput)
+  }
+);}
+
+
+
+
+
+export const getCreateReorderDraftMutationKey = () => ['createReorderDraft'] as const;
+
+export const getCreateReorderDraftMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReorderDraft>>, TError,CreateReorderDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReorderDraft>>, TError,CreateReorderDraftMutationVariables, TContext> => {
+
+const mutationKey = getCreateReorderDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReorderDraft>>, CreateReorderDraftMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createReorderDraft(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReorderDraftMutationResult = NonNullable<Awaited<ReturnType<typeof createReorderDraft>>>
+    export type CreateReorderDraftMutationBody = BodyType<ReorderDraftInput>
+    export type CreateReorderDraftMutationError = ErrorType<InvalidRequestResponse>
+    export type CreateReorderDraftMutationVariables = {data: BodyType<ReorderDraftInput>}
+
+    /**
+ * @summary Save a reorder draft from a selected stock line and supplier offer
+ */
+export const useCreateReorderDraft = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReorderDraft>>, TError,CreateReorderDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createReorderDraft>>,
+        TError,
+        CreateReorderDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateReorderDraftMutationOptions(options));
+    }
+
+export const getApproveReorderDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/reorder-drafts/${id}/approve`
+}
+
+/**
+ * @summary Approve a reviewed reorder draft without changing van stock
+ */
+export const approveReorderDraft = async (id: number,
+    reorderApprovalInput: ReorderApprovalInput, options?: Parameters<typeof customFetch>[1]): Promise<ReorderDraft> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReorderDraft>(getApproveReorderDraftUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reorderApprovalInput)
+  }
+);}
+
+
+
+
+
+export const getApproveReorderDraftMutationKey = () => ['approveReorderDraft'] as const;
+
+export const getApproveReorderDraftMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveReorderDraft>>, TError,ApproveReorderDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveReorderDraft>>, TError,ApproveReorderDraftMutationVariables, TContext> => {
+
+const mutationKey = getApproveReorderDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveReorderDraft>>, ApproveReorderDraftMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  approveReorderDraft(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveReorderDraftMutationResult = NonNullable<Awaited<ReturnType<typeof approveReorderDraft>>>
+    export type ApproveReorderDraftMutationBody = BodyType<ReorderApprovalInput>
+    export type ApproveReorderDraftMutationError = ErrorType<InvalidRequestResponse>
+    export type ApproveReorderDraftMutationVariables = {id: number;data: BodyType<ReorderApprovalInput>}
+
+    /**
+ * @summary Approve a reviewed reorder draft without changing van stock
+ */
+export const useApproveReorderDraft = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveReorderDraft>>, TError,ApproveReorderDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveReorderDraft>>,
+        TError,
+        ApproveReorderDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveReorderDraftMutationOptions(options));
     }
 

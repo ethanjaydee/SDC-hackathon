@@ -2,7 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetHubDataQueryKey, useAnalyzeRequest, useApproveDispatch, useCompleteDispatch,
-  useGetHubData, useResetTechnicianAvailability,
+  getListReorderDraftsQueryKey, useGetHubData, useListReorderDrafts,
+  useResetTechnicianAvailability,
   type Analysis,
 } from '@workspace/api-client-react';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +23,13 @@ export function useDispatchHub() {
   const hubQ = useGetHubData({
     query: {
       queryKey: getGetHubDataQueryKey(),
+      refetchInterval: 10000,
+      refetchOnWindowFocus: true,
+    },
+  });
+  const reordersQ = useListReorderDrafts({
+    query: {
+      queryKey: getListReorderDraftsQueryKey(),
       refetchInterval: 10000,
       refetchOnWindowFocus: true,
     },
@@ -56,6 +64,8 @@ export function useDispatchHub() {
   [hub]);
   const availableCount = technicians.filter((tech) => tech.status === 'Available').length;
   const lowStockCount = inventory.filter((item) => item.quantity <= 2).length;
+  const reorders = reordersQ.data?.reorders ?? [];
+  const openReorderCount = reorders.filter((reorder) => reorder.status === 'Draft').length;
   const dispatchedToday = activity.filter((entry) =>
     entry.completion_dispatch_id == null &&
     entry.action_details.startsWith('Dispatch approved:') &&
@@ -185,7 +195,7 @@ export function useDispatchHub() {
   };
 
   return {
-    hubQ, analyze, approve, notes, analysis, analysisError, approveError,
+    hubQ, reordersQ, reorders, openReorderCount, analyze, approve, notes, analysis, analysisError, approveError,
     matches, match, technicians, inventory, activity,
     availableCount, lowStockCount, dispatchedToday,
     customerSiteId, customerSite, updateCustomerSite,

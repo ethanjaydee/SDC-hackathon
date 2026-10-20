@@ -485,3 +485,202 @@ export const SaveSupplierQuoteResponse = zod.object({
 })
 
 
+/**
+ * @summary List saved reorder drafts and approved requests
+ */
+export const listReorderDraftsResponseReordersItemQuantityOnHandMin = 0;
+
+export const listReorderDraftsResponseReordersItemUnitPriceMyrExclusiveMin = 0;
+
+export const listReorderDraftsResponseReordersItemPackPriceMyrExclusiveMin = 0;
+
+
+
+export const listReorderDraftsResponseReordersItemShippingMyrMin = 0;
+
+
+
+
+export const ListReorderDraftsResponse = zod.object({
+  "reorders": zod.array(zod.object({
+  "id": zod.number().int(),
+  "inventory_id": zod.number().int(),
+  "van_id": zod.number().int(),
+  "part_name": zod.string(),
+  "quantity_on_hand": zod.number().int().min(listReorderDraftsResponseReordersItemQuantityOnHandMin),
+  "source_type": zod.enum(['captured_quote', 'live_catalog']),
+  "source_offer_id": zod.string(),
+  "supplier_name": zod.string(),
+  "product_name": zod.string(),
+  "product_url": zod.string().url(),
+  "unit_price_myr": zod.number().gt(listReorderDraftsResponseReordersItemUnitPriceMyrExclusiveMin),
+  "pack_price_myr": zod.number().gt(listReorderDraftsResponseReordersItemPackPriceMyrExclusiveMin),
+  "package_quantity": zod.number().int().min(1).nullable(),
+  "minimum_order_packs": zod.number().int().min(1).nullable(),
+  "shipping_myr": zod.number().min(listReorderDraftsResponseReordersItemShippingMyrMin).nullable(),
+  "availability_note": zod.enum(['In stock', 'Limited stock', 'Out of stock', 'Not checked']),
+  "offer_checked_at": zod.coerce.date(),
+  "offer_stale": zod.boolean(),
+  "requested_quantity": zod.number().int().min(1),
+  "created_at": zod.coerce.date(),
+  "created_by": zod.string(),
+  "status": zod.enum(['Draft', 'Approved']),
+  "approved_at": zod.coerce.date().nullable(),
+  "approved_by": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Save a reorder draft from a selected stock line and supplier offer
+ */
+
+export const createReorderDraftBodyPartNameMin = 2;
+export const createReorderDraftBodyPartNameMax = 120;
+
+export const createReorderDraftBodySourceOfferIdMax = 300;
+
+export const createReorderDraftBodySupplierNameMin = 2;
+export const createReorderDraftBodySupplierNameMax = 120;
+
+export const createReorderDraftBodyProductNameMin = 2;
+export const createReorderDraftBodyProductNameMax = 200;
+
+export const createReorderDraftBodyProductUrlMax = 2048;
+
+export const createReorderDraftBodyUnitPriceMyrExclusiveMin = 0;
+export const createReorderDraftBodyUnitPriceMyrMax = 1000000;
+
+export const createReorderDraftBodyPackPriceMyrExclusiveMin = 0;
+export const createReorderDraftBodyPackPriceMyrMax = 1000000;
+
+export const createReorderDraftBodyPackageQuantityMax = 100000;
+
+export const createReorderDraftBodyMinimumOrderPacksMax = 100000;
+
+export const createReorderDraftBodyShippingMyrMin = 0;
+export const createReorderDraftBodyShippingMyrMax = 1000000;
+
+export const createReorderDraftBodyRequestedQuantityMax = 100000;
+
+
+
+export const CreateReorderDraftBody = zod.object({
+  "inventory_id": zod.number().int().min(1),
+  "part_name": zod.string().min(createReorderDraftBodyPartNameMin).max(createReorderDraftBodyPartNameMax),
+  "source_type": zod.enum(['captured_quote', 'live_catalog']),
+  "source_offer_id": zod.string().min(1).max(createReorderDraftBodySourceOfferIdMax),
+  "supplier_name": zod.string().min(createReorderDraftBodySupplierNameMin).max(createReorderDraftBodySupplierNameMax),
+  "product_name": zod.string().min(createReorderDraftBodyProductNameMin).max(createReorderDraftBodyProductNameMax),
+  "product_url": zod.string().url().max(createReorderDraftBodyProductUrlMax),
+  "unit_price_myr": zod.number().gt(createReorderDraftBodyUnitPriceMyrExclusiveMin).max(createReorderDraftBodyUnitPriceMyrMax),
+  "pack_price_myr": zod.number().gt(createReorderDraftBodyPackPriceMyrExclusiveMin).max(createReorderDraftBodyPackPriceMyrMax),
+  "package_quantity": zod.number().int().min(1).max(createReorderDraftBodyPackageQuantityMax).nullish(),
+  "minimum_order_packs": zod.number().int().min(1).max(createReorderDraftBodyMinimumOrderPacksMax).nullish(),
+  "shipping_myr": zod.number().min(createReorderDraftBodyShippingMyrMin).max(createReorderDraftBodyShippingMyrMax).nullish(),
+  "availability_note": zod.enum(['In stock', 'Limited stock', 'Out of stock', 'Not checked']),
+  "offer_checked_at": zod.coerce.date(),
+  "offer_stale": zod.boolean(),
+  "requested_quantity": zod.number().int().min(1).max(createReorderDraftBodyRequestedQuantityMax)
+})
+
+export const createReorderDraftResponseQuantityOnHandMin = 0;
+
+export const createReorderDraftResponseUnitPriceMyrExclusiveMin = 0;
+
+export const createReorderDraftResponsePackPriceMyrExclusiveMin = 0;
+
+
+
+export const createReorderDraftResponseShippingMyrMin = 0;
+
+
+
+
+export const CreateReorderDraftResponse = zod.object({
+  "id": zod.number().int(),
+  "inventory_id": zod.number().int(),
+  "van_id": zod.number().int(),
+  "part_name": zod.string(),
+  "quantity_on_hand": zod.number().int().min(createReorderDraftResponseQuantityOnHandMin),
+  "source_type": zod.enum(['captured_quote', 'live_catalog']),
+  "source_offer_id": zod.string(),
+  "supplier_name": zod.string(),
+  "product_name": zod.string(),
+  "product_url": zod.string().url(),
+  "unit_price_myr": zod.number().gt(createReorderDraftResponseUnitPriceMyrExclusiveMin),
+  "pack_price_myr": zod.number().gt(createReorderDraftResponsePackPriceMyrExclusiveMin),
+  "package_quantity": zod.number().int().min(1).nullable(),
+  "minimum_order_packs": zod.number().int().min(1).nullable(),
+  "shipping_myr": zod.number().min(createReorderDraftResponseShippingMyrMin).nullable(),
+  "availability_note": zod.enum(['In stock', 'Limited stock', 'Out of stock', 'Not checked']),
+  "offer_checked_at": zod.coerce.date(),
+  "offer_stale": zod.boolean(),
+  "requested_quantity": zod.number().int().min(1),
+  "created_at": zod.coerce.date(),
+  "created_by": zod.string(),
+  "status": zod.enum(['Draft', 'Approved']),
+  "approved_at": zod.coerce.date().nullable(),
+  "approved_by": zod.string().nullable()
+})
+
+
+/**
+ * @summary Approve a reviewed reorder draft without changing van stock
+ */
+
+
+
+export const ApproveReorderDraftParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const approveReorderDraftBodyApprovedByMax = 80;
+
+
+
+export const ApproveReorderDraftBody = zod.object({
+  "approved_by": zod.string().min(1).max(approveReorderDraftBodyApprovedByMax)
+})
+
+export const approveReorderDraftResponseQuantityOnHandMin = 0;
+
+export const approveReorderDraftResponseUnitPriceMyrExclusiveMin = 0;
+
+export const approveReorderDraftResponsePackPriceMyrExclusiveMin = 0;
+
+
+
+export const approveReorderDraftResponseShippingMyrMin = 0;
+
+
+
+
+export const ApproveReorderDraftResponse = zod.object({
+  "id": zod.number().int(),
+  "inventory_id": zod.number().int(),
+  "van_id": zod.number().int(),
+  "part_name": zod.string(),
+  "quantity_on_hand": zod.number().int().min(approveReorderDraftResponseQuantityOnHandMin),
+  "source_type": zod.enum(['captured_quote', 'live_catalog']),
+  "source_offer_id": zod.string(),
+  "supplier_name": zod.string(),
+  "product_name": zod.string(),
+  "product_url": zod.string().url(),
+  "unit_price_myr": zod.number().gt(approveReorderDraftResponseUnitPriceMyrExclusiveMin),
+  "pack_price_myr": zod.number().gt(approveReorderDraftResponsePackPriceMyrExclusiveMin),
+  "package_quantity": zod.number().int().min(1).nullable(),
+  "minimum_order_packs": zod.number().int().min(1).nullable(),
+  "shipping_myr": zod.number().min(approveReorderDraftResponseShippingMyrMin).nullable(),
+  "availability_note": zod.enum(['In stock', 'Limited stock', 'Out of stock', 'Not checked']),
+  "offer_checked_at": zod.coerce.date(),
+  "offer_stale": zod.boolean(),
+  "requested_quantity": zod.number().int().min(1),
+  "created_at": zod.coerce.date(),
+  "created_by": zod.string(),
+  "status": zod.enum(['Draft', 'Approved']),
+  "approved_at": zod.coerce.date().nullable(),
+  "approved_by": zod.string().nullable()
+})
+
+

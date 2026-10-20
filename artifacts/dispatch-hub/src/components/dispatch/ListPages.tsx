@@ -62,13 +62,18 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
       <Card title={lowOnly ? 'Reorder review' : 'Stock lines'} aside={<span className="af-mono" style={{ color: '#89867f' }}>{shownInventory.length} SKU lines</span>}>
         <div className="af-stock-wrap tall">
           <table className="af-table">
-            <thead><tr><th>Van</th><th>Part</th><th>On hand</th></tr></thead>
+            <thead><tr><th>Van</th><th>Part</th><th>On hand</th>{lowOnly && <th>Next step</th>}</tr></thead>
             <tbody>
               {shownInventory.map((item) => {
                 const req = item.van_id === match?.van_id && analysis?.result.parts.some((p) => p.toLowerCase() === item.part_name.toLowerCase());
-                return <tr key={item.id} className={req ? 'highlight' : ''} data-testid={lowOnly ? `low-stock-${item.id}` : undefined}><td>V-{item.van_id}</td><td>{item.part_name}</td><td><span data-testid={`text-qty-${item.id}`} className={`af-qty ${item.quantity <= 2 ? 'low' : ''}`}>{item.quantity}</span></td></tr>;
+                return <tr key={item.id} className={req ? 'highlight' : ''} data-testid={lowOnly ? `low-stock-${item.id}` : undefined}>
+                  <td>V-{item.van_id}</td>
+                  <td>{item.part_name}</td>
+                  <td><span data-testid={`text-qty-${item.id}`} className={`af-qty ${item.quantity <= 2 ? 'low' : ''}`}>{item.quantity}</span></td>
+                  {lowOnly && <td><Link className="af-supplier-shortcut" href={`/suppliers?inventory_id=${item.id}&part=${encodeURIComponent(item.part_name)}`}>Compare offers <ArrowRight size={12} /></Link></td>}
+                </tr>;
               })}
-              {!shownInventory.length && <tr><td colSpan={3}>{hubQ.isLoading ? 'Loading inventory…' : hubQ.isError ? 'Inventory data unavailable.' : lowOnly ? 'No low-stock lines right now.' : 'No stock items found.'}</td></tr>}
+              {!shownInventory.length && <tr><td colSpan={lowOnly ? 4 : 3}>{hubQ.isLoading ? 'Loading inventory…' : hubQ.isError ? 'Inventory data unavailable.' : lowOnly ? 'No low-stock lines right now.' : 'No stock items found.'}</td></tr>}
             </tbody>
           </table>
         </div>
