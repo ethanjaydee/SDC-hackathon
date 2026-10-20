@@ -40,7 +40,7 @@ Three-column dispatch dashboard: repair notes, mock analysis with inventory-awar
 
 ## User preferences
 
-Use synthetic data only (no real personal info). Preserve custom Tailwind component styling and Lucide icons, dark neutral backgrounds, slate/zinc cards, and the requested three-column layout.
+Use synthetic data only (no real personal info). Preserve the existing dispatch workflow and Lucide icons. The requested visual reference is the user's AutoFlow app: a dark sidebar, warm off-white content area, orange accents, and rounded neutral cards.
 
 ## Gotchas
 
