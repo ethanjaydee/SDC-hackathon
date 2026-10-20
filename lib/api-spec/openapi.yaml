@@ -76,6 +76,30 @@ paths:
           $ref: "#/components/responses/InvalidRequest"
         "409":
           $ref: "#/components/responses/InvalidRequest"
+  /complete-dispatch:
+    post:
+      operationId: completeDispatch
+      tags: [hub]
+      summary: Complete an active dispatch and release its assigned technician
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DispatchCompletionInput"
+      responses:
+        "200":
+          description: Updated hub state after atomic completion; consumed stock is unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HubData"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "404":
+          $ref: "#/components/responses/InvalidRequest"
+        "409":
+          $ref: "#/components/responses/InvalidRequest"
 components:
   responses:
     InvalidRequest:
@@ -109,10 +133,13 @@ components:
         quantity: { type: integer, minimum: 0 }
     Activity:
       type: object
-      required: [id, timestamp, action_details, approved_by, dispatch]
+      required: [id, timestamp, action_details, approved_by, dispatch, completion_dispatch_id]
       properties:
         id: { type: integer }
         timestamp: { type: string }
+        completion_dispatch_id:
+          type: [integer, "null"]
+          description: Original approval ID for a completion audit event; null otherwise.
         action_details: { type: string }
         approved_by: { type: string }
         dispatch:
@@ -134,8 +161,13 @@ components:
         lng: { type: number, minimum: -180, maximum: 180 }
     SavedDispatch:
       type: object
-      required: [tech_id, technician_name, van_id, parts, customer_site]
+      required: [tech_id, technician_name, van_id, parts, customer_site, status, completed_at]
       properties:
+        status:
+          type: string
+          enum: [Active, Completed, Unknown]
+          description: Unknown means an older assignment cannot safely be completed.
+        completed_at: { type: [string, "null"] }
         tech_id: { type: integer }
         technician_name: { type: string }
         van_id: { type: integer }
@@ -183,6 +215,12 @@ components:
           maxItems: 50
           items: { type: string, minLength: 1, maxLength: 120 }
         approved_by: { type: string, minLength: 1, maxLength: 80 }
+    DispatchCompletionInput:
+      type: object
+      required: [dispatch_id, completed_by]
+      properties:
+        dispatch_id: { type: integer, minimum: 1 }
+        completed_by: { type: string, minLength: 1, maxLength: 80 }
     HealthStatus:
       type: object
       properties:

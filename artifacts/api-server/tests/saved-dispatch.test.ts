@@ -37,7 +37,7 @@ test('additive migration preserves legacy history and atomically saves canonical
     const initial = await read();
     assert.deepEqual(initial.activity_log, [{
       id: 42, timestamp: '2026-01-01T00:00:00Z', action_details: 'Original legacy dispatch',
-      approved_by: 'Original approver', dispatch: null,
+      approved_by: 'Original approver', dispatch: null, completion_dispatch_id: null,
     }]);
     const input = { tech_id: 1, van_id: 1, parts: ['100uF Capacitor', 'NPN Transistor'], approved_by: 'Demo Dispatcher' };
     for (const customer_site_id of [undefined, null, '', 'unknown', { lat: 1, lng: 2 }]) {
@@ -51,6 +51,7 @@ test('additive migration preserves legacy history and atomically saves canonical
     assert.deepEqual(entry.dispatch, {
       tech_id: 1, technician_name: 'Tech A', van_id: 1,
       parts: input.parts, customer_site: demoSites.central,
+      status: 'Active', completed_at: null,
     });
     assert.equal(saved.technicians[0].status, 'Busy');
     assert.equal(saved.inventory.find((i) => i.van_id === 1 && i.part_name === '100uF Capacitor').quantity, 7);

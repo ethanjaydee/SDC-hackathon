@@ -1,1 +1,2 @@
 - [Dispatch location history](dispatch-location-history.md) — legacy sites stay unknown; never infer a historical customer site from current intake or technician zone.
+- [Legacy completion](dispatch-completion-legacy.md) — adopt only unambiguous older Busy assignments; unknown historical jobs cannot safely release a technician.

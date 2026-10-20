@@ -8,6 +8,8 @@ import {
   AnalyzeRequestResponse,
   ApproveDispatchBody,
   ApproveDispatchResponse,
+  CompleteDispatchBody,
+  CompleteDispatchResponse,
   GetHubDataResponse,
 } from "@workspace/api-zod";
 
@@ -59,6 +61,27 @@ db.exec(`
     END;
 `);
 
+// Add lifecycle metadata without rewriting any historical audit entries.
+db.transaction(() => {
+  const columns = db.prepare("PRAGMA table_info(dispatches)").all();
+  if (!columns.some((column) => column.name === "status")) {
+    db.exec(`
+      ALTER TABLE dispatches ADD COLUMN status TEXT NOT NULL DEFAULT 'Unknown'
+        CHECK(status IN ('Active', 'Completed', 'Unknown'));
+      ALTER TABLE dispatches ADD COLUMN completion_activity_id INTEGER REFERENCES activity_log(id);
+      UPDATE dispatches SET status = 'Active'
+      WHERE tech_id IN (SELECT id FROM technicians WHERE status = 'Busy')
+        AND tech_id IN (SELECT tech_id FROM dispatches GROUP BY tech_id HAVING COUNT(*) = 1);
+    `);
+  }
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS one_active_dispatch_per_tech
+      ON dispatches(tech_id) WHERE status = 'Active';
+    CREATE UNIQUE INDEX IF NOT EXISTS one_dispatch_per_completion
+      ON dispatches(completion_activity_id) WHERE completion_activity_id IS NOT NULL;
+  `);
+}).immediate();
+
 db.transaction(() => {
   if (db.prepare("SELECT id FROM technicians LIMIT 1").get()) return;
   const insertTechnician = db.prepare(
@@ -88,13 +111,19 @@ function getHubData() {
     technicians: db.prepare("SELECT * FROM technicians ORDER BY id").all(),
     inventory: db.prepare("SELECT * FROM inventory ORDER BY van_id, id").all(),
     activity_log: db.prepare(`
-      SELECT a.*, d.tech_id, d.technician_name, d.van_id, d.parts_json, d.customer_site_json
+      SELECT a.*, d.tech_id, d.technician_name, d.van_id, d.parts_json, d.customer_site_json,
+        d.status AS dispatch_status, completed.timestamp AS completed_at,
+        original.activity_id AS completion_dispatch_id
       FROM activity_log a LEFT JOIN dispatches d ON d.activity_id = a.id
+      LEFT JOIN activity_log completed ON completed.id = d.completion_activity_id
+      LEFT JOIN dispatches original ON original.completion_activity_id = a.id
       ORDER BY a.id DESC
-    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, ...activity }) => ({
+    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, dispatch_status, completed_at, ...activity }) => ({
       ...activity,
       dispatch: tech_id == null ? null : {
         tech_id, technician_name, van_id,
+        status: dispatch_status,
+        completed_at,
         parts: JSON.parse(parts_json),
         customer_site: JSON.parse(customer_site_json),
       },
@@ -130,7 +159,8 @@ const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer
   const technician = db.prepare(
     "SELECT * FROM technicians WHERE id = ? AND van_id = ?",
   ).get(tech_id, van_id);
-  if (!technician || technician.status !== "Available") {
+  if (!technician || technician.status !== "Available" ||
+    db.prepare("SELECT 1 FROM dispatches WHERE tech_id = ? AND status = 'Active'").get(tech_id)) {
     throw new DispatchConflict("This technician is no longer available for this van. Refresh and choose another match.");
   }
   // Repeated part names represent multiple units; validate aggregated demand.
@@ -153,9 +183,35 @@ const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer
     approved_by,
   );
   db.prepare(`
-    INSERT INTO dispatches (activity_id, tech_id, technician_name, van_id, parts_json, customer_site_json)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO dispatches (activity_id, tech_id, technician_name, van_id, parts_json, customer_site_json, status)
+    VALUES (?, ?, ?, ?, ?, ?, 'Active')
   `).run(activity.lastInsertRowid, tech_id, technician.name, van_id, JSON.stringify(parts), JSON.stringify(demoSites[customer_site_id]));
+  return getHubData();
+});
+
+class DispatchNotFound extends Error {}
+
+const completeDispatch = db.transaction(({ dispatch_id, completed_by }) => {
+  const job = db.prepare("SELECT * FROM dispatches WHERE activity_id = ?").get(dispatch_id);
+  if (!job) throw new DispatchNotFound("No tracked dispatch was found for this approval.");
+  if (job.status !== "Active") {
+    throw new DispatchConflict(job.status === "Completed"
+      ? "This dispatch has already been completed. Refresh to see the current state."
+      : "This legacy dispatch has no verified active assignment and cannot safely be completed.");
+  }
+  const technician = db.prepare("SELECT * FROM technicians WHERE id = ?").get(job.tech_id);
+  if (!technician || technician.status !== "Busy" || technician.van_id !== job.van_id ||
+    db.prepare("SELECT 1 FROM dispatches WHERE tech_id = ? AND status = 'Active' AND activity_id != ?").get(job.tech_id, dispatch_id)) {
+    throw new DispatchConflict("The technician assignment has changed. Refresh before completing this job.");
+  }
+  const event = db.prepare(
+    "INSERT INTO activity_log (timestamp, action_details, approved_by) VALUES (?, ?, ?)",
+  ).run(new Date().toISOString(),
+    `Job completed: Dispatch #${dispatch_id} · ${job.technician_name} · Van ${job.van_id}. Technician set to Available; consumed stock unchanged.`,
+    completed_by);
+  db.prepare("UPDATE dispatches SET status = 'Completed', completion_activity_id = ? WHERE activity_id = ? AND status = 'Active'")
+    .run(event.lastInsertRowid, dispatch_id);
+  db.prepare("UPDATE technicians SET status = 'Available' WHERE id = ?").run(job.tech_id);
   return getHubData();
 });
 
@@ -190,6 +246,25 @@ router.post("/approve-dispatch", (req, res, next) => {
   } catch (error) {
     if (error instanceof DispatchConflict) {
       res.status(409).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
+});
+
+router.post("/complete-dispatch", (req, res, next) => {
+  const parsed = CompleteDispatchBody.safeParse(req.body);
+  if (!parsed.success || !Number.isSafeInteger(parsed.data.dispatch_id) || !parsed.data.completed_by.trim()) {
+    res.status(400).json({ error: "Provide a valid dispatch ID and completion name." });
+    return;
+  }
+  try {
+    res.json(CompleteDispatchResponse.parse(completeDispatch.immediate({
+      ...parsed.data, completed_by: parsed.data.completed_by.trim(),
+    })));
+  } catch (error) {
+    if (error instanceof DispatchNotFound || error instanceof DispatchConflict) {
+      res.status(error instanceof DispatchNotFound ? 404 : 409).json({ error: error.message });
       return;
     }
     next(error);

@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { Maximize2 } from 'lucide-react';
 import { DEMO_CUSTOMER_SITES, distanceKm, getTechnicianLocation } from './demoLocations';
 import { PageHead, type Hub } from './shared';
+import { CompletionControl } from './CompletionControl';
 
 type Readiness = 'Parts not checked' | 'Stock ready' | 'Missing parts';
 
@@ -85,8 +86,9 @@ export default function MapPage({ hub }: Hub) {
       pop.append(el('b', '', site.label), el('span', '', 'Saved dispatches · Synthetic demo coordinates, not live GPS'));
       entries.forEach((entry) => {
         const d = entry.dispatch!;
-        pop.append(el('b', '', `Dispatch #${entry.id} · ${d.technician_name} · Van ${d.van_id}`),
+        pop.append(el('b', '', `Dispatch #${entry.id} · ${d.status} · ${d.technician_name} · Van ${d.van_id}`),
           el('span', '', `Parts: ${d.parts.join(', ')}`),
+          el('span', '', d.completed_at ? `Completed: ${new Date(d.completed_at).toLocaleString()}` : d.status === 'Unknown' ? 'Legacy active status unknown' : 'Active assignment'),
           el('span', '', `${new Date(entry.timestamp).toLocaleString()} · Approved by ${entry.approved_by}`));
       });
       mk.bindPopup(pop, { maxHeight: 280 }).addTo(g);
@@ -129,6 +131,7 @@ export default function MapPage({ hub }: Hub) {
       </PageHead>
       <div className="af-note">Synthetic demo coordinates, not live GPS. Distances are straight-line, not driving routes or ETAs. Status and stock come from the live hub.</div>
       {hubQ.isError && <div className="af-error af-hub-message" role="alert"><span>Hub connection lost. Showing last known statuses.</span></div>}
+      {hub.completionError && <p className="af-error" role="alert">{hub.completionError}</p>}
       {tileErrors > 0 && <div className="af-error af-hub-message" role="alert"><span>Some map tiles could not be loaded. Sample locations and last-known hub statuses remain available in the list.</span></div>}
       <div className="af-map-layout">
         <div className="af-map-box"><div ref={box} className="af-map" data-testid="map-canvas" aria-label="Map of technicians and customer" /></div>
@@ -151,16 +154,19 @@ export default function MapPage({ hub }: Hub) {
           <p className="af-hint">Draft customer: {customerSite.label} ({customerSite.lat.toFixed(4)}, {customerSite.lng.toFixed(4)}). Current intake: {intakeCondition}. Technician distances refer to this draft site.</p>
           <h3>Saved dispatches</h3>
           <div className="af-map-list" data-testid="saved-dispatches">
-            {activity.map((entry) => {
+            {activity.filter((entry) => entry.completion_dispatch_id == null).map((entry) => {
               const d = entry.dispatch;
               return (
-                <button key={entry.id} type="button" className="af-map-row" disabled={!d} onClick={() => focusSaved(entry.id)} data-testid={`map-dispatch-${entry.id}`}>
-                  <span className="af-map-row-top"><b>Dispatch #{entry.id}</b></span>
+                <div key={entry.id}>
+                <button type="button" className="af-map-row" disabled={!d} onClick={() => focusSaved(entry.id)} data-testid={`map-dispatch-${entry.id}`}>
+                  <span className="af-map-row-top"><b>Dispatch #{entry.id}{d ? ` · ${d.status}` : ''}</b></span>
                   <span className="af-map-row-sub">{d ? d.customer_site.label : 'Customer location unknown · legacy record'}</span>
                   <span className="af-map-row-sub">{d ? `${d.technician_name} · Van ${d.van_id} · ${d.parts.join(', ')}` : entry.action_details}</span>
                   <span className="af-map-row-sub">{new Date(entry.timestamp).toLocaleString()} · {entry.approved_by}</span>
                   {d && <span className="af-map-row-sub">Synthetic coordinates: {d.customer_site.lat.toFixed(4)}, {d.customer_site.lng.toFixed(4)}</span>}
                 </button>
+                <CompletionControl entry={entry} hub={hub} />
+                </div>
               );
             })}
             {!activity.length && <p className="af-hint">{hubQ.isLoading ? 'Loading saved dispatches…' : hubQ.isError ? 'Saved dispatches unavailable.' : 'No saved dispatches yet.'}</p>}

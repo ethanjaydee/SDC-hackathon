@@ -21,6 +21,7 @@ import type {
 
 import type {
   Analysis,
+  DispatchCompletionInput,
   DispatchInput,
   HealthStatus,
   HubData,
@@ -372,5 +373,93 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getApproveDispatchMutationOptions(options));
+    }
+
+export const getCompleteDispatchUrl = () => {
+
+
+
+
+  return `/api/complete-dispatch`
+}
+
+/**
+ * @summary Complete an active dispatch and release its assigned technician
+ */
+export const completeDispatch = async (dispatchCompletionInput: DispatchCompletionInput, options?: Parameters<typeof customFetch>[1]): Promise<HubData> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<HubData>(getCompleteDispatchUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dispatchCompletionInput)
+  }
+);}
+
+
+
+
+
+export const getCompleteDispatchMutationKey = () => ['completeDispatch'] as const;
+
+export const getCompleteDispatchMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeDispatch>>, TError,CompleteDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeDispatch>>, TError,CompleteDispatchMutationVariables, TContext> => {
+
+const mutationKey = getCompleteDispatchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeDispatch>>, CompleteDispatchMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  completeDispatch(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteDispatchMutationResult = NonNullable<Awaited<ReturnType<typeof completeDispatch>>>
+    export type CompleteDispatchMutationBody = BodyType<DispatchCompletionInput>
+    export type CompleteDispatchMutationError = ErrorType<InvalidRequestResponse>
+    export type CompleteDispatchMutationVariables = {data: BodyType<DispatchCompletionInput>}
+
+    /**
+ * @summary Complete an active dispatch and release its assigned technician
+ */
+export const useCompleteDispatch = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeDispatch>>, TError,CompleteDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeDispatch>>,
+        TError,
+        CompleteDispatchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCompleteDispatchMutationOptions(options));
     }
 

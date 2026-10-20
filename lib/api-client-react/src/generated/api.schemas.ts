@@ -33,6 +33,18 @@ export interface InventoryItem {
   quantity: number;
 }
 
+/**
+ * Unknown means an older assignment cannot safely be completed.
+ */
+export type SavedDispatchStatus = typeof SavedDispatchStatus[keyof typeof SavedDispatchStatus];
+
+
+export const SavedDispatchStatus = {
+  Active: 'Active',
+  Completed: 'Completed',
+  Unknown: 'Unknown',
+} as const;
+
 export type DemoSiteId = typeof DemoSiteId[keyof typeof DemoSiteId];
 
 
@@ -62,6 +74,10 @@ export interface DemoCustomerSite {
 }
 
 export interface SavedDispatch {
+  /** Unknown means an older assignment cannot safely be completed. */
+  status: SavedDispatchStatus;
+  /** @nullable */
+  completed_at: string | null;
   tech_id: number;
   technician_name: string;
   van_id: number;
@@ -72,6 +88,11 @@ export interface SavedDispatch {
 export interface Activity {
   id: number;
   timestamp: string;
+  /**
+     * Original approval ID for a completion audit event; null otherwise.
+     * @nullable
+     */
+  completion_dispatch_id: number | null;
   action_details: string;
   approved_by: string;
   dispatch: SavedDispatch | null;
@@ -124,6 +145,16 @@ export interface DispatchInput {
      * @maxLength 80
      */
   approved_by: string;
+}
+
+export interface DispatchCompletionInput {
+  /** @minimum 1 */
+  dispatch_id: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  completed_by: string;
 }
 
 export interface HealthStatus {

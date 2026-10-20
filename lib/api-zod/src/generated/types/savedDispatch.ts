@@ -6,8 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DemoCustomerSite } from './demoCustomerSite';
+import type { SavedDispatchStatus } from './savedDispatchStatus';
 
 export interface SavedDispatch {
+  /** Unknown means an older assignment cannot safely be completed. */
+  status: SavedDispatchStatus;
+  /** @nullable */
+  completed_at: string | null;
   tech_id: number;
   technician_name: string;
   van_id: number;

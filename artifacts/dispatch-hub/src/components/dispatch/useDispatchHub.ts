@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  getGetHubDataQueryKey, useAnalyzeRequest, useApproveDispatch, useGetHubData,
+  getGetHubDataQueryKey, useAnalyzeRequest, useApproveDispatch, useCompleteDispatch, useGetHubData,
   type Analysis,
 } from '@workspace/api-client-react';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,9 @@ export function useDispatchHub() {
   });
   const analyze = useAnalyzeRequest();
   const approve = useApproveDispatch();
+  const complete = useCompleteDispatch();
+  const completionLock = useRef(false);
+  const [completionError, setCompletionError] = useState('');
   const [notes, setNotes] = useState('');
   const [customerSiteId, setCustomerSiteId] = useState(DEMO_CUSTOMER_SITES[0].id);
   const [analysis, setAnalysis] = useState<{ result: Analysis; forText: string } | null>(null);
@@ -50,8 +53,31 @@ export function useDispatchHub() {
   const availableCount = technicians.filter((tech) => tech.status === 'Available').length;
   const lowStockCount = inventory.filter((item) => item.quantity <= 2).length;
   const dispatchedToday = activity.filter((entry) =>
+    entry.completion_dispatch_id == null &&
     new Date(entry.timestamp).toDateString() === new Date().toDateString(),
   ).length;
+
+  const completeJob = async (dispatchId: number) => {
+    if (completionLock.current || approve.isPending || hubQ.isError) return false;
+    completionLock.current = true;
+    setCompletionError('');
+    try {
+      const updated = await complete.mutateAsync({ data: { dispatch_id: dispatchId, completed_by: APPROVER } });
+      await qc.cancelQueries({ queryKey: getGetHubDataQueryKey() });
+      qc.setQueryData(getGetHubDataQueryKey(), updated);
+      void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() });
+      toast({ title: 'Job completed', description: `Dispatch #${dispatchId} completed. Technician available again; consumed stock unchanged.` });
+      return true;
+    } catch (error) {
+      void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() });
+      const detail = message(error);
+      setCompletionError(detail);
+      toast({ title: 'Completion failed', description: detail, variant: 'destructive' });
+      return false;
+    } finally {
+      completionLock.current = false;
+    }
+  };
 
   const updateNotes = (value: string) => {
     if (approve.isPending) return;
@@ -91,7 +117,7 @@ export function useDispatchHub() {
   };
 
   const approveDispatch = async () => {
-    if (!analysis || analysis.forText !== notes.trim() || !match || approve.isPending || hubQ.isError) return false;
+    if (!analysis || analysis.forText !== notes.trim() || !match || approve.isPending || completionLock.current || hubQ.isError) return false;
     const snapshot = { tech: match, parts: analysis.result.parts, customerSite };
     setApproveError('');
     try {
@@ -131,6 +157,7 @@ export function useDispatchHub() {
     availableCount, lowStockCount, dispatchedToday,
     customerSiteId, customerSite, updateCustomerSite,
     updateNotes, runAnalysis, approveDispatch,
+    complete, completeJob, completionError,
   };
 }
 

@@ -58,3 +58,12 @@ test('absent hub data and absent analysis do not produce qualified matches', () 
   assert.deepEqual(rankQualifiedTechnicians(undefined, parts, customer), []);
   assert.deepEqual(rankQualifiedTechnicians(hubData(), [], customer), []);
 });
+test('a completed technician qualifies again only when remaining stock meets demand', () => {
+  const hub = hubData();
+  hub.technicians[0].status = 'Busy';
+  assert.equal(rankQualifiedTechnicians(hub, parts, customer).some((t) => t.id === 1), false);
+  hub.technicians[0].status = 'Available';
+  assert.equal(rankQualifiedTechnicians(hub, parts, customer).some((t) => t.id === 1), true);
+  hub.inventory.find((item) => item.van_id === 1 && item.part_name === 'NPN Transistor')!.quantity = 0;
+  assert.equal(rankQualifiedTechnicians(hub, parts, customer).some((t) => t.id === 1), false);
+});
