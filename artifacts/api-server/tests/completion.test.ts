@@ -135,8 +135,23 @@ test('completion validates assignment, persists atomically, never restores parts
 
     const persisted = new Database(resolve(dir, 'data/dispatch-hub.sqlite'), { readonly: true });
     assert.equal(persisted.prepare('SELECT status FROM technicians WHERE id = 3').get().status, 'Available');
-    assert.equal(persisted.prepare('SELECT status FROM dispatches WHERE activity_id = ?').get(id).status, 'Active');
+    assert.equal(persisted.prepare('SELECT status FROM dispatches WHERE activity_id = ?').get(reassigned.activity_log[0].id).status, 'Active');
     persisted.close();
+
+    // The reset technician can receive a fresh job when their van has its required parts.
+    const redispatch = await post('approve-dispatch', {
+      tech_id: 3, van_id: 3, parts: ['NPN Transistor'],
+      customer_site_id: 'south', approved_by: 'Demo Dispatcher',
+    });
+    assert.equal(redispatch.status, 200);
+    const redispatched = await redispatch.json();
+    assert.equal(redispatched.technicians[2].status, 'Busy');
+    assert.equal(redispatched.activity_log[0].dispatch.tech_id, 3);
+    assert.equal(redispatched.activity_log[0].dispatch.status, 'Active');
+    assert.equal(redispatched.inventory.find((item) => item.van_id === 3 && item.part_name === 'NPN Transistor').quantity,
+      afterReset.inventory.find((item) => item.van_id === 3 && item.part_name === 'NPN Transistor').quantity - 1);
+    assert.equal((await reset(3)).status, 409);
+    assert.deepEqual(await read(), redispatched);
   } finally {
     process.chdir(cwd);
     if (server) await new Promise<void>((r, reject) => server.close((e) => e ? reject(e) : r()));

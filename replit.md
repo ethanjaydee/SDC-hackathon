@@ -7,7 +7,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 - `pnpm --filter @workspace/api-server run dev` — run the API server (use its managed workflow)
 - `pnpm --filter @workspace/dispatch-hub run dev` — dashboard (use its managed workflow)
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm --filter @workspace/dispatch-hub exec tsx --test ../api-server/tests/saved-dispatch.test.ts` — isolated SQLite migration and saved-dispatch API regression test (does not modify workspace data)
+- `pnpm --filter @workspace/dispatch-hub exec tsx --test ../api-server/tests/*.test.ts` — isolated SQLite migration, dispatch, completion, and availability-reset API regressions (does not modify workspace data)
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
