@@ -36,11 +36,13 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 
 ## Product
 
-Three-column dispatch dashboard: repair notes, mock analysis with inventory-aware technician matching and approval, and current van stock with append-only approval history.
+Separate screens for overview, repair intake, post-intake analysis, technician map, technicians, van stock, and append-only dispatch history. Keep the desktop sidebar fixed instead of scrolling the entire dashboard between sections.
 
 ## User preferences
 
 Use synthetic data only (no real personal info). Preserve the existing dispatch workflow and Lucide icons. The requested visual reference is the user's AutoFlow app: a dark sidebar, warm off-white content area, orange accents, and rounded neutral cards.
+
+Analysis should appear only after repair intake is submitted, not as a permanent panel on the main page. The user chose sample locations for the technician/customer map; label positions as synthetic demo coordinates, not live GPS. Distances are straight-line estimates, not road routes or arrival times.
 
 ## Gotchas
 

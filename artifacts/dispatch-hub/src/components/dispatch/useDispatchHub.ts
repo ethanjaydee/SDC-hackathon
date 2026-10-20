@@ -2,33 +2,17 @@ import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetHubDataQueryKey, useAnalyzeRequest, useApproveDispatch, useGetHubData,
-  type Analysis, type HubData,
+  type Analysis,
 } from '@workspace/api-client-react';
 import { useToast } from '@/hooks/use-toast';
+import { DEMO_CUSTOMER_SITES } from './demoLocations';
+import { rankQualifiedTechnicians } from './matching';
 
 export const APPROVER = 'Demo Dispatcher';
 
 function message(error: unknown) {
   const e = error as { data?: { error?: string }; message?: string };
   return e?.data?.error || e?.message || 'The request could not be completed.';
-}
-
-function findMatches(hub: HubData | undefined, parts: string[]) {
-  if (!hub || !parts.length) return [];
-  const required = new Map<string, number>();
-  for (const part of parts) {
-    const key = part.toLowerCase();
-    required.set(key, (required.get(key) || 0) + 1);
-  }
-  return hub.technicians.filter((tech) =>
-    tech.status === 'Available' && [...required].every(([part, quantity]) =>
-      hub.inventory.some((item) =>
-        item.van_id === tech.van_id &&
-        item.part_name.toLowerCase() === part &&
-        item.quantity >= quantity,
-      ),
-    ),
-  );
 }
 
 export function useDispatchHub() {
@@ -44,12 +28,17 @@ export function useDispatchHub() {
   const analyze = useAnalyzeRequest();
   const approve = useApproveDispatch();
   const [notes, setNotes] = useState('');
+  const [customerSiteId, setCustomerSiteId] = useState(DEMO_CUSTOMER_SITES[0].id);
   const [analysis, setAnalysis] = useState<{ result: Analysis; forText: string } | null>(null);
   const [analysisError, setAnalysisError] = useState('');
   const [approveError, setApproveError] = useState('');
   const requestId = useRef(0);
   const hub = hubQ.data;
-  const matches = useMemo(() => findMatches(hub, analysis?.result.parts || []), [hub, analysis]);
+  const customerSite = DEMO_CUSTOMER_SITES.find((site) => site.id === customerSiteId)!;
+  const matches = useMemo(
+    () => rankQualifiedTechnicians(hub, analysis?.result.parts || [], customerSite),
+    [hub, analysis, customerSite],
+  );
   const match = matches[0] || null;
   const technicians = hub?.technicians || [];
   const inventory = useMemo(() =>
@@ -73,23 +62,35 @@ export function useDispatchHub() {
     setApproveError('');
   };
 
+  const updateCustomerSite = (id: string) => {
+    if (approve.isPending || !DEMO_CUSTOMER_SITES.some((site) => site.id === id)) return;
+    requestId.current += 1;
+    setCustomerSiteId(id);
+    setAnalysis(null);
+    setAnalysisError('');
+    setApproveError('');
+  };
+
   const runAnalysis = async () => {
     const text = notes.trim();
-    if (!text || analyze.isPending || approve.isPending) return;
+    if (!text || analyze.isPending || approve.isPending) return false;
     const id = ++requestId.current;
     setAnalysis(null);
     setAnalysisError('');
     setApproveError('');
     try {
       const result = await analyze.mutateAsync({ data: { text } });
-      if (id === requestId.current) setAnalysis({ result, forText: text });
+      if (id !== requestId.current) return false;
+      setAnalysis({ result, forText: text });
+      return true;
     } catch (error) {
       if (id === requestId.current) setAnalysisError(message(error));
+      return false;
     }
   };
 
   const approveDispatch = async () => {
-    if (!analysis || analysis.forText !== notes.trim() || !match || approve.isPending || hubQ.isError) return;
+    if (!analysis || analysis.forText !== notes.trim() || !match || approve.isPending || hubQ.isError) return false;
     const snapshot = { tech: match, parts: analysis.result.parts };
     setApproveError('');
     try {
@@ -102,12 +103,14 @@ export function useDispatchHub() {
       await qc.cancelQueries({ queryKey: getGetHubDataQueryKey() });
       qc.setQueryData(getGetHubDataQueryKey(), updated);
       setAnalysis(null);
+      setNotes('');
       requestId.current += 1;
       void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() });
       toast({
         title: 'Job dispatched',
         description: `${snapshot.tech.name} · Van ${snapshot.tech.van_id} assigned. ${snapshot.parts.length} parts reserved.`,
       });
+      return true;
     } catch (error) {
       void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() });
       const conflict = (error as { status?: number })?.status === 409;
@@ -116,6 +119,7 @@ export function useDispatchHub() {
         : message(error);
       setApproveError(detail);
       toast({ title: conflict ? 'Dispatch conflict' : 'Dispatch failed', description: detail, variant: 'destructive' });
+      return false;
     }
   };
 
@@ -123,6 +127,9 @@ export function useDispatchHub() {
     hubQ, analyze, approve, notes, analysis, analysisError, approveError,
     matches, match, technicians, inventory, activity,
     availableCount, lowStockCount, dispatchedToday,
+    customerSiteId, customerSite, updateCustomerSite,
     updateNotes, runAnalysis, approveDispatch,
   };
 }
+
+export type DispatchState = ReturnType<typeof useDispatchHub>;
