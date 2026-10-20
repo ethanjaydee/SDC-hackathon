@@ -96,6 +96,11 @@ export interface Activity {
   action_details: string;
   approved_by: string;
   dispatch: SavedDispatch | null;
+export interface Activity {
+  id: number;
+  timestamp: string;
+  action_details: string;
+  approved_by: string;
 }
 
 export interface HubData {

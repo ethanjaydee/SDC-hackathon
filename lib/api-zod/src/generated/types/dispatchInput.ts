@@ -9,6 +9,8 @@ import type { DemoSiteId } from './demoSiteId';
 
 export interface DispatchInput {
   customer_site_id: DemoSiteId;
+
+export interface DispatchInput {
   /** @minimum 1 */
   tech_id: number;
   /** @minimum 1 */

@@ -257,6 +257,12 @@ components:
           type: array
           items: { type: string }
         customer_site: { $ref: "#/components/schemas/DemoCustomerSite" }
+      required: [id, timestamp, action_details, approved_by]
+      properties:
+        id: { type: integer }
+        timestamp: { type: string }
+        action_details: { type: string }
+        approved_by: { type: string }
     HubData:
       type: object
       required: [technicians, inventory, activity_log]
@@ -289,6 +295,8 @@ components:
       required: [tech_id, van_id, parts, approved_by, customer_site_id]
       properties:
         customer_site_id: { $ref: "#/components/schemas/DemoSiteId" }
+      required: [tech_id, van_id, parts, approved_by]
+      properties:
         tech_id: { type: integer, minimum: 1 }
         van_id: { type: integer, minimum: 1 }
         parts:

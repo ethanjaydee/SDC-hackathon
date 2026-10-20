@@ -90,6 +90,17 @@
   --card-foreground: 224 15% 15%;
 
   --card-border: 38 17% 88%;
+  --background: 222 22% 6%;
+
+  --foreground: 210 20% 94%;
+
+  --border: 217 33% 17%;
+
+  --card: 222 25% 9%;
+
+  --card-foreground: 210 20% 94%;
+
+  --card-border: 217 33% 17%;
 
   --sidebar: 222 25% 8%;
 
@@ -128,6 +139,27 @@
   --accent: 19 100% 96%;
 
   --accent-foreground: 16 65% 36%;
+  --popover: 222 25% 10%;
+
+  --popover-foreground: 210 20% 94%;
+
+  --popover-border: 217 33% 20%;
+
+  --primary: 199 89% 56%;
+
+  --primary-foreground: 222 40% 8%;
+
+  --secondary: 217 30% 14%;
+
+  --secondary-foreground: 210 20% 90%;
+
+  --muted: 217 30% 13%;
+
+  --muted-foreground: 215 16% 60%;
+
+  --accent: 217 30% 15%;
+
+  --accent-foreground: 210 20% 94%;
 
   --destructive: 0 72% 55%;
 
@@ -135,6 +167,8 @@
 
   --input: 38 17% 85%;
   --ring: 16 88% 52%;
+  --input: 217 30% 22%;
+  --ring: 199 89% 56%;
   --chart-1: 199 89% 56%;
   --chart-2: 152 60% 48%;
   --chart-3: 38 92% 55%;
@@ -144,6 +178,9 @@
   --app-font-sans: 'DM Sans', ui-sans-serif, sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: 'Spline Sans Mono', Menlo, monospace;
+  --app-font-sans: 'Geist', ui-sans-serif, sans-serif;
+  --app-font-serif: Georgia, serif;
+  --app-font-mono: 'JetBrains Mono', Menlo, monospace;
   --radius: 0.5rem; /* 8px */
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */

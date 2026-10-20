@@ -26,6 +26,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 
 - `artifacts/dispatch-hub/` — React/Tailwind dashboard
 - `artifacts/api-server/src/hub.js` — SQLite schema, synthetic seeds, RunPod placeholder and hub API router
+- `artifacts/api-server/src/server.js` — SQLite schema, synthetic seeds, RunPod placeholder and hub API router
 - `lib/api-spec/openapi.yaml` — API contract; regenerate hooks/schemas after changes
 
 ## Architecture decisions
@@ -46,6 +47,11 @@ Use synthetic data only (no real personal info). Preserve the existing dispatch 
 For the main overview, the user approved the Xiaomi-inspired design with circular progress/status indicators instead of the existing summary-card layout. Keep the fixed sidebar and separate workflow screens.
 
 Analysis should appear only after repair intake is submitted, not as a permanent panel on the main page. The user chose sample locations for the technician/customer map; label positions as synthetic demo coordinates, not live GPS. Distances are straight-line estimates, not road routes or arrival times.
+Three-column dispatch dashboard: repair notes, mock analysis with inventory-aware technician matching and approval, and current van stock with append-only approval history.
+
+## User preferences
+
+Use synthetic data only (no real personal info). Preserve custom Tailwind component styling and Lucide icons, dark neutral backgrounds, slate/zinc cards, and the requested three-column layout.
 
 ## Gotchas
 

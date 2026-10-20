@@ -23,4 +23,6 @@ export * from './savedDispatchStatus';
 export * from './serviceRequestInput';
 export * from './technician';
 export * from './technicianResetInput';
+export * from './serviceRequestInput';
+export * from './technician';
 export * from './technicianStatus';

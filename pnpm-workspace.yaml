@@ -37,6 +37,7 @@ minimumReleaseAgeExclude:
   - stripe-replit-sync
 
 onlyBuiltDependencies:
+  - better-sqlite3
   - '@swc/core'
   - better-sqlite3
   - esbuild

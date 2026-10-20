@@ -65,6 +65,8 @@ export const GetHubDataResponse = zod.object({
   "lng": zod.number().min(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMax)
 }).describe('Labeled synthetic coordinates, never live GPS.')
 }),zod.null()])
+  "action_details": zod.string(),
+  "approved_by": zod.string()
 }))
 })
 
@@ -272,6 +274,8 @@ export const ResetTechnicianAvailabilityResponse = zod.object({
   "lng": zod.number().min(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMax)
 }).describe('Labeled synthetic coordinates, never live GPS.')
 }),zod.null()])
+  "action_details": zod.string(),
+  "approved_by": zod.string()
 }))
 })
 

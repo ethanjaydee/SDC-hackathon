@@ -5,3 +5,4 @@
 .local
 
 artifacts/api-server/data/
+/artifacts/api-server/data/

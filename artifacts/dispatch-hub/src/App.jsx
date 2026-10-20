@@ -1,6 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Router as WouterRouter } from 'wouter';
 import { Toaster } from '@/components/ui/toaster';
+import { Route, Switch, Router as WouterRouter } from 'wouter';
+import { Toaster } from '@/components/ui/toaster';
+import NotFound from '@/pages/not-found';
 import Dashboard from '@/components/dispatch/Dashboard';
 
 const queryClient = new QueryClient({
@@ -12,6 +15,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
         <Dashboard />
+        <Switch>
+          <Route path="/" component={Dashboard} />
+          <Route component={NotFound} />
+        </Switch>
       </WouterRouter>
       <Toaster />
     </QueryClientProvider>

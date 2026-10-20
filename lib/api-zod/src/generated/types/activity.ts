@@ -18,4 +18,6 @@ export interface Activity {
   action_details: string;
   approved_by: string;
   dispatch: SavedDispatch | null;
+  action_details: string;
+  approved_by: string;
 }
