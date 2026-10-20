@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type ErrorRequestHandler } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -30,5 +30,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
+  req.log.error({ err: error }, "Request failed");
+  const badJson = error instanceof SyntaxError && "body" in error;
+  res.status(badJson ? 400 : 500).json({
+    error: badJson ? "Invalid JSON request body." : "The hub could not complete this request. Please try again.",
+  });
+};
+app.use(errorHandler);
 
 export default app;

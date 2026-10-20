@@ -24,8 +24,136 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /hub-data:
+    get:
+      operationId: getHubData
+      tags: [hub]
+      summary: Current synthetic dispatch hub state
+      responses:
+        "200":
+          description: Technicians, inventory and immutable audit log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HubData"
+  /analyze-request:
+    post:
+      operationId: analyzeRequest
+      tags: [hub]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceRequestInput"
+      responses:
+        "200":
+          description: Mock model analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analysis"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+  /approve-dispatch:
+    post:
+      operationId: approveDispatch
+      tags: [hub]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DispatchInput"
+      responses:
+        "200":
+          description: Updated hub state after atomic dispatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HubData"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "409":
+          $ref: "#/components/responses/InvalidRequest"
 components:
+  responses:
+    InvalidRequest:
+      description: Invalid request or stale technician/inventory state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiFailure"
   schemas:
+    ApiFailure:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    Technician:
+      type: object
+      required: [id, name, status, zone, van_id]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        status: { type: string, enum: [Available, Busy] }
+        zone: { type: string }
+        van_id: { type: integer }
+    InventoryItem:
+      type: object
+      required: [id, van_id, part_name, quantity]
+      properties:
+        id: { type: integer }
+        van_id: { type: integer }
+        part_name: { type: string }
+        quantity: { type: integer, minimum: 0 }
+    Activity:
+      type: object
+      required: [id, timestamp, action_details, approved_by]
+      properties:
+        id: { type: integer }
+        timestamp: { type: string }
+        action_details: { type: string }
+        approved_by: { type: string }
+    HubData:
+      type: object
+      required: [technicians, inventory, activity_log]
+      properties:
+        technicians:
+          type: array
+          items: { $ref: "#/components/schemas/Technician" }
+        inventory:
+          type: array
+          items: { $ref: "#/components/schemas/InventoryItem" }
+        activity_log:
+          type: array
+          items: { $ref: "#/components/schemas/Activity" }
+    ServiceRequestInput:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 5000 }
+    Analysis:
+      type: object
+      required: [issue, parts, urgency]
+      properties:
+        issue: { type: string }
+        parts:
+          type: array
+          items: { type: string }
+        urgency: { type: string, enum: [High, Med, Low] }
+    DispatchInput:
+      type: object
+      required: [tech_id, van_id, parts, approved_by]
+      properties:
+        tech_id: { type: integer, minimum: 1 }
+        van_id: { type: integer, minimum: 1 }
+        parts:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { type: string, minLength: 1, maxLength: 120 }
+        approved_by: { type: string, minLength: 1, maxLength: 80 }
     HealthStatus:
       type: object
       properties:

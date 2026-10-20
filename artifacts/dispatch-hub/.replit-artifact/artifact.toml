@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Field Service Dispatch Hub"
+description = "A field service dispatch and spare-part matching SME hub with synthetic technicians, SQLite van inventory, mock AI request analysis, and approved dispatch audit logs."
+version = "1.0.0"
+id = "artifacts/dispatch-hub"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24896
+
+[services.development]
+run = "pnpm --filter @workspace/dispatch-hub run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/dispatch-hub", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/dispatch-hub/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24896"
+BASE_PATH = "/"
