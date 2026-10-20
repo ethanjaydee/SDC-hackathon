@@ -2,6 +2,7 @@ import { Router } from "express";
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { demoSites } from "./demoSites.js";
 import {
   AnalyzeRequestBody,
   AnalyzeRequestResponse,
@@ -39,6 +40,14 @@ db.exec(`
     timestamp TEXT NOT NULL,
     action_details TEXT NOT NULL,
     approved_by TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS dispatches (
+    activity_id INTEGER PRIMARY KEY REFERENCES activity_log(id),
+    tech_id INTEGER NOT NULL REFERENCES technicians(id),
+    technician_name TEXT NOT NULL,
+    van_id INTEGER NOT NULL,
+    parts_json TEXT NOT NULL,
+    customer_site_json TEXT NOT NULL
   );
   CREATE TRIGGER IF NOT EXISTS activity_log_no_update
     BEFORE UPDATE ON activity_log BEGIN
@@ -78,7 +87,18 @@ function getHubData() {
   return {
     technicians: db.prepare("SELECT * FROM technicians ORDER BY id").all(),
     inventory: db.prepare("SELECT * FROM inventory ORDER BY van_id, id").all(),
-    activity_log: db.prepare("SELECT * FROM activity_log ORDER BY id DESC").all(),
+    activity_log: db.prepare(`
+      SELECT a.*, d.tech_id, d.technician_name, d.van_id, d.parts_json, d.customer_site_json
+      FROM activity_log a LEFT JOIN dispatches d ON d.activity_id = a.id
+      ORDER BY a.id DESC
+    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, ...activity }) => ({
+      ...activity,
+      dispatch: tech_id == null ? null : {
+        tech_id, technician_name, van_id,
+        parts: JSON.parse(parts_json),
+        customer_site: JSON.parse(customer_site_json),
+      },
+    })),
   };
 }
 
@@ -106,7 +126,7 @@ export async function callRunPodModel(text) {
 
 class DispatchConflict extends Error {}
 
-const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by }) => {
+const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer_site_id }) => {
   const technician = db.prepare(
     "SELECT * FROM technicians WHERE id = ? AND van_id = ?",
   ).get(tech_id, van_id);
@@ -125,13 +145,17 @@ const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by }) => {
     }
   }
   db.prepare("UPDATE technicians SET status = 'Busy' WHERE id = ?").run(tech_id);
-  db.prepare(
+  const activity = db.prepare(
     "INSERT INTO activity_log (timestamp, action_details, approved_by) VALUES (?, ?, ?)",
   ).run(
     new Date().toISOString(),
     `Dispatch approved: ${technician.name} · Van ${van_id} · ${Array.from(required, ([part, quantity]) => `${part} × ${quantity}`).join(", ")}. Technician set to Busy; stock allocated.`,
     approved_by,
   );
+  db.prepare(`
+    INSERT INTO dispatches (activity_id, tech_id, technician_name, van_id, parts_json, customer_site_json)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(activity.lastInsertRowid, tech_id, technician.name, van_id, JSON.stringify(parts), JSON.stringify(demoSites[customer_site_id]));
   return getHubData();
 });
 
@@ -154,7 +178,7 @@ router.post("/analyze-request", async (req, res) => {
 router.post("/approve-dispatch", (req, res, next) => {
   const parsed = ApproveDispatchBody.safeParse(req.body);
   if (!parsed.success || !parsed.data.approved_by.trim() || parsed.data.parts.some((part) => !part.trim())) {
-    res.status(400).json({ error: "Provide valid technician, van, required parts and approver." });
+    res.status(400).json({ error: "Provide a valid demo customer site, technician, van, required parts and approver." });
     return;
   }
   try {

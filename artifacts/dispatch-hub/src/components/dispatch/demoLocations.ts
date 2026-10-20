@@ -1,13 +1,11 @@
+import type { DemoCustomerSite } from '@workspace/api-client-react';
+export type { DemoCustomerSite } from '@workspace/api-client-react';
+
 /** Fictional workshop positions around Kuala Lumpur, never actual GPS fixes. */
 export interface DemoLocation {
   lat: number;
   lng: number;
   label: string;
-}
-
-export interface DemoCustomerSite extends DemoLocation {
-  id: string;
-  area: string;
 }
 
 export const DEMO_CUSTOMER_SITES: DemoCustomerSite[] = [

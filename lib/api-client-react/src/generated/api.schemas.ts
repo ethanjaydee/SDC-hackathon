@@ -33,11 +33,48 @@ export interface InventoryItem {
   quantity: number;
 }
 
+export type DemoSiteId = typeof DemoSiteId[keyof typeof DemoSiteId];
+
+
+export const DemoSiteId = {
+  north: 'north',
+  central: 'central',
+  south: 'south',
+} as const;
+
+/**
+ * Labeled synthetic coordinates, never live GPS.
+ */
+export interface DemoCustomerSite {
+  id: DemoSiteId;
+  label: string;
+  area: string;
+  /**
+     * @minimum -90
+     * @maximum 90
+     */
+  lat: number;
+  /**
+     * @minimum -180
+     * @maximum 180
+     */
+  lng: number;
+}
+
+export interface SavedDispatch {
+  tech_id: number;
+  technician_name: string;
+  van_id: number;
+  parts: string[];
+  customer_site: DemoCustomerSite;
+}
+
 export interface Activity {
   id: number;
   timestamp: string;
   action_details: string;
   approved_by: string;
+  dispatch: SavedDispatch | null;
 }
 
 export interface HubData {
@@ -70,6 +107,7 @@ export interface Analysis {
 }
 
 export interface DispatchInput {
+  customer_site_id: DemoSiteId;
   /** @minimum 1 */
   tech_id: number;
   /** @minimum 1 */

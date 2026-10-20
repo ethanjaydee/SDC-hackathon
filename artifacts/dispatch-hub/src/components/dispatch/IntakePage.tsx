@@ -19,7 +19,7 @@ export default function IntakePage({ hub }: Hub) {
         <select id="site-select" className="af-select" data-testid="select-customer-site" value={customerSiteId} disabled={busy} onChange={(e) => updateCustomerSite(e.target.value)}>
           {DEMO_CUSTOMER_SITES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
-        <p className="af-hint" style={{ marginBottom: 14 }}>Synthetic demo coordinates in {customerSite.area}. Changing the site clears any existing analysis.</p>
+        <p className="af-hint" style={{ marginBottom: 14 }}>Synthetic demo coordinates in {customerSite.area}. This site is saved with the dispatch on approval. Changing the site clears any existing analysis.</p>
         <div className="af-label">
           <span>Fault notes</span>
           <span className="af-inline-actions">

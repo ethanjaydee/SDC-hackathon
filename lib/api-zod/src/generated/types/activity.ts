@@ -5,10 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SavedDispatch } from './savedDispatch';
 
 export interface Activity {
   id: number;
   timestamp: string;
   action_details: string;
   approved_by: string;
+  dispatch: SavedDispatch | null;
 }

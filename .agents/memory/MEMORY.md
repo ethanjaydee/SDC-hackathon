@@ -1,0 +1,1 @@
+- [Dispatch location history](dispatch-location-history.md) — legacy sites stay unknown; never infer a historical customer site from current intake or technician zone.

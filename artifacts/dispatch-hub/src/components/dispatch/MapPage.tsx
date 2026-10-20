@@ -12,7 +12,7 @@ function el(tag: string, cls: string, text?: string) {
 }
 
 export default function MapPage({ hub }: Hub) {
-  const { technicians, inventory, analysis, match, customerSite, customerSiteId, updateCustomerSite, approve, hubQ } = hub;
+  const { technicians, inventory, activity, analysis, match, customerSite, customerSiteId, updateCustomerSite, approve, hubQ } = hub;
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -22,6 +22,19 @@ export default function MapPage({ hub }: Hub) {
   const intakeCondition = analysis
     ? `Analysis ready · ${analysis.result.urgency} urgency`
     : hub.notes.trim() ? 'Draft intake · awaiting analysis' : 'No active repair intake';
+  // Group co-located dispatches so every assignment is accessible in one popup.
+  const savedSites = useMemo(() => {
+    const groups = new Map<string, { site: NonNullable<(typeof activity)[number]['dispatch']>['customer_site']; entries: typeof activity }>();
+    activity.forEach((entry) => {
+      if (!entry.dispatch) return;
+      const site = entry.dispatch.customer_site;
+      const key = `${site.id}:${site.lat}:${site.lng}`;
+      const group = groups.get(key) || { site, entries: [] };
+      group.entries.push(entry);
+      groups.set(key, group);
+    });
+    return [...groups.entries()];
+  }, [activity]);
 
   const rows = useMemo(() => technicians.map((t) => {
     const loc = getTechnicianLocation(t.id);
@@ -53,6 +66,7 @@ export default function MapPage({ hub }: Hub) {
   const fit = () => {
     const pts: L.LatLngTuple[] = [[customerSite.lat, customerSite.lng]];
     rows.forEach((r) => r.loc && pts.push([r.loc.lat, r.loc.lng]));
+    savedSites.forEach(([, { site }]) => pts.push([site.lat, site.lng]));
     map.current?.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 14 });
   };
 
@@ -61,10 +75,23 @@ export default function MapPage({ hub }: Hub) {
     const openPopup = Object.entries(markers.current).find(([, marker]) => marker.isPopupOpen())?.[0];
     g.clearLayers(); markers.current = {};
     const pin = (cls: string, label: string) => L.divIcon({ className: 'af-pin-wrap', iconSize: [30, 30], iconAnchor: [15, 15], html: el('div', `af-pin ${cls}`, label) });
-    const c = L.marker([customerSite.lat, customerSite.lng], { icon: pin('customer', 'C'), title: customerSite.label, zIndexOffset: 500 });
+    const c = L.marker([customerSite.lat, customerSite.lng], { icon: pin('customer', 'D'), title: `Draft intake: ${customerSite.label}`, zIndexOffset: 500 });
     const cp = el('div', 'af-pop');
-    cp.append(el('b', '', customerSite.label), el('span', '', intakeCondition), el('span', '', analysis?.result.issue || 'No diagnosis for the current intake'), el('span', '', 'Synthetic demo coordinates'));
+    cp.append(el('b', '', `Draft intake: ${customerSite.label}`), el('span', '', intakeCondition), el('span', '', analysis?.result.issue || 'No diagnosis for the current intake'), el('span', '', 'Not a saved assignment · Synthetic demo coordinates'));
     c.bindPopup(cp).addTo(g); markers.current.c = c;
+    savedSites.forEach(([key, { site, entries }]) => {
+      const mk = L.marker([site.lat, site.lng], { icon: pin('customer', 'S'), title: `Saved: ${site.label}`, zIndexOffset: 600 });
+      const pop = el('div', 'af-pop');
+      pop.append(el('b', '', site.label), el('span', '', 'Saved dispatches · Synthetic demo coordinates, not live GPS'));
+      entries.forEach((entry) => {
+        const d = entry.dispatch!;
+        pop.append(el('b', '', `Dispatch #${entry.id} · ${d.technician_name} · Van ${d.van_id}`),
+          el('span', '', `Parts: ${d.parts.join(', ')}`),
+          el('span', '', `${new Date(entry.timestamp).toLocaleString()} · Approved by ${entry.approved_by}`));
+      });
+      mk.bindPopup(pop, { maxHeight: 280 }).addTo(g);
+      markers.current[`s${key}`] = mk;
+    });
     rows.forEach((r) => {
       if (!r.loc) return;
       const busy = r.t.status !== 'Available';
@@ -75,9 +102,15 @@ export default function MapPage({ hub }: Hub) {
       markers.current[`t${r.t.id}`] = mk;
     });
     if (openPopup) markers.current[openPopup]?.openPopup();
-  }, [rows, customerSite, intakeCondition, analysis]);
+  }, [rows, customerSite, intakeCondition, analysis, savedSites]);
 
-  useEffect(() => { if (rows.length) fit(); /* eslint-disable-next-line */ }, [customerSiteId, rows.length]);
+  useEffect(() => { if (rows.length || savedSites.length) fit(); /* eslint-disable-next-line */ }, [customerSiteId, rows.length, savedSites.length]);
+
+  const focusSaved = (id: number) => {
+    const group = savedSites.find(([, { entries }]) => entries.some((entry) => entry.id === id));
+    const mk = group && markers.current[`s${group[0]}`];
+    if (mk) { map.current?.setView(mk.getLatLng(), 14); mk.openPopup(); }
+  };
 
   const focus = (id: number) => {
     setSelected(id);
@@ -88,8 +121,8 @@ export default function MapPage({ hub }: Hub) {
 
   return (
     <div className="af-page">
-      <PageHead kicker="Field view" title="Technician map" sub="Sample positions, real hub status and stock.">
-        <select className="af-select" style={{ width: 'auto' }} aria-label="Customer site" data-testid="select-map-site" value={customerSiteId} disabled={approve.isPending} onChange={(e) => updateCustomerSite(e.target.value)}>
+      <PageHead kicker="Field view" title="Technician map" sub="Sample positions, saved assignments and real hub status.">
+        <select className="af-select" style={{ width: 'auto' }} aria-label="Draft intake customer site" data-testid="select-map-site" value={customerSiteId} disabled={approve.isPending} onChange={(e) => updateCustomerSite(e.target.value)}>
           {DEMO_CUSTOMER_SITES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
         <button className="af-quiet-btn af-outline" type="button" onClick={fit}><Maximize2 size={12} /> Fit all</button>
@@ -101,7 +134,7 @@ export default function MapPage({ hub }: Hub) {
         <div className="af-map-box"><div ref={box} className="af-map" data-testid="map-canvas" aria-label="Map of technicians and customer" /></div>
         <aside className="af-map-side">
           <div className="af-legend" aria-label="Legend">
-            <span><i className="af-pin-sm customer" />Customer</span><span><i className="af-pin-sm ok" />Available</span>
+            <span><i className="af-pin-sm customer" />S: Saved / D: Draft site</span><span><i className="af-pin-sm ok" />Available</span>
             <span><i className="af-pin-sm best" />Nearest qualified</span><span><i className="af-pin-sm busy" />Busy</span>
           </div>
           <div className="af-map-list">
@@ -115,7 +148,23 @@ export default function MapPage({ hub }: Hub) {
             {!rows.length && <p className="af-hint">{hubQ.isLoading ? 'Loading technicians…' : 'No technicians found.'}</p>}
           </div>
           {sel && <p className="af-hint">Selected: {sel.t.name}. {sel.loc?.label}{sel.loc ? ` (${sel.loc.lat.toFixed(4)}, ${sel.loc.lng.toFixed(4)})` : ''}.</p>}
-          <p className="af-hint">Customer: {customerSite.label} ({customerSite.lat.toFixed(4)}, {customerSite.lng.toFixed(4)}). Current intake: {intakeCondition}.</p>
+          <p className="af-hint">Draft customer: {customerSite.label} ({customerSite.lat.toFixed(4)}, {customerSite.lng.toFixed(4)}). Current intake: {intakeCondition}. Technician distances refer to this draft site.</p>
+          <h3>Saved dispatches</h3>
+          <div className="af-map-list" data-testid="saved-dispatches">
+            {activity.map((entry) => {
+              const d = entry.dispatch;
+              return (
+                <button key={entry.id} type="button" className="af-map-row" disabled={!d} onClick={() => focusSaved(entry.id)} data-testid={`map-dispatch-${entry.id}`}>
+                  <span className="af-map-row-top"><b>Dispatch #{entry.id}</b></span>
+                  <span className="af-map-row-sub">{d ? d.customer_site.label : 'Customer location unknown · legacy record'}</span>
+                  <span className="af-map-row-sub">{d ? `${d.technician_name} · Van ${d.van_id} · ${d.parts.join(', ')}` : entry.action_details}</span>
+                  <span className="af-map-row-sub">{new Date(entry.timestamp).toLocaleString()} · {entry.approved_by}</span>
+                  {d && <span className="af-map-row-sub">Synthetic coordinates: {d.customer_site.lat.toFixed(4)}, {d.customer_site.lng.toFixed(4)}</span>}
+                </button>
+              );
+            })}
+            {!activity.length && <p className="af-hint">{hubQ.isLoading ? 'Loading saved dispatches…' : hubQ.isError ? 'Saved dispatches unavailable.' : 'No saved dispatches yet.'}</p>}
+          </div>
         </aside>
       </div>
     </div>

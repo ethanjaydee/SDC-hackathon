@@ -63,9 +63,10 @@ export function useDispatchHub() {
   };
 
   const updateCustomerSite = (id: string) => {
-    if (approve.isPending || !DEMO_CUSTOMER_SITES.some((site) => site.id === id)) return;
+    const site = DEMO_CUSTOMER_SITES.find((site) => site.id === id);
+    if (approve.isPending || !site) return;
     requestId.current += 1;
-    setCustomerSiteId(id);
+    setCustomerSiteId(site.id);
     setAnalysis(null);
     setAnalysisError('');
     setApproveError('');
@@ -91,13 +92,14 @@ export function useDispatchHub() {
 
   const approveDispatch = async () => {
     if (!analysis || analysis.forText !== notes.trim() || !match || approve.isPending || hubQ.isError) return false;
-    const snapshot = { tech: match, parts: analysis.result.parts };
+    const snapshot = { tech: match, parts: analysis.result.parts, customerSite };
     setApproveError('');
     try {
       const updated = await approve.mutateAsync({
         data: {
           tech_id: snapshot.tech.id, van_id: snapshot.tech.van_id,
           parts: snapshot.parts, approved_by: APPROVER,
+          customer_site_id: snapshot.customerSite.id,
         },
       });
       await qc.cancelQueries({ queryKey: getGetHubDataQueryKey() });

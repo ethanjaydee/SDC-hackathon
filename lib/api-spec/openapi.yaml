@@ -109,12 +109,40 @@ components:
         quantity: { type: integer, minimum: 0 }
     Activity:
       type: object
-      required: [id, timestamp, action_details, approved_by]
+      required: [id, timestamp, action_details, approved_by, dispatch]
       properties:
         id: { type: integer }
         timestamp: { type: string }
         action_details: { type: string }
         approved_by: { type: string }
+        dispatch:
+          oneOf:
+            - $ref: "#/components/schemas/SavedDispatch"
+            - type: "null"
+    DemoSiteId:
+      type: string
+      enum: [north, central, south]
+    DemoCustomerSite:
+      type: object
+      description: Labeled synthetic coordinates, never live GPS.
+      required: [id, label, area, lat, lng]
+      properties:
+        id: { $ref: "#/components/schemas/DemoSiteId" }
+        label: { type: string }
+        area: { type: string }
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+    SavedDispatch:
+      type: object
+      required: [tech_id, technician_name, van_id, parts, customer_site]
+      properties:
+        tech_id: { type: integer }
+        technician_name: { type: string }
+        van_id: { type: integer }
+        parts:
+          type: array
+          items: { type: string }
+        customer_site: { $ref: "#/components/schemas/DemoCustomerSite" }
     HubData:
       type: object
       required: [technicians, inventory, activity_log]
@@ -144,8 +172,9 @@ components:
         urgency: { type: string, enum: [High, Med, Low] }
     DispatchInput:
       type: object
-      required: [tech_id, van_id, parts, approved_by]
+      required: [tech_id, van_id, parts, approved_by, customer_site_id]
       properties:
+        customer_site_id: { $ref: "#/components/schemas/DemoSiteId" }
         tech_id: { type: integer, minimum: 1 }
         van_id: { type: integer, minimum: 1 }
         parts:

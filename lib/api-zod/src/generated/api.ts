@@ -22,6 +22,12 @@ export const HealthCheckResponse = zod.object({
  */
 export const getHubDataResponseInventoryItemQuantityMin = 0;
 
+export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
+export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMax = 90;
+
+export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMin = -180;
+export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMax = 180;
+
 
 
 export const GetHubDataResponse = zod.object({
@@ -42,7 +48,20 @@ export const GetHubDataResponse = zod.object({
   "id": zod.number().int(),
   "timestamp": zod.string(),
   "action_details": zod.string(),
-  "approved_by": zod.string()
+  "approved_by": zod.string(),
+  "dispatch": zod.union([zod.object({
+  "tech_id": zod.number().int(),
+  "technician_name": zod.string(),
+  "van_id": zod.number().int(),
+  "parts": zod.array(zod.string()),
+  "customer_site": zod.object({
+  "id": zod.enum(['north', 'central', 'south']),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number().min(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMax),
+  "lng": zod.number().min(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMax)
+}).describe('Labeled synthetic coordinates, never live GPS.')
+}),zod.null()])
 }))
 })
 
@@ -73,6 +92,7 @@ export const approveDispatchBodyApprovedByMax = 80;
 
 
 export const ApproveDispatchBody = zod.object({
+  "customer_site_id": zod.enum(['north', 'central', 'south']),
   "tech_id": zod.number().int().min(1),
   "van_id": zod.number().int().min(1),
   "parts": zod.array(zod.string().min(1).max(approveDispatchBodyPartsItemMax)).min(1).max(approveDispatchBodyPartsMax),
@@ -80,6 +100,12 @@ export const ApproveDispatchBody = zod.object({
 })
 
 export const approveDispatchResponseInventoryItemQuantityMin = 0;
+
+export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
+export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMax = 90;
+
+export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMin = -180;
+export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax = 180;
 
 
 
@@ -101,7 +127,20 @@ export const ApproveDispatchResponse = zod.object({
   "id": zod.number().int(),
   "timestamp": zod.string(),
   "action_details": zod.string(),
-  "approved_by": zod.string()
+  "approved_by": zod.string(),
+  "dispatch": zod.union([zod.object({
+  "tech_id": zod.number().int(),
+  "technician_name": zod.string(),
+  "van_id": zod.number().int(),
+  "parts": zod.array(zod.string()),
+  "customer_site": zod.object({
+  "id": zod.enum(['north', 'central', 'south']),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number().min(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMax),
+  "lng": zod.number().min(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax)
+}).describe('Labeled synthetic coordinates, never live GPS.')
+}),zod.null()])
 }))
 })
 

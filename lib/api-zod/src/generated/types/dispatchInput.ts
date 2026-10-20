@@ -5,8 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { DemoSiteId } from './demoSiteId';
 
 export interface DispatchInput {
+  customer_site_id: DemoSiteId;
   /** @minimum 1 */
   tech_id: number;
   /** @minimum 1 */
