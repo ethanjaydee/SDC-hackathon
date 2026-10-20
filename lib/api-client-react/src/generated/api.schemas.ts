@@ -175,6 +175,16 @@ export const SupplierOfferSourceType = {
   captured_quote: 'captured_quote',
 } as const;
 
+export type SupplierOfferAvailabilityNote = typeof SupplierOfferAvailabilityNote[keyof typeof SupplierOfferAvailabilityNote];
+
+
+export const SupplierOfferAvailabilityNote = {
+  In_stock: 'In stock',
+  Limited_stock: 'Limited stock',
+  Out_of_stock: 'Out of stock',
+  Not_checked: 'Not checked',
+} as const;
+
 export interface SupplierOffer {
   id: string;
   search_term: string;
@@ -204,7 +214,7 @@ export interface SupplierOffer {
   shipping_myr: number | null;
   checked_at: string;
   source_type: SupplierOfferSourceType;
-  availability_note: string;
+  availability_note: SupplierOfferAvailabilityNote;
   /** @nullable */
   trust_evidence_url: string | null;
   /** @nullable */
@@ -229,6 +239,16 @@ export interface SupplierQuoteList {
   query: string;
   quotes: SupplierOffer[];
 }
+
+export type SupplierQuoteInputAvailabilityNote = typeof SupplierQuoteInputAvailabilityNote[keyof typeof SupplierQuoteInputAvailabilityNote];
+
+
+export const SupplierQuoteInputAvailabilityNote = {
+  In_stock: 'In stock',
+  Limited_stock: 'Limited stock',
+  Out_of_stock: 'Out of stock',
+  Not_checked: 'Not checked',
+} as const;
 
 export interface SupplierQuoteInput {
   /**
@@ -264,6 +284,7 @@ export interface SupplierQuoteInput {
      * @exclusiveMinimum 0
      */
   price_myr: number;
+  availability_note: SupplierQuoteInputAvailabilityNote;
   /**
      * @minimum 1
      * @maximum 5

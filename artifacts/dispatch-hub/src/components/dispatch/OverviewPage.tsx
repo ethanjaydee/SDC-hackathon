@@ -99,20 +99,20 @@ export default function OverviewPage({ hub }: Hub) {
         </section>
 
         <div className="xo-side-stack">
-          <section className="xo-panel xo-count-card" aria-label={ready ? `${dispatchedToday} dispatches today` : 'Dispatch count unavailable'}>
+          <Link href="/today" className="xo-panel xo-count-card xo-count-link" aria-label={ready ? `View today's ${dispatchedToday} dispatches` : 'Open today’s dispatch log'}>
             <div className="xo-count-heading"><span>Dispatches today</span><span className="xo-count-icon"><PackageCheck size={16} /></span></div>
             <div>
               <div className="xo-count-number">{ready ? dispatchedToday : '—'}</div>
-              <div className="xo-count-foot">Approved allocations recorded today</div>
+              <div className="xo-count-foot">Approved allocations · <b>Open today’s dispatches <ArrowRight size={11} /></b></div>
             </div>
-          </section>
-          <section className="xo-panel xo-count-card orange" aria-label={ready ? `${lowStockCount} low-stock lines` : 'Low-stock count unavailable'}>
+          </Link>
+          <Link href="/stock/low" className="xo-panel xo-count-card orange xo-count-link" aria-label={ready ? `Review ${lowStockCount} low-stock lines` : 'Open low-stock inventory'}>
             <div className="xo-count-heading"><span>Needs a closer look</span><span className="xo-count-icon"><Boxes size={16} /></span></div>
             <div>
               <div className="xo-count-number">{ready ? lowStockCount : '—'}</div>
-              <div className="xo-count-foot"><b>Low-stock lines</b> · 2 units or fewer</div>
+              <div className="xo-count-foot"><b>Low-stock lines</b> · 2 units or fewer · <b>Review lines <ArrowRight size={11} /></b></div>
             </div>
-          </section>
+          </Link>
         </div>
       </div>
 

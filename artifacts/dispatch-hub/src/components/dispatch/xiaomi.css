@@ -130,6 +130,11 @@
 .xo-count-number { margin-top: 13px; font: 800 44px/.95 'Manrope', sans-serif; letter-spacing: -.08em; }
 .xo-count-foot { margin-top: 8px; color: #7c8983; font-size: 9px; }
 .xo-count-foot b { color: #445b52; }
+.xo-count-link { color: inherit; text-decoration: none; transition: transform .18s, box-shadow .18s, border-color .18s; }
+.xo-count-link:hover { transform: translateY(-2px); border-color: #bdd7c8; box-shadow: 0 13px 28px rgba(37,67,57,.09); }
+.xo-count-link:active { transform: translateY(0) scale(.99); }
+.xo-count-link .xo-count-foot b { display: inline-flex; align-items: center; gap: 3px; color: var(--xo-teal); }
+.xo-count-card.orange.xo-count-link .xo-count-foot b { color: #bf623d; }
 .xo-activity { margin-top: 18px; padding: 0; overflow: hidden; }
 .xo-activity-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 22px; border-bottom: 1px solid #e8efea; }
 .xo-activity-title { display: flex; align-items: center; gap: 10px; }

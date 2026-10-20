@@ -383,7 +383,7 @@ router.post("/supplier-quotes", (req, res) => {
   const clean = (value) => value.trim();
   const fields = [
     input.search_term, input.part_name, input.product_name, input.supplier_name,
-    input.quality_evidence_note,
+    input.availability_note, input.quality_evidence_note,
   ];
   if (fields.some((value) => !clean(value)) ||
       (input.part_number != null && !clean(input.part_number))) {
@@ -411,16 +411,16 @@ router.post("/supplier-quotes", (req, res) => {
   const result = db.prepare(`
     INSERT INTO supplier_quotes (
       search_term, part_name, part_number, product_name, supplier_name, product_url,
-      price_myr, quality_rating, quality_evidence_note, package_quantity,
-      minimum_order_packs, shipping_myr, checked_at, availability_note,
+      price_myr, availability_note, quality_rating, quality_evidence_note,
+      package_quantity, minimum_order_packs, shipping_myr, checked_at,
       trust_evidence_url, trust_evidence_note
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     clean(input.search_term), clean(input.part_name), input.part_number ? clean(input.part_number) : null,
     clean(input.product_name), clean(input.supplier_name), productUrl, input.price_myr,
-    input.quality_rating, clean(input.quality_evidence_note), input.package_quantity ?? 1,
+    clean(input.availability_note), input.quality_rating, clean(input.quality_evidence_note),
+    input.package_quantity ?? 1,
     input.minimum_order_packs ?? 1, input.shipping_myr ?? null, checkedAt,
-    "Availability not independently verified; check the supplier listing.",
     trustEvidenceUrl, input.trust_evidence_note ? clean(input.trust_evidence_note) : null,
   );
   const offer = db.prepare(`

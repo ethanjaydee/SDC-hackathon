@@ -327,7 +327,7 @@ components:
         shipping_myr: { type: ["number", "null"], minimum: 0 }
         checked_at: { type: string, format: date-time }
         source_type: { type: string, enum: [live_catalog, captured_quote] }
-        availability_note: { type: string }
+        availability_note: { type: string, enum: [In stock, Limited stock, Out of stock, Not checked] }
         trust_evidence_url: { type: ["string", "null"], format: uri }
         trust_evidence_note: { type: ["string", "null"] }
         quality_rating: { type: integer, minimum: 1, maximum: 5 }
@@ -353,7 +353,7 @@ components:
           items: { $ref: "#/components/schemas/SupplierOffer" }
     SupplierQuoteInput:
       type: object
-      required: [search_term, part_name, product_name, supplier_name, product_url, price_myr, quality_rating, quality_evidence_note]
+      required: [search_term, part_name, product_name, supplier_name, product_url, price_myr, availability_note, quality_rating, quality_evidence_note]
       properties:
         search_term: { type: string, minLength: 2, maxLength: 120 }
         part_name: { type: string, minLength: 2, maxLength: 120 }
@@ -362,6 +362,7 @@ components:
         supplier_name: { type: string, minLength: 2, maxLength: 120 }
         product_url: { type: string, format: uri, maxLength: 2048 }
         price_myr: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+        availability_note: { type: string, enum: [In stock, Limited stock, Out of stock, Not checked] }
         quality_rating: { type: integer, minimum: 1, maximum: 5 }
         quality_evidence_note: { type: string, minLength: 5, maxLength: 400 }
         package_quantity: { type: integer, minimum: 1, maximum: 100000 }

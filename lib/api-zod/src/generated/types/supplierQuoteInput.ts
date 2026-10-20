@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SupplierQuoteInputAvailabilityNote } from './supplierQuoteInputAvailabilityNote';
 
 export interface SupplierQuoteInput {
   /**
@@ -40,6 +41,7 @@ export interface SupplierQuoteInput {
      * @exclusiveMinimum 0
      */
   price_myr: number;
+  availability_note: SupplierQuoteInputAvailabilityNote;
   /**
      * @minimum 1
      * @maximum 5

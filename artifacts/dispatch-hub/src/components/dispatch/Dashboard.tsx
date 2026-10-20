@@ -2,12 +2,13 @@ import './autoflow.css';
 import './xiaomi.css';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
-import { Activity, Boxes, FlaskConical, History, Inbox, Map as MapIcon, Menu, Radio, RefreshCw, ScanSearch, Users, X } from 'lucide-react';
+import { Activity, Boxes, FlaskConical, History, Inbox, Map as MapIcon, Menu, Radio, RefreshCw, ScanSearch, ShoppingBag, Users, X } from 'lucide-react';
 import { useDispatchHub } from './useDispatchHub';
 import OverviewPage from './OverviewPage';
 import IntakePage from './IntakePage';
 import AnalysisPage from './AnalysisPage';
 import MapPage from './MapPage';
+import SupplierComparePage from './SupplierComparePage';
 import { LogPage, StockPage, TechniciansPage } from './ListPages';
 import { IntakeFirst } from './shared';
 import NotFound from '@/pages/not-found';
@@ -65,6 +66,7 @@ export default function Dashboard() {
     { to: '/map', label: 'Technician map', Icon: MapIcon },
     { to: '/technicians', label: 'Technicians', Icon: Users },
     { to: '/stock', label: 'Van stock', Icon: Boxes },
+    { to: '/suppliers', label: 'Store comparison', Icon: ShoppingBag },
     { to: '/log', label: 'Dispatch log', Icon: History },
   ];
 
@@ -82,7 +84,11 @@ export default function Dashboard() {
         <div className="xo-nav-label">Workshop</div>
         <nav id="dispatch-navigation" className="xo-nav" aria-label="Dashboard sections">
           {items.map(({ to, label, Icon }) => {
-            const active = to === '/' ? location === '/' : location.startsWith(to);
+            const active = to === '/'
+              ? location === '/'
+              : to === '/log'
+                ? location === '/log' || location === '/today'
+                : location.startsWith(to);
             return <Link key={to} href={to} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}><Icon size={16} strokeWidth={1.8} /><span>{label}</span></Link>;
           })}
         </nav>
@@ -110,7 +116,10 @@ export default function Dashboard() {
               <Route path="/analysis">{analysis ? <AnalysisPage hub={hub} onApprove={approve} /> : completingDispatch ? <div className="af-hub-message" role="status">Completing dispatch…</div> : hub.analyze.isPending ? <IntakeFirst text="Analysis in progress" /> : <Redirect to="/intake" replace />}</Route>
               <Route path="/map"><MapPage hub={hub} /></Route>
               <Route path="/technicians"><TechniciansPage hub={hub} /></Route>
+              <Route path="/stock/low"><StockPage hub={hub} lowOnly /></Route>
               <Route path="/stock"><StockPage hub={hub} /></Route>
+              <Route path="/suppliers"><SupplierComparePage hub={hub} /></Route>
+              <Route path="/today"><LogPage hub={hub} notice={notice} todayOnly /></Route>
               <Route path="/log"><LogPage hub={hub} notice={notice} /></Route>
               <Route component={NotFound} />
             </Switch>

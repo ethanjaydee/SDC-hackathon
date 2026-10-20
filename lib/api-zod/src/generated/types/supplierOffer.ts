@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SupplierOfferAvailabilityNote } from './supplierOfferAvailabilityNote';
 import type { SupplierOfferSourceType } from './supplierOfferSourceType';
 
 export interface SupplierOffer {
@@ -36,7 +37,7 @@ export interface SupplierOffer {
   shipping_myr: number | null;
   checked_at: Date;
   source_type: SupplierOfferSourceType;
-  availability_note: string;
+  availability_note: SupplierOfferAvailabilityNote;
   /** @nullable */
   trust_evidence_url: string | null;
   /** @nullable */
