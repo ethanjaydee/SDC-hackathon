@@ -177,6 +177,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      better-sqlite3:
+        specifier: ^13.0.3
+        version: 13.0.3
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -185,7 +188,7 @@ importers:
         version: 2.8.6
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)
+        version: 0.45.2(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.0)
       express:
         specifier: ^5.2.1
         version: 5.2.1
@@ -618,10 +621,10 @@ importers:
     dependencies:
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)
+        version: 0.45.2(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.0)
       drizzle-zod:
         specifier: ^0.8.3
-        version: 0.8.3(drizzle-orm@0.45.2(@types/pg@8.23.1)(pg@8.23.0))(zod@3.25.76)
+        version: 0.8.3(drizzle-orm@0.45.2(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.0))(zod@3.25.76)
       pg:
         specifier: ^8.23.0
         version: 8.23.0
@@ -1746,6 +1749,10 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
+  better-sqlite3@13.0.3:
+    resolution: {integrity: sha512-RbOBxmLBG8uvFUc15X9+9SFemKcQ0WBuISBVkpuiaUB2qblC8UWlHEjdWVoZ8AdhSwmoEgsiXKfopX0CQxaACQ==}
+    engines: {node: '>=22'}
+
   body-parser@2.3.0:
     resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
     engines: {node: '>=18'}
@@ -2469,6 +2476,10 @@ packages:
     peerDependencies:
       react: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
       react-dom: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
+
+  node-addon-api@8.9.2:
+    resolution: {integrity: sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg==}
+    engines: {node: ^18 || ^20 || >= 21}
 
   node-releases@2.0.55:
     resolution: {integrity: sha512-mIrE/Cw9y+9Au6dS5vDKDhQza9YvG6w+ZrS6X+ZzA7yFW/soAeaups4Qzn1bL6g5FVy8WtP79+0j82oPIbqRjQ==}
@@ -4378,6 +4389,10 @@ snapshots:
 
   baseline-browser-mapping@2.11.21: {}
 
+  better-sqlite3@13.0.3:
+    dependencies:
+      node-addon-api: 8.9.2
+
   body-parser@2.3.0:
     dependencies:
       bytes: 3.1.2
@@ -4558,14 +4573,15 @@ snapshots:
       esbuild: 0.28.2
       tsx: 4.23.13
 
-  drizzle-orm@0.45.2(@types/pg@8.23.1)(pg@8.23.0):
+  drizzle-orm@0.45.2(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.0):
     optionalDependencies:
       '@types/pg': 8.23.1
+      better-sqlite3: 13.0.3
       pg: 8.23.0
 
-  drizzle-zod@0.8.3(drizzle-orm@0.45.2(@types/pg@8.23.1)(pg@8.23.0))(zod@3.25.76):
+  drizzle-zod@0.8.3(drizzle-orm@0.45.2(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.0))(zod@3.25.76):
     dependencies:
-      drizzle-orm: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)
+      drizzle-orm: 0.45.2(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.0)
       zod: 3.25.76
 
   dunder-proto@1.0.1:
@@ -4966,6 +4982,8 @@ snapshots:
     dependencies:
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
+
+  node-addon-api@8.9.2: {}
 
   node-releases@2.0.55: {}
 
