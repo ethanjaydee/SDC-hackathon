@@ -47,4 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
-/artifacts/api-server/data/
+
+# Local SQLite demo runtime data
+artifacts/api-server/data/

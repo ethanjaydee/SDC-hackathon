@@ -79,6 +79,17 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
+  --background: 43 26% 95%;
+
+  --foreground: 224 15% 15%;
+
+  --border: 38 17% 88%;
+
+  --card: 36 100% 99%;
+
+  --card-foreground: 224 15% 15%;
+
+  --card-border: 38 17% 88%;
   --background: 222 22% 6%;
 
   --foreground: 210 20% 94%;
@@ -107,6 +118,27 @@
 
   --sidebar-ring: 199 89% 56%;
 
+  --popover: 36 100% 99%;
+
+  --popover-foreground: 224 15% 15%;
+
+  --popover-border: 38 17% 88%;
+
+  --primary: 16 88% 52%;
+
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 38 22% 93%;
+
+  --secondary-foreground: 224 15% 15%;
+
+  --muted: 38 22% 93%;
+
+  --muted-foreground: 220 4% 44%;
+
+  --accent: 19 100% 96%;
+
+  --accent-foreground: 16 65% 36%;
   --popover: 222 25% 10%;
 
   --popover-foreground: 210 20% 94%;
@@ -133,6 +165,8 @@
 
   --destructive-foreground: 0 0% 98%;
 
+  --input: 38 17% 85%;
+  --ring: 16 88% 52%;
   --input: 217 30% 22%;
   --ring: 199 89% 56%;
   --chart-1: 199 89% 56%;
@@ -141,6 +175,9 @@
   --chart-4: 0 72% 55%;
   --chart-5: 262 50% 65%;
 
+  --app-font-sans: 'DM Sans', ui-sans-serif, sans-serif;
+  --app-font-serif: Georgia, serif;
+  --app-font-mono: 'Spline Sans Mono', Menlo, monospace;
   --app-font-sans: 'Geist', ui-sans-serif, sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: 'JetBrains Mono', Menlo, monospace;

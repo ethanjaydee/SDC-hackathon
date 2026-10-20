@@ -22,6 +22,12 @@ export const HealthCheckResponse = zod.object({
  */
 export const getHubDataResponseInventoryItemQuantityMin = 0;
 
+export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
+export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMax = 90;
+
+export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMin = -180;
+export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMax = 180;
+
 
 
 export const GetHubDataResponse = zod.object({
@@ -41,6 +47,24 @@ export const GetHubDataResponse = zod.object({
   "activity_log": zod.array(zod.object({
   "id": zod.number().int(),
   "timestamp": zod.string(),
+  "completion_dispatch_id": zod.number().int().nullable().describe('Original approval ID for a completion audit event; null otherwise.'),
+  "action_details": zod.string(),
+  "approved_by": zod.string(),
+  "dispatch": zod.union([zod.object({
+  "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
+  "completed_at": zod.string().nullable(),
+  "tech_id": zod.number().int(),
+  "technician_name": zod.string(),
+  "van_id": zod.number().int(),
+  "parts": zod.array(zod.string()),
+  "customer_site": zod.object({
+  "id": zod.enum(['north', 'central', 'south']),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number().min(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMax),
+  "lng": zod.number().min(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMax)
+}).describe('Labeled synthetic coordinates, never live GPS.')
+}),zod.null()])
   "action_details": zod.string(),
   "approved_by": zod.string()
 }))
@@ -73,6 +97,7 @@ export const approveDispatchBodyApprovedByMax = 80;
 
 
 export const ApproveDispatchBody = zod.object({
+  "customer_site_id": zod.enum(['north', 'central', 'south']),
   "tech_id": zod.number().int().min(1),
   "van_id": zod.number().int().min(1),
   "parts": zod.array(zod.string().min(1).max(approveDispatchBodyPartsItemMax)).min(1).max(approveDispatchBodyPartsMax),
@@ -80,6 +105,12 @@ export const ApproveDispatchBody = zod.object({
 })
 
 export const approveDispatchResponseInventoryItemQuantityMin = 0;
+
+export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
+export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMax = 90;
+
+export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMin = -180;
+export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax = 180;
 
 
 
@@ -100,6 +131,149 @@ export const ApproveDispatchResponse = zod.object({
   "activity_log": zod.array(zod.object({
   "id": zod.number().int(),
   "timestamp": zod.string(),
+  "completion_dispatch_id": zod.number().int().nullable().describe('Original approval ID for a completion audit event; null otherwise.'),
+  "action_details": zod.string(),
+  "approved_by": zod.string(),
+  "dispatch": zod.union([zod.object({
+  "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
+  "completed_at": zod.string().nullable(),
+  "tech_id": zod.number().int(),
+  "technician_name": zod.string(),
+  "van_id": zod.number().int(),
+  "parts": zod.array(zod.string()),
+  "customer_site": zod.object({
+  "id": zod.enum(['north', 'central', 'south']),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number().min(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMax),
+  "lng": zod.number().min(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax)
+}).describe('Labeled synthetic coordinates, never live GPS.')
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Complete an active dispatch and release its assigned technician
+ */
+
+export const completeDispatchBodyCompletedByMax = 80;
+
+
+
+export const CompleteDispatchBody = zod.object({
+  "dispatch_id": zod.number().int().min(1),
+  "completed_by": zod.string().min(1).max(completeDispatchBodyCompletedByMax)
+})
+
+export const completeDispatchResponseInventoryItemQuantityMin = 0;
+
+export const completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
+export const completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMax = 90;
+
+export const completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMin = -180;
+export const completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax = 180;
+
+
+
+export const CompleteDispatchResponse = zod.object({
+  "technicians": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "status": zod.enum(['Available', 'Busy']),
+  "zone": zod.string(),
+  "van_id": zod.number().int()
+})),
+  "inventory": zod.array(zod.object({
+  "id": zod.number().int(),
+  "van_id": zod.number().int(),
+  "part_name": zod.string(),
+  "quantity": zod.number().int().min(completeDispatchResponseInventoryItemQuantityMin)
+})),
+  "activity_log": zod.array(zod.object({
+  "id": zod.number().int(),
+  "timestamp": zod.string(),
+  "completion_dispatch_id": zod.number().int().nullable().describe('Original approval ID for a completion audit event; null otherwise.'),
+  "action_details": zod.string(),
+  "approved_by": zod.string(),
+  "dispatch": zod.union([zod.object({
+  "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
+  "completed_at": zod.string().nullable(),
+  "tech_id": zod.number().int(),
+  "technician_name": zod.string(),
+  "van_id": zod.number().int(),
+  "parts": zod.array(zod.string()),
+  "customer_site": zod.object({
+  "id": zod.enum(['north', 'central', 'south']),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number().min(completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMax),
+  "lng": zod.number().min(completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax)
+}).describe('Labeled synthetic coordinates, never live GPS.')
+}),zod.null()])
+}))
+})
+
+
+/**
+ * Does not change technicians with a tracked active dispatch. Preserves unknown historical dispatches and leaves inventory unchanged.
+ * @summary Reset an unassigned Busy demo technician to Available
+ */
+
+export const resetTechnicianAvailabilityBodyResetByMax = 80;
+
+
+
+export const ResetTechnicianAvailabilityBody = zod.object({
+  "technician_id": zod.number().int().min(1),
+  "reset_by": zod.string().min(1).max(resetTechnicianAvailabilityBodyResetByMax)
+})
+
+export const resetTechnicianAvailabilityResponseInventoryItemQuantityMin = 0;
+
+export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
+export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMax = 90;
+
+export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMin = -180;
+export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMax = 180;
+
+
+
+export const ResetTechnicianAvailabilityResponse = zod.object({
+  "technicians": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "status": zod.enum(['Available', 'Busy']),
+  "zone": zod.string(),
+  "van_id": zod.number().int()
+})),
+  "inventory": zod.array(zod.object({
+  "id": zod.number().int(),
+  "van_id": zod.number().int(),
+  "part_name": zod.string(),
+  "quantity": zod.number().int().min(resetTechnicianAvailabilityResponseInventoryItemQuantityMin)
+})),
+  "activity_log": zod.array(zod.object({
+  "id": zod.number().int(),
+  "timestamp": zod.string(),
+  "completion_dispatch_id": zod.number().int().nullable().describe('Original approval ID for a completion audit event; null otherwise.'),
+  "action_details": zod.string(),
+  "approved_by": zod.string(),
+  "dispatch": zod.union([zod.object({
+  "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
+  "completed_at": zod.string().nullable(),
+  "tech_id": zod.number().int(),
+  "technician_name": zod.string(),
+  "van_id": zod.number().int(),
+  "parts": zod.array(zod.string()),
+  "customer_site": zod.object({
+  "id": zod.enum(['north', 'central', 'south']),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number().min(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMax),
+  "lng": zod.number().min(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMax)
+}).describe('Labeled synthetic coordinates, never live GPS.')
+}),zod.null()])
   "action_details": zod.string(),
   "approved_by": zod.string()
 }))

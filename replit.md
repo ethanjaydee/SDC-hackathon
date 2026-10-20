@@ -7,6 +7,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 - `pnpm --filter @workspace/api-server run dev` — run the API server (use its managed workflow)
 - `pnpm --filter @workspace/dispatch-hub run dev` — dashboard (use its managed workflow)
 - `pnpm run typecheck` — full typecheck across all packages
+- `pnpm --filter @workspace/dispatch-hub exec tsx --test ../api-server/tests/*.test.ts` — isolated SQLite migration, dispatch, completion, and availability-reset API regressions (does not modify workspace data)
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
@@ -24,6 +25,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 ## Where things live
 
 - `artifacts/dispatch-hub/` — React/Tailwind dashboard
+- `artifacts/api-server/src/hub.js` — SQLite schema, synthetic seeds, RunPod placeholder and hub API router
 - `artifacts/api-server/src/server.js` — SQLite schema, synthetic seeds, RunPod placeholder and hub API router
 - `lib/api-spec/openapi.yaml` — API contract; regenerate hooks/schemas after changes
 
@@ -36,6 +38,15 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 
 ## Product
 
+Separate screens for overview, repair intake, post-intake analysis, technician map, technicians, van stock, and append-only dispatch history. Keep the desktop sidebar fixed instead of scrolling the entire dashboard between sections.
+
+## User preferences
+
+Use synthetic data only (no real personal info). Preserve the existing dispatch workflow and Lucide icons. The requested visual reference is the user's AutoFlow app: a dark sidebar, warm off-white content area, orange accents, and rounded neutral cards.
+
+For the main overview, the user approved the Xiaomi-inspired design with circular progress/status indicators instead of the existing summary-card layout. Keep the fixed sidebar and separate workflow screens.
+
+Analysis should appear only after repair intake is submitted, not as a permanent panel on the main page. The user chose sample locations for the technician/customer map; label positions as synthetic demo coordinates, not live GPS. Distances are straight-line estimates, not road routes or arrival times.
 Three-column dispatch dashboard: repair notes, mock analysis with inventory-aware technician matching and approval, and current van stock with append-only approval history.
 
 ## User preferences

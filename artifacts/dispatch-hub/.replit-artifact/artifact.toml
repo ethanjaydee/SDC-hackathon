@@ -1,5 +1,7 @@
 kind = "web"
 previewPath = "/"
+title = "Dispatch Hub"
+description = "A field-service dispatch dashboard for intake of repair notes, technician and spare-part matching, approved stock allocation, van inventory, and audit history."
 title = "Field Service Dispatch Hub"
 description = "A field service dispatch and spare-part matching SME hub with synthetic technicians, SQLite van inventory, mock AI request analysis, and approved dispatch audit logs."
 version = "1.0.0"

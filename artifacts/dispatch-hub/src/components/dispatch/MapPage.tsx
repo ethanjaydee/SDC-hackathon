@@ -1,0 +1,178 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { Maximize2 } from 'lucide-react';
+import { DEMO_CUSTOMER_SITES, distanceKm, getTechnicianLocation } from './demoLocations';
+import { PageHead, type Hub } from './shared';
+import { CompletionControl } from './CompletionControl';
+
+type Readiness = 'Parts not checked' | 'Stock ready' | 'Missing parts';
+
+function el(tag: string, cls: string, text?: string) {
+  const e = document.createElement(tag); e.className = cls; if (text) e.textContent = text; return e;
+}
+
+export default function MapPage({ hub }: Hub) {
+  const { technicians, inventory, activity, analysis, match, customerSite, customerSiteId, updateCustomerSite, approve, hubQ } = hub;
+  const box = useRef<HTMLDivElement>(null);
+  const map = useRef<L.Map | null>(null);
+  const layer = useRef<L.LayerGroup | null>(null);
+  const markers = useRef<Record<string, L.Marker>>({});
+  const [selected, setSelected] = useState<number | null>(null);
+  const [tileErrors, setTileErrors] = useState(0);
+  const intakeCondition = analysis
+    ? `Analysis ready · ${analysis.result.urgency} urgency`
+    : hub.notes.trim() ? 'Draft intake · awaiting analysis' : 'No active repair intake';
+  // Group co-located dispatches so every assignment is accessible in one popup.
+  const savedSites = useMemo(() => {
+    const groups = new Map<string, { site: NonNullable<(typeof activity)[number]['dispatch']>['customer_site']; entries: typeof activity }>();
+    activity.forEach((entry) => {
+      if (!entry.dispatch) return;
+      const site = entry.dispatch.customer_site;
+      const key = `${site.id}:${site.lat}:${site.lng}`;
+      const group = groups.get(key) || { site, entries: [] };
+      group.entries.push(entry);
+      groups.set(key, group);
+    });
+    return [...groups.entries()];
+  }, [activity]);
+
+  const rows = useMemo(() => technicians.map((t) => {
+    const loc = getTechnicianLocation(t.id);
+    let readiness: Readiness = 'Parts not checked';
+    if (analysis) {
+      const need = new Map<string, number>();
+      analysis.result.parts.forEach((p) => need.set(p.toLowerCase(), (need.get(p.toLowerCase()) || 0) + 1));
+      const ok = [...need].every(([p, q]) => inventory.some((i) => i.van_id === t.van_id && i.part_name.toLowerCase() === p && i.quantity >= q));
+      readiness = ok ? 'Stock ready' : 'Missing parts';
+    }
+    return { t, loc, km: loc ? distanceKm(loc, customerSite) : null, readiness, nearest: match?.id === t.id };
+  }), [technicians, inventory, analysis, customerSite, match]);
+
+  useEffect(() => {
+    if (!box.current) return;
+    const m = L.map(box.current, { scrollWheelZoom: true }).setView([customerSite.lat, customerSite.lng], 12);
+    const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors',
+    }).addTo(m);
+    tiles.on('tileerror', () => setTileErrors((n) => n + 1));
+    tiles.on('loading', () => setTileErrors(0));
+    layer.current = L.layerGroup().addTo(m);
+    map.current = m;
+    const ro = new ResizeObserver(() => m.invalidateSize());
+    ro.observe(box.current);
+    return () => { ro.disconnect(); m.remove(); map.current = null; layer.current = null; markers.current = {}; };
+  }, []);
+
+  const fit = () => {
+    const pts: L.LatLngTuple[] = [[customerSite.lat, customerSite.lng]];
+    rows.forEach((r) => r.loc && pts.push([r.loc.lat, r.loc.lng]));
+    savedSites.forEach(([, { site }]) => pts.push([site.lat, site.lng]));
+    map.current?.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 14 });
+  };
+
+  useEffect(() => {
+    const g = layer.current; if (!g) return;
+    const openPopup = Object.entries(markers.current).find(([, marker]) => marker.isPopupOpen())?.[0];
+    g.clearLayers(); markers.current = {};
+    const pin = (cls: string, label: string) => L.divIcon({ className: 'af-pin-wrap', iconSize: [30, 30], iconAnchor: [15, 15], html: el('div', `af-pin ${cls}`, label) });
+    const c = L.marker([customerSite.lat, customerSite.lng], { icon: pin('customer', 'D'), title: `Draft intake: ${customerSite.label}`, zIndexOffset: 500 });
+    const cp = el('div', 'af-pop');
+    cp.append(el('b', '', `Draft intake: ${customerSite.label}`), el('span', '', intakeCondition), el('span', '', analysis?.result.issue || 'No diagnosis for the current intake'), el('span', '', 'Not a saved assignment · Synthetic demo coordinates'));
+    c.bindPopup(cp).addTo(g); markers.current.c = c;
+    savedSites.forEach(([key, { site, entries }]) => {
+      const mk = L.marker([site.lat, site.lng], { icon: pin('customer', 'S'), title: `Saved: ${site.label}`, zIndexOffset: 600 });
+      const pop = el('div', 'af-pop');
+      pop.append(el('b', '', site.label), el('span', '', 'Saved dispatches · Synthetic demo coordinates, not live GPS'));
+      entries.forEach((entry) => {
+        const d = entry.dispatch!;
+        pop.append(el('b', '', `Dispatch #${entry.id} · ${d.status} · ${d.technician_name} · Van ${d.van_id}`),
+          el('span', '', `Parts: ${d.parts.join(', ')}`),
+          el('span', '', d.completed_at ? `Completed: ${new Date(d.completed_at).toLocaleString()}` : d.status === 'Unknown' ? 'Legacy active status unknown' : 'Active assignment'),
+          el('span', '', `${new Date(entry.timestamp).toLocaleString()} · Approved by ${entry.approved_by}`));
+      });
+      mk.bindPopup(pop, { maxHeight: 280 }).addTo(g);
+      markers.current[`s${key}`] = mk;
+    });
+    rows.forEach((r) => {
+      if (!r.loc) return;
+      const busy = r.t.status !== 'Available';
+      const mk = L.marker([r.loc.lat, r.loc.lng], { icon: pin(busy ? 'busy' : r.nearest ? 'best' : 'ok', r.t.name.split(' ').map((p) => p[0]).join('').slice(0, 2)), title: r.t.name });
+      const pop = el('div', 'af-pop');
+      pop.append(el('b', '', r.t.name), el('span', '', `${r.t.zone} · ${r.t.status}`), el('span', '', `Van ${r.t.van_id} · ${r.readiness}`), el('span', '', `${r.km!.toFixed(1)} km straight-line to customer`));
+      mk.bindPopup(pop).on('click', () => setSelected(r.t.id)).addTo(g);
+      markers.current[`t${r.t.id}`] = mk;
+    });
+    if (openPopup) markers.current[openPopup]?.openPopup();
+  }, [rows, customerSite, intakeCondition, analysis, savedSites]);
+
+  useEffect(() => { if (rows.length || savedSites.length) fit(); /* eslint-disable-next-line */ }, [customerSiteId, rows.length, savedSites.length]);
+
+  const focusSaved = (id: number) => {
+    const group = savedSites.find(([, { entries }]) => entries.some((entry) => entry.id === id));
+    const mk = group && markers.current[`s${group[0]}`];
+    if (mk) { map.current?.setView(mk.getLatLng(), 14); mk.openPopup(); }
+  };
+
+  const focus = (id: number) => {
+    setSelected(id);
+    const mk = markers.current[`t${id}`];
+    if (mk) { map.current?.setView(mk.getLatLng(), Math.max(map.current.getZoom(), 13)); mk.openPopup(); }
+  };
+  const sel = rows.find((r) => r.t.id === selected);
+
+  return (
+    <div className="af-page">
+      <PageHead kicker="Field view" title="Technician map" sub="Sample positions, saved assignments and real hub status.">
+        <select className="af-select" style={{ width: 'auto' }} aria-label="Draft intake customer site" data-testid="select-map-site" value={customerSiteId} disabled={approve.isPending} onChange={(e) => updateCustomerSite(e.target.value)}>
+          {DEMO_CUSTOMER_SITES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+        <button className="af-quiet-btn af-outline" type="button" onClick={fit}><Maximize2 size={12} /> Fit all</button>
+      </PageHead>
+      <div className="af-note">Synthetic demo coordinates, not live GPS. Distances are straight-line, not driving routes or ETAs. Status and stock come from the live hub.</div>
+      {hubQ.isError && <div className="af-error af-hub-message" role="alert"><span>Hub connection lost. Showing last known statuses.</span></div>}
+      {hub.completionError && <p className="af-error" role="alert">{hub.completionError}</p>}
+      {tileErrors > 0 && <div className="af-error af-hub-message" role="alert"><span>Some map tiles could not be loaded. Sample locations and last-known hub statuses remain available in the list.</span></div>}
+      <div className="af-map-layout">
+        <div className="af-map-box"><div ref={box} className="af-map" data-testid="map-canvas" aria-label="Map of technicians and customer" /></div>
+        <aside className="af-map-side">
+          <div className="af-legend" aria-label="Legend">
+            <span><i className="af-pin-sm customer" />S: Saved / D: Draft site</span><span><i className="af-pin-sm ok" />Available</span>
+            <span><i className="af-pin-sm best" />Nearest qualified</span><span><i className="af-pin-sm busy" />Busy</span>
+          </div>
+          <div className="af-map-list">
+            {rows.map((r) => (
+              <button key={r.t.id} type="button" disabled={!r.loc} className={`af-map-row ${selected === r.t.id ? 'sel' : ''}`} onClick={() => focus(r.t.id)} data-testid={`map-tech-${r.t.id}`}>
+                <span className="af-map-row-top"><b>{r.t.name}</b><span className={`af-status-tag ${r.t.status !== 'Available' ? 'busy' : ''}`}>{r.t.status}</span></span>
+                <span className="af-map-row-sub">{r.t.zone} · Van {r.t.van_id}</span>
+                <span className="af-map-row-sub">{r.loc ? `${r.km!.toFixed(1)} km straight-line` : 'Location unavailable'} · {r.readiness}{r.nearest ? ' · Nearest qualified' : ''}</span>
+              </button>
+            ))}
+            {!rows.length && <p className="af-hint">{hubQ.isLoading ? 'Loading technicians…' : 'No technicians found.'}</p>}
+          </div>
+          {sel && <p className="af-hint">Selected: {sel.t.name}. {sel.loc?.label}{sel.loc ? ` (${sel.loc.lat.toFixed(4)}, ${sel.loc.lng.toFixed(4)})` : ''}.</p>}
+          <p className="af-hint">Draft customer: {customerSite.label} ({customerSite.lat.toFixed(4)}, {customerSite.lng.toFixed(4)}). Current intake: {intakeCondition}. Technician distances refer to this draft site.</p>
+          <h3>Saved dispatches</h3>
+          <div className="af-map-list" data-testid="saved-dispatches">
+            {activity.filter((entry) => entry.completion_dispatch_id == null).map((entry) => {
+              const d = entry.dispatch;
+              return (
+                <div key={entry.id}>
+                <button type="button" className="af-map-row" disabled={!d} onClick={() => focusSaved(entry.id)} data-testid={`map-dispatch-${entry.id}`}>
+                  <span className="af-map-row-top"><b>Dispatch #{entry.id}{d ? ` · ${d.status}` : ''}</b></span>
+                  <span className="af-map-row-sub">{d ? d.customer_site.label : 'Customer location unknown · legacy record'}</span>
+                  <span className="af-map-row-sub">{d ? `${d.technician_name} · Van ${d.van_id} · ${d.parts.join(', ')}` : entry.action_details}</span>
+                  <span className="af-map-row-sub">{new Date(entry.timestamp).toLocaleString()} · {entry.approved_by}</span>
+                  {d && <span className="af-map-row-sub">Synthetic coordinates: {d.customer_site.lat.toFixed(4)}, {d.customer_site.lng.toFixed(4)}</span>}
+                </button>
+                <CompletionControl entry={entry} hub={hub} />
+                </div>
+              );
+            })}
+            {!activity.length && <p className="af-hint">{hubQ.isLoading ? 'Loading saved dispatches…' : hubQ.isError ? 'Saved dispatches unavailable.' : 'No saved dispatches yet.'}</p>}
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}

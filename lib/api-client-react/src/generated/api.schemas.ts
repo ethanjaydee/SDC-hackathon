@@ -33,6 +33,69 @@ export interface InventoryItem {
   quantity: number;
 }
 
+/**
+ * Unknown means an older assignment cannot safely be completed.
+ */
+export type SavedDispatchStatus = typeof SavedDispatchStatus[keyof typeof SavedDispatchStatus];
+
+
+export const SavedDispatchStatus = {
+  Active: 'Active',
+  Completed: 'Completed',
+  Unknown: 'Unknown',
+} as const;
+
+export type DemoSiteId = typeof DemoSiteId[keyof typeof DemoSiteId];
+
+
+export const DemoSiteId = {
+  north: 'north',
+  central: 'central',
+  south: 'south',
+} as const;
+
+/**
+ * Labeled synthetic coordinates, never live GPS.
+ */
+export interface DemoCustomerSite {
+  id: DemoSiteId;
+  label: string;
+  area: string;
+  /**
+     * @minimum -90
+     * @maximum 90
+     */
+  lat: number;
+  /**
+     * @minimum -180
+     * @maximum 180
+     */
+  lng: number;
+}
+
+export interface SavedDispatch {
+  /** Unknown means an older assignment cannot safely be completed. */
+  status: SavedDispatchStatus;
+  /** @nullable */
+  completed_at: string | null;
+  tech_id: number;
+  technician_name: string;
+  van_id: number;
+  parts: string[];
+  customer_site: DemoCustomerSite;
+}
+
+export interface Activity {
+  id: number;
+  timestamp: string;
+  /**
+     * Original approval ID for a completion audit event; null otherwise.
+     * @nullable
+     */
+  completion_dispatch_id: number | null;
+  action_details: string;
+  approved_by: string;
+  dispatch: SavedDispatch | null;
 export interface Activity {
   id: number;
   timestamp: string;
@@ -70,6 +133,7 @@ export interface Analysis {
 }
 
 export interface DispatchInput {
+  customer_site_id: DemoSiteId;
   /** @minimum 1 */
   tech_id: number;
   /** @minimum 1 */
@@ -86,6 +150,26 @@ export interface DispatchInput {
      * @maxLength 80
      */
   approved_by: string;
+}
+
+export interface DispatchCompletionInput {
+  /** @minimum 1 */
+  dispatch_id: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  completed_by: string;
+}
+
+export interface TechnicianResetInput {
+  /** @minimum 1 */
+  technician_id: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  reset_by: string;
 }
 
 export interface HealthStatus {

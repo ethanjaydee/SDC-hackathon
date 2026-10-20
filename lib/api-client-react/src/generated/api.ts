@@ -21,10 +21,13 @@ import type {
 
 import type {
   Analysis,
+  DispatchCompletionInput,
   DispatchInput,
   HealthStatus,
   HubData,
   InvalidRequestResponse,
+  ServiceRequestInput,
+  TechnicianResetInput
   ServiceRequestInput
 } from './api.schemas';
 
@@ -87,6 +90,16 @@ export const getHealthCheckQueryKey = () => {
     `/api/healthz`
     ] as const;
     }
+
+
+export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthCheckQueryKey();
+
+
 
 
 export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
@@ -358,6 +371,265 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
+    export type ApproveDispatchMutationResult = NonNullable<Awaited<ReturnType<typeof approveDispatch>>>
+    export type ApproveDispatchMutationBody = BodyType<DispatchInput>
+    export type ApproveDispatchMutationError = ErrorType<InvalidRequestResponse>
+    export type ApproveDispatchMutationVariables = {data: BodyType<DispatchInput>}
+
+    export const useApproveDispatch = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveDispatch>>, TError,ApproveDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveDispatch>>,
+        TError,
+        ApproveDispatchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveDispatchMutationOptions(options));
+    }
+
+export const getCompleteDispatchUrl = () => {
+
+
+
+
+  return `/api/complete-dispatch`
+}
+
+/**
+ * @summary Complete an active dispatch and release its assigned technician
+ */
+export const completeDispatch = async (dispatchCompletionInput: DispatchCompletionInput, options?: Parameters<typeof customFetch>[1]): Promise<HubData> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<HubData>(getCompleteDispatchUrl(),
+  };
+return customFetch<Analysis>(getAnalyzeRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dispatchCompletionInput)
+  }
+);}
+
+
+
+
+
+export const getCompleteDispatchMutationKey = () => ['completeDispatch'] as const;
+
+export const getCompleteDispatchMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeDispatch>>, TError,CompleteDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeDispatch>>, TError,CompleteDispatchMutationVariables, TContext> => {
+
+const mutationKey = getCompleteDispatchMutationKey();
+    body: JSON.stringify(serviceRequestInput)
+  }
+);}
+
+
+
+
+
+export const getAnalyzeRequestMutationKey = () => ['analyzeRequest'] as const;
+
+export const getAnalyzeRequestMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeRequest>>, TError,AnalyzeRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeRequest>>, TError,AnalyzeRequestMutationVariables, TContext> => {
+
+const mutationKey = getAnalyzeRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeDispatch>>, CompleteDispatchMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  completeDispatch(data,requestOptions)
+        }
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeRequest>>, AnalyzeRequestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  analyzeRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteDispatchMutationResult = NonNullable<Awaited<ReturnType<typeof completeDispatch>>>
+    export type CompleteDispatchMutationBody = BodyType<DispatchCompletionInput>
+    export type CompleteDispatchMutationError = ErrorType<InvalidRequestResponse>
+    export type CompleteDispatchMutationVariables = {data: BodyType<DispatchCompletionInput>}
+
+    /**
+ * @summary Complete an active dispatch and release its assigned technician
+ */
+export const useCompleteDispatch = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeDispatch>>, TError,CompleteDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeDispatch>>,
+        TError,
+        CompleteDispatchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCompleteDispatchMutationOptions(options));
+    }
+
+export const getResetTechnicianAvailabilityUrl = () => {
+
+
+
+
+  return `/api/reset-technician`
+}
+
+/**
+ * Does not change technicians with a tracked active dispatch. Preserves unknown historical dispatches and leaves inventory unchanged.
+ * @summary Reset an unassigned Busy demo technician to Available
+ */
+export const resetTechnicianAvailability = async (technicianResetInput: TechnicianResetInput, options?: Parameters<typeof customFetch>[1]): Promise<HubData> => {
+    export type AnalyzeRequestMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeRequest>>>
+    export type AnalyzeRequestMutationBody = BodyType<ServiceRequestInput>
+    export type AnalyzeRequestMutationError = ErrorType<InvalidRequestResponse>
+    export type AnalyzeRequestMutationVariables = {data: BodyType<ServiceRequestInput>}
+
+    export const useAnalyzeRequest = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeRequest>>, TError,AnalyzeRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeRequest>>,
+        TError,
+        AnalyzeRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnalyzeRequestMutationOptions(options));
+    }
+
+export const getApproveDispatchUrl = () => {
+
+
+
+
+  return `/api/approve-dispatch`
+}
+
+export const approveDispatch = async (dispatchInput: DispatchInput, options?: Parameters<typeof customFetch>[1]): Promise<HubData> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<HubData>(getResetTechnicianAvailabilityUrl(),
+return customFetch<HubData>(getApproveDispatchUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(technicianResetInput)
+  }
+);}
+
+
+
+
+
+export const getResetTechnicianAvailabilityMutationKey = () => ['resetTechnicianAvailability'] as const;
+
+export const getResetTechnicianAvailabilityMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetTechnicianAvailability>>, TError,ResetTechnicianAvailabilityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetTechnicianAvailability>>, TError,ResetTechnicianAvailabilityMutationVariables, TContext> => {
+
+const mutationKey = getResetTechnicianAvailabilityMutationKey();
+    body: JSON.stringify(dispatchInput)
+  }
+);}
+
+
+
+
+
+export const getApproveDispatchMutationKey = () => ['approveDispatch'] as const;
+
+export const getApproveDispatchMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveDispatch>>, TError,ApproveDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveDispatch>>, TError,ApproveDispatchMutationVariables, TContext> => {
+
+const mutationKey = getApproveDispatchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetTechnicianAvailability>>, ResetTechnicianAvailabilityMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  resetTechnicianAvailability(data,requestOptions)
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveDispatch>>, ApproveDispatchMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  approveDispatch(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetTechnicianAvailabilityMutationResult = NonNullable<Awaited<ReturnType<typeof resetTechnicianAvailability>>>
+    export type ResetTechnicianAvailabilityMutationBody = BodyType<TechnicianResetInput>
+    export type ResetTechnicianAvailabilityMutationError = ErrorType<InvalidRequestResponse>
+    export type ResetTechnicianAvailabilityMutationVariables = {data: BodyType<TechnicianResetInput>}
+
+    /**
+ * @summary Reset an unassigned Busy demo technician to Available
+ */
+export const useResetTechnicianAvailability = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetTechnicianAvailability>>, TError,ResetTechnicianAvailabilityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetTechnicianAvailability>>,
+        TError,
+        ResetTechnicianAvailabilityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResetTechnicianAvailabilityMutationOptions(options));
     export type ApproveDispatchMutationResult = NonNullable<Awaited<ReturnType<typeof approveDispatch>>>
     export type ApproveDispatchMutationBody = BodyType<DispatchInput>
     export type ApproveDispatchMutationError = ErrorType<InvalidRequestResponse>
