@@ -215,6 +215,68 @@
   .xo-activity-time { grid-column: 2; margin-top: -5px; }
   .xo-activity-copy strong { white-space: normal; line-height: 1.45; }
 }
+/* A little extra scale for the wide 16:9 desktop layout. The tablet and
+   mobile layouts above retain their original sizing. */
+@media screen and (min-width: 1280px) and (min-aspect-ratio: 16 / 9) {
+  .xo-sidebar { width: 258px; padding: 29px 18px 22px; }
+  .xo-brand { gap: 12px; padding-bottom: 42px; }
+  .xo-brand-mark { width: 36px; height: 36px; }
+  .xo-brand-name { font-size: 17px; }
+  .xo-nav-label { font-size: 10px; }
+  .xo-nav { gap: 6px; }
+  .xo-nav a { min-height: 46px; padding: 0 13px; gap: 13px; font-size: 13px; }
+  .xo-side-card { padding: 17px 16px; }
+  .xo-side-card strong { font-size: 14px; }
+  .xo-side-card p { font-size: 11px; }
+  .xo-main { margin-left: 258px; }
+  .xo-demo-note { min-height: 40px; padding: 9px 36px; gap: 10px; font-size: 11px; }
+  .xo-note-tag { font-size: 10px; }
+  .xo-note-dot { width: 8px; height: 8px; }
+  .xo-content { width: min(1300px, 100%); padding: 40px 44px 52px; }
+  .xo-topline { gap: 26px; margin-bottom: 28px; }
+  .xo-eyebrow, .xo-mono { font-size: 10px; }
+  .xo-title { font: 800 clamp(30px, 3.1vw, 40px)/1.07 'Manrope', sans-serif; }
+  .xo-subtitle { margin-top: 11px; font-size: 13px; }
+  .xo-top-actions { gap: 11px; }
+  .xo-snapshot-chip { min-height: 39px; padding: 0 14px; font-size: 11px; }
+  .xo-primary { min-height: 45px; padding: 0 19px; font-size: 12px !important; }
+  .xo-overview-grid { grid-template-columns: minmax(0, 1.52fr) minmax(280px, .8fr); gap: 20px; }
+  .xo-panel { border-radius: 27px; }
+  .xo-readiness { padding: 25px 26px 24px; }
+  .xo-section-title { font-size: 17px; }
+  .xo-section-caption { font-size: 11px; }
+  .xo-live-label { font-size: 9px; }
+  .xo-live-label span { width: 7px; height: 7px; }
+  .xo-ring-row { gap: 14px; margin-top: 28px; }
+  .xo-ring-card { padding: 18px 13px 16px; border-radius: 22px; }
+  .xo-ring { width: 128px; height: 128px; }
+  .xo-ring-number { font-size: 30px; }
+  .xo-ring-percent { font-size: 9px; }
+  .xo-ring-label { margin-top: 15px; font-size: 12px; }
+  .xo-ring-criteria { font-size: 10px; }
+  .xo-ring-hint { font-size: 9px; }
+  .xo-side-stack { gap: 16px; }
+  .xo-count-card { padding: 24px 25px; }
+  .xo-count-card::after { width: 132px; height: 132px; }
+  .xo-count-heading { font-size: 11px; }
+  .xo-count-icon { width: 34px; height: 34px; }
+  .xo-count-number { font-size: 47px; }
+  .xo-count-foot { font-size: 10px; }
+  .xo-activity { margin-top: 20px; }
+  .xo-activity-head { padding: 20px 24px; }
+  .xo-activity-title h2 { font-size: 15px; }
+  .xo-activity-title p { font-size: 10px; }
+  .xo-text-link { font-size: 10px; }
+  .xo-activity-list { padding-right: 24px; padding-left: 24px; }
+  .xo-activity-item { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 13px; padding: 13px 0; }
+  .xo-activity-symbol { width: 32px; height: 32px; }
+  .xo-activity-copy strong { font-size: 11px; }
+  .xo-activity-copy span, .xo-activity-time { font-size: 9px; }
+  .xo-detail { padding: 16px 19px; }
+  .xo-detail h3 { font-size: 13px; }
+  .xo-detail-chip { font-size: 10px; }
+  .xo-footer { font-size: 9px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .xiaomi-overview *, .xiaomi-overview *::before, .xiaomi-overview *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
