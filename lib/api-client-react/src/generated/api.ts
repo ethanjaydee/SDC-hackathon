@@ -26,7 +26,8 @@ import type {
   HealthStatus,
   HubData,
   InvalidRequestResponse,
-  ServiceRequestInput
+  ServiceRequestInput,
+  TechnicianResetInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -461,5 +462,94 @@ export const useCompleteDispatch = <TError = ErrorType<InvalidRequestResponse>,
         TContext
       > => {
       return useMutation(getCompleteDispatchMutationOptions(options));
+    }
+
+export const getResetTechnicianAvailabilityUrl = () => {
+
+
+
+
+  return `/api/reset-technician`
+}
+
+/**
+ * Does not change technicians with a tracked active dispatch. Preserves unknown historical dispatches and leaves inventory unchanged.
+ * @summary Reset an unassigned Busy demo technician to Available
+ */
+export const resetTechnicianAvailability = async (technicianResetInput: TechnicianResetInput, options?: Parameters<typeof customFetch>[1]): Promise<HubData> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<HubData>(getResetTechnicianAvailabilityUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(technicianResetInput)
+  }
+);}
+
+
+
+
+
+export const getResetTechnicianAvailabilityMutationKey = () => ['resetTechnicianAvailability'] as const;
+
+export const getResetTechnicianAvailabilityMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetTechnicianAvailability>>, TError,ResetTechnicianAvailabilityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetTechnicianAvailability>>, TError,ResetTechnicianAvailabilityMutationVariables, TContext> => {
+
+const mutationKey = getResetTechnicianAvailabilityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetTechnicianAvailability>>, ResetTechnicianAvailabilityMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  resetTechnicianAvailability(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetTechnicianAvailabilityMutationResult = NonNullable<Awaited<ReturnType<typeof resetTechnicianAvailability>>>
+    export type ResetTechnicianAvailabilityMutationBody = BodyType<TechnicianResetInput>
+    export type ResetTechnicianAvailabilityMutationError = ErrorType<InvalidRequestResponse>
+    export type ResetTechnicianAvailabilityMutationVariables = {data: BodyType<TechnicianResetInput>}
+
+    /**
+ * @summary Reset an unassigned Busy demo technician to Available
+ */
+export const useResetTechnicianAvailability = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetTechnicianAvailability>>, TError,ResetTechnicianAvailabilityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetTechnicianAvailability>>,
+        TError,
+        ResetTechnicianAvailabilityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResetTechnicianAvailabilityMutationOptions(options));
     }
 

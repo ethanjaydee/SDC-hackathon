@@ -157,6 +157,16 @@ export interface DispatchCompletionInput {
   completed_by: string;
 }
 
+export interface TechnicianResetInput {
+  /** @minimum 1 */
+  technician_id: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  reset_by: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

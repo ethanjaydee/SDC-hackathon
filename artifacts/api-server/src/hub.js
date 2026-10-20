@@ -10,6 +10,8 @@ import {
   ApproveDispatchResponse,
   CompleteDispatchBody,
   CompleteDispatchResponse,
+  ResetTechnicianAvailabilityBody,
+  ResetTechnicianAvailabilityResponse,
   GetHubDataResponse,
 } from "@workspace/api-zod";
 
@@ -190,6 +192,7 @@ const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer
 });
 
 class DispatchNotFound extends Error {}
+class TechnicianNotFound extends Error {}
 
 const completeDispatch = db.transaction(({ dispatch_id, completed_by }) => {
   const job = db.prepare("SELECT * FROM dispatches WHERE activity_id = ?").get(dispatch_id);
@@ -212,6 +215,34 @@ const completeDispatch = db.transaction(({ dispatch_id, completed_by }) => {
   db.prepare("UPDATE dispatches SET status = 'Completed', completion_activity_id = ? WHERE activity_id = ? AND status = 'Active'")
     .run(event.lastInsertRowid, dispatch_id);
   db.prepare("UPDATE technicians SET status = 'Available' WHERE id = ?").run(job.tech_id);
+  return getHubData();
+});
+
+const resetTechnicianAvailability = db.transaction(({ technician_id, reset_by }) => {
+  const technician = db.prepare(
+    "SELECT * FROM technicians WHERE id = ?",
+  ).get(technician_id);
+  if (!technician) throw new TechnicianNotFound("Technician not found.");
+  if (technician.status !== "Busy") {
+    throw new DispatchConflict("This technician is already Available.");
+  }
+  if (db.prepare("SELECT 1 FROM dispatches WHERE tech_id = ? AND status = 'Active'").get(technician_id)) {
+    throw new DispatchConflict("This technician has an active dispatch. Complete that job instead of resetting availability.");
+  }
+
+  const updated = db.prepare(
+    "UPDATE technicians SET status = 'Available' WHERE id = ? AND status = 'Busy'",
+  ).run(technician_id);
+  if (updated.changes !== 1) {
+    throw new DispatchConflict("The technician's status changed. Refresh and try again.");
+  }
+  db.prepare(
+    "INSERT INTO activity_log (timestamp, action_details, approved_by) VALUES (?, ?, ?)",
+  ).run(
+    new Date().toISOString(),
+    `Technician availability reset: ${technician.name} set to Available. Previous dispatch history and inventory unchanged.`,
+    reset_by,
+  );
   return getHubData();
 });
 
@@ -265,6 +296,26 @@ router.post("/complete-dispatch", (req, res, next) => {
   } catch (error) {
     if (error instanceof DispatchNotFound || error instanceof DispatchConflict) {
       res.status(error instanceof DispatchNotFound ? 404 : 409).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
+});
+
+router.post("/reset-technician", (req, res, next) => {
+  const parsed = ResetTechnicianAvailabilityBody.safeParse(req.body);
+  if (!parsed.success || !Number.isSafeInteger(parsed.data.technician_id) || !parsed.data.reset_by.trim()) {
+    res.status(400).json({ error: "Provide a valid technician ID and dispatcher name." });
+    return;
+  }
+  try {
+    const updated = resetTechnicianAvailability.immediate({
+      ...parsed.data, reset_by: parsed.data.reset_by.trim(),
+    });
+    res.json(ResetTechnicianAvailabilityResponse.parse(updated));
+  } catch (error) {
+    if (error instanceof TechnicianNotFound || error instanceof DispatchConflict) {
+      res.status(error instanceof TechnicianNotFound ? 404 : 409).json({ error: error.message });
       return;
     }
     next(error);

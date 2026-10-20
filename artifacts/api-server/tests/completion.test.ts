@@ -34,6 +34,9 @@ test('completion validates assignment, persists atomically, never restores parts
       tech_id, van_id: tech_id, parts: ['100uF Capacitor', 'NPN Transistor'],
       customer_site_id: 'central', approved_by: 'Demo Dispatcher',
     });
+    const reset = (technician_id = 3) => post('reset-technician', {
+      technician_id, reset_by: 'Demo Dispatcher',
+    });
     const initial = await read();
     assert.equal(initial.technicians[2].status, 'Busy'); // seed Busy has no invented job
     const analyzed = await post('analyze-request', { text: 'Synthetic power issue' });
@@ -93,6 +96,47 @@ test('completion validates assignment, persists atomically, never restores parts
     assert.equal(reopened.prepare('SELECT status FROM dispatches WHERE activity_id = ?').get(id).status, 'Completed');
     assert.equal(reopened.prepare("SELECT count(*) AS n FROM dispatches WHERE status = 'Active'").get().n, 1);
     reopened.close();
+
+    const activeBeforeReset = await read();
+    for (const invalid of [
+      {}, null, { technician_id: 0, reset_by: 'Demo Dispatcher' },
+      { technician_id: 1.5, reset_by: 'Demo Dispatcher' },
+      { technician_id: '3', reset_by: 'Demo Dispatcher' },
+      { technician_id: 3, reset_by: '  ' },
+      { technician_id: 3, reset_by: 'a'.repeat(81) },
+    ]) assert.equal((await post('reset-technician', invalid)).status, 400);
+    assert.equal((await reset(99999)).status, 404);
+    assert.equal((await reset(1)).status, 409); // a tracked active job must be completed, not reset
+    assert.equal((await reset(2)).status, 409); // only Available
+    assert.deepEqual(await read(), activeBeforeReset);
+
+    // A failed audit write rolls back the status change as well.
+    db.exec(`CREATE TRIGGER fail_reset BEFORE INSERT ON activity_log
+      WHEN NEW.action_details LIKE 'Technician availability reset:%'
+      BEGIN SELECT RAISE(ABORT, 'test failure'); END;`);
+    assert.equal((await reset(3)).status, 500);
+    assert.deepEqual(await read(), activeBeforeReset);
+    db.exec('DROP TRIGGER fail_reset');
+
+    const resetResponses = await Promise.all([reset(3), reset(3)]);
+    assert.deepEqual(resetResponses.map((response) => response.status).sort(), [200, 409]);
+    const afterReset = await read();
+    assert.equal(afterReset.technicians[2].status, 'Available');
+    assert.equal(afterReset.technicians[0].status, 'Busy'); // reset did not release Tech A's active job
+    assert.deepEqual(afterReset.inventory, activeBeforeReset.inventory);
+    assert.equal(afterReset.activity_log.length, activeBeforeReset.activity_log.length + 1);
+    const resetEvent = afterReset.activity_log[0];
+    assert.match(resetEvent.action_details, /^Technician availability reset: Tech C/);
+    assert.equal(resetEvent.approved_by, 'Demo Dispatcher');
+    assert.equal(resetEvent.dispatch, null);
+    assert.equal(resetEvent.completion_dispatch_id, null);
+    assert.equal((await reset(3)).status, 409); // repeated resets do not add audit events
+    assert.deepEqual(await read(), afterReset);
+
+    const persisted = new Database(resolve(dir, 'data/dispatch-hub.sqlite'), { readonly: true });
+    assert.equal(persisted.prepare('SELECT status FROM technicians WHERE id = 3').get().status, 'Available');
+    assert.equal(persisted.prepare('SELECT status FROM dispatches WHERE activity_id = ?').get(id).status, 'Active');
+    persisted.close();
   } finally {
     process.chdir(cwd);
     if (server) await new Promise<void>((r, reject) => server.close((e) => e ? reject(e) : r()));
@@ -133,13 +177,25 @@ test('migration activates only unambiguous Busy assignments and preserves unknow
     const base = `http://127.0.0.1:${address.port}/api`;
     const hub = await (await fetch(`${base}/hub-data`)).json();
     assert.deepEqual(hub.activity_log.map((e) => e.dispatch.status), ['Unknown', 'Unknown', 'Unknown', 'Active']);
+    const reset = (technician_id: number) => fetch(`${base}/reset-technician`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ technician_id, reset_by: 'Demo Dispatcher' }),
+    });
     const complete = (id: number) => fetch(`${base}/complete-dispatch`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dispatch_id: id, completed_by: 'Demo Dispatcher' }),
     });
     assert.equal((await complete(2)).status, 409);
+    assert.equal((await reset(1)).status, 409); // verified active job remains protected
+    assert.equal((await reset(2)).status, 200); // explicit reset preserves unknown legacy assignments
+    const afterReset = await (await fetch(`${base}/hub-data`)).json();
+    assert.equal(afterReset.technicians.find((tech) => tech.id === 2).status, 'Available');
+    assert.deepEqual(afterReset.activity_log.filter((e) => [1, 2, 3, 4].includes(e.id)).map((e) => e.dispatch.status),
+      ['Unknown', 'Unknown', 'Unknown', 'Active']);
+    assert.match(afterReset.activity_log[0].action_details, /^Technician availability reset: Tech B/);
+    assert.equal((await complete(2)).status, 409);
     assert.equal((await complete(1)).status, 200);
-    assert.equal(db.prepare('SELECT count(*) AS n FROM activity_log').get().n, 5);
+    assert.equal(db.prepare('SELECT count(*) AS n FROM activity_log').get().n, 6);
     assert.equal(db.prepare('SELECT action_details FROM activity_log WHERE id = 1').get().action_details, 'Original approval');
   } finally {
     process.chdir(cwd);

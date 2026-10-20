@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  getGetHubDataQueryKey, useAnalyzeRequest, useApproveDispatch, useCompleteDispatch, useGetHubData,
+  getGetHubDataQueryKey, useAnalyzeRequest, useApproveDispatch, useCompleteDispatch,
+  useGetHubData, useResetTechnicianAvailability,
   type Analysis,
 } from '@workspace/api-client-react';
 import { useToast } from '@/hooks/use-toast';
@@ -28,8 +29,11 @@ export function useDispatchHub() {
   const analyze = useAnalyzeRequest();
   const approve = useApproveDispatch();
   const complete = useCompleteDispatch();
+  const reset = useResetTechnicianAvailability();
   const completionLock = useRef(false);
+  const resetLock = useRef(false);
   const [completionError, setCompletionError] = useState('');
+  const [resetError, setResetError] = useState('');
   const [notes, setNotes] = useState('');
   const [customerSiteId, setCustomerSiteId] = useState(DEMO_CUSTOMER_SITES[0].id);
   const [analysis, setAnalysis] = useState<{ result: Analysis; forText: string } | null>(null);
@@ -54,11 +58,12 @@ export function useDispatchHub() {
   const lowStockCount = inventory.filter((item) => item.quantity <= 2).length;
   const dispatchedToday = activity.filter((entry) =>
     entry.completion_dispatch_id == null &&
+    entry.action_details.startsWith('Dispatch approved:') &&
     new Date(entry.timestamp).toDateString() === new Date().toDateString(),
   ).length;
 
   const completeJob = async (dispatchId: number) => {
-    if (completionLock.current || approve.isPending || hubQ.isError) return false;
+    if (completionLock.current || resetLock.current || approve.isPending || hubQ.isError) return false;
     completionLock.current = true;
     setCompletionError('');
     try {
@@ -76,6 +81,34 @@ export function useDispatchHub() {
       return false;
     } finally {
       completionLock.current = false;
+    }
+  };
+
+  const resetTechnician = async (technicianId: number) => {
+    if (resetLock.current || completionLock.current || approve.isPending || hubQ.isError) return false;
+    resetLock.current = true;
+    setResetError('');
+    try {
+      const updated = await reset.mutateAsync({
+        data: { technician_id: technicianId, reset_by: APPROVER },
+      });
+      await qc.cancelQueries({ queryKey: getGetHubDataQueryKey() });
+      qc.setQueryData(getGetHubDataQueryKey(), updated);
+      void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() });
+      const technician = updated.technicians.find((item) => item.id === technicianId);
+      toast({
+        title: 'Technician reset',
+        description: `${technician?.name || 'Technician'} is available. Dispatch history and van stock are unchanged.`,
+      });
+      return true;
+    } catch (error) {
+      void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() });
+      const detail = message(error);
+      setResetError(detail);
+      toast({ title: 'Reset failed', description: detail, variant: 'destructive' });
+      return false;
+    } finally {
+      resetLock.current = false;
     }
   };
 
@@ -158,6 +191,7 @@ export function useDispatchHub() {
     customerSiteId, customerSite, updateCustomerSite,
     updateNotes, runAnalysis, approveDispatch,
     complete, completeJob, completionError,
+    reset, resetTechnician, resetError,
   };
 }
 

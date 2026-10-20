@@ -213,3 +213,66 @@ export const CompleteDispatchResponse = zod.object({
 })
 
 
+/**
+ * Does not change technicians with a tracked active dispatch. Preserves unknown historical dispatches and leaves inventory unchanged.
+ * @summary Reset an unassigned Busy demo technician to Available
+ */
+
+export const resetTechnicianAvailabilityBodyResetByMax = 80;
+
+
+
+export const ResetTechnicianAvailabilityBody = zod.object({
+  "technician_id": zod.number().int().min(1),
+  "reset_by": zod.string().min(1).max(resetTechnicianAvailabilityBodyResetByMax)
+})
+
+export const resetTechnicianAvailabilityResponseInventoryItemQuantityMin = 0;
+
+export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
+export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMax = 90;
+
+export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMin = -180;
+export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMax = 180;
+
+
+
+export const ResetTechnicianAvailabilityResponse = zod.object({
+  "technicians": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "status": zod.enum(['Available', 'Busy']),
+  "zone": zod.string(),
+  "van_id": zod.number().int()
+})),
+  "inventory": zod.array(zod.object({
+  "id": zod.number().int(),
+  "van_id": zod.number().int(),
+  "part_name": zod.string(),
+  "quantity": zod.number().int().min(resetTechnicianAvailabilityResponseInventoryItemQuantityMin)
+})),
+  "activity_log": zod.array(zod.object({
+  "id": zod.number().int(),
+  "timestamp": zod.string(),
+  "completion_dispatch_id": zod.number().int().nullable().describe('Original approval ID for a completion audit event; null otherwise.'),
+  "action_details": zod.string(),
+  "approved_by": zod.string(),
+  "dispatch": zod.union([zod.object({
+  "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
+  "completed_at": zod.string().nullable(),
+  "tech_id": zod.number().int(),
+  "technician_name": zod.string(),
+  "van_id": zod.number().int(),
+  "parts": zod.array(zod.string()),
+  "customer_site": zod.object({
+  "id": zod.enum(['north', 'central', 'south']),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number().min(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMax),
+  "lng": zod.number().min(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMax)
+}).describe('Labeled synthetic coordinates, never live GPS.')
+}),zod.null()])
+}))
+})
+
+
