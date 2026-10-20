@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import Database from 'better-sqlite3';
 import express from 'express';
+import { createServer } from 'node:http';
 
 test('supplier offers are validated, persisted, and compared only for the selected part', async () => {
   const cwd = process.cwd();
@@ -84,6 +85,91 @@ test('supplier offers are validated, persisted, and compared only for the select
     process.chdir(cwd);
     if (server) await new Promise<void>((resolve, reject) => server!.close((error) => error ? reject(error) : resolve()));
     db?.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('supplier catalog returns validated live prices and isolates feed failures', async () => {
+  const cwd = process.cwd();
+  const dir = mkdtempSync(resolve(tmpdir(), 'supplier-catalog-'));
+  const previousFeeds = process.env.SUPPLIER_CATALOG_FEEDS;
+  let feedServer;
+  let apiServer;
+  try {
+    const feed = createServer((req, res) => {
+      if (req.url?.startsWith('/broken')) {
+        res.writeHead(503).end();
+        return;
+      }
+      const query = new URL(req.url ?? '/', 'http://localhost').searchParams.get('q');
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+        offers: [{
+          id: 'capacitor-25v',
+          product_name: `Capacitor 25V matching ${query}`,
+          product_url: 'https://parts.example/capacitor',
+          price_myr: 12.5,
+          availability_note: 'In stock',
+          package_quantity: 10,
+          unit_label: '10 pieces',
+          source_updated_at: '2020-01-01T00:00:00.000Z',
+        }],
+      }));
+    });
+    feedServer = feed.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => feedServer!.once('listening', resolve));
+    const feedAddress = feedServer.address();
+    assert.ok(feedAddress && typeof feedAddress !== 'string');
+    process.env.SUPPLIER_CATALOG_FEEDS = JSON.stringify([
+      {
+        id: 'supplier-alpha',
+        name: 'Supplier Alpha',
+        endpoint: `http://127.0.0.1:${feedAddress.port}/catalog`,
+        query_param: 'q',
+      },
+      {
+        id: 'supplier-broken',
+        name: 'Supplier Broken',
+        endpoint: `http://127.0.0.1:${feedAddress.port}/broken`,
+        query_param: 'q',
+      },
+    ]);
+    process.chdir(dir);
+    const { default: router } = await import(`${new URL('../src/hub.js', import.meta.url).href}?supplier-catalog`);
+    process.chdir(cwd);
+    const app = express();
+    app.use('/api', router);
+    apiServer = app.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => apiServer!.once('listening', resolve));
+    const apiAddress = apiServer.address();
+    assert.ok(apiAddress && typeof apiAddress !== 'string');
+    const base = `http://127.0.0.1:${apiAddress.port}/api/supplier-catalog`;
+
+    const providers = await (await fetch(`${base}/providers`)).json();
+    assert.deepEqual(providers.providers.map((provider) => provider.id), ['supplier-alpha', 'supplier-broken']);
+    assert.equal((await fetch(`${base}?query=Capacitor`)).status, 400);
+    assert.equal((await fetch(`${base}?query=Capacitor&supplier_ids=unknown`)).status, 400);
+
+    const response = await fetch(
+      `${base}?query=${encodeURIComponent('100uF Capacitor')}&supplier_ids=supplier-alpha&supplier_ids=supplier-broken`,
+    );
+    assert.equal(response.status, 200);
+    const comparison = await response.json();
+    assert.deepEqual(comparison.suppliers.map((supplier) => supplier.status), ['ok', 'error']);
+    assert.match(comparison.suppliers[1].error, /HTTP 503/);
+    const live = comparison.suppliers[0].offers[0];
+    assert.equal(live.supplier_name, 'Supplier Alpha');
+    assert.equal(live.price_myr, 12.5);
+    assert.equal(live.availability_note, 'In stock');
+    assert.equal(live.package_quantity, 10);
+    assert.equal(live.unit_label, '10 pieces');
+    assert.equal(live.is_stale, true);
+    assert.ok(Math.abs(Date.now() - new Date(live.checked_at).getTime()) < 10_000);
+  } finally {
+    process.chdir(cwd);
+    if (previousFeeds === undefined) delete process.env.SUPPLIER_CATALOG_FEEDS;
+    else process.env.SUPPLIER_CATALOG_FEEDS = previousFeeds;
+    if (apiServer) await new Promise<void>((resolve, reject) => apiServer!.close((error) => error ? reject(error) : resolve()));
+    if (feedServer) await new Promise<void>((resolve, reject) => feedServer!.close((error) => error ? reject(error) : resolve()));
     rmSync(dir, { recursive: true, force: true });
   }
 });

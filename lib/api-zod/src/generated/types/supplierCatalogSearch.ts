@@ -5,12 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { SupplierOffer } from './supplierOffer';
+import type { SupplierCatalogResult } from './supplierCatalogResult';
 
 export interface SupplierCatalogSearch {
   query: string;
-  supplier_name: string;
-  checked_at: Date;
   /** @maxItems 20 */
-  offers: SupplierOffer[];
+  suppliers: SupplierCatalogResult[];
 }

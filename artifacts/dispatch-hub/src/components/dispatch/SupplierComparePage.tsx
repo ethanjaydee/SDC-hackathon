@@ -1,10 +1,16 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowDownWideNarrow, ArrowUpRight, BadgeCheck, LoaderCircle, Plus, ShoppingBag, Star } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpRight, BadgeCheck, LoaderCircle, Plus, RefreshCw, ShoppingBag, Star } from 'lucide-react';
 import {
+  getListSupplierCatalogProvidersQueryKey,
   getListSupplierQuotesQueryKey,
+  getSearchSupplierCatalogQueryKey,
+  useListSupplierCatalogProviders,
   useListSupplierQuotes,
+  useSearchSupplierCatalog,
   useSaveSupplierQuote,
+  type SupplierCatalogOffer,
+  type SupplierOffer,
   type SupplierQuoteInput,
 } from '@workspace/api-client-react';
 import { useToast } from '@/hooks/use-toast';
@@ -39,8 +45,30 @@ const emptyForm: OfferForm = {
 };
 
 const ringgit = new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' });
+const staleAfterMs = 24 * 60 * 60 * 1000;
 
-function unitPrice(offer: SupplierQuoteInput | { price_myr: number; package_quantity?: number | null; minimum_order_packs?: number | null; shipping_myr?: number | null }) {
+type ComparisonOffer = {
+  id: string;
+  sourceType: 'captured_quote' | 'live_catalog';
+  supplierName: string;
+  productName: string;
+  productUrl: string;
+  priceMyr: number;
+  packPrice: number;
+  packageQuantity: number | null;
+  unitLabel: string | null;
+  minimumOrderPacks: number | null;
+  shippingMyr: number | null;
+  availabilityNote: string;
+  checkedAt: string;
+  sourceUpdatedAt: string | null;
+  stale: boolean;
+  qualityRating: number | null;
+  qualityEvidence: string | null;
+  partNumber: string | null;
+};
+
+function unitPrice(offer: { price_myr: number; package_quantity?: number | null; minimum_order_packs?: number | null; shipping_myr?: number | null }) {
   const units = (offer.package_quantity ?? 1) * (offer.minimum_order_packs ?? 1);
   return (offer.price_myr * (offer.minimum_order_packs ?? 1) + (offer.shipping_myr ?? 0)) / units;
 }
@@ -50,9 +78,40 @@ export default function SupplierComparePage({ hub }: Hub) {
   const [selectedPart, setSelectedPart] = useState('');
   const [sortMode, setSortMode] = useState<'quality' | 'price'>('quality');
   const [form, setForm] = useState<OfferForm>(emptyForm);
+  const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
+  const supplierSelectionInitialized = useRef(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const partName = selectedPart || parts[0] || '';
+  const providersQuery = useListSupplierCatalogProviders({
+    query: {
+      queryKey: getListSupplierCatalogProvidersQueryKey(),
+      staleTime: 60_000,
+    },
+  });
+  useEffect(() => {
+    const providers = providersQuery.data?.providers;
+    if (!providers || supplierSelectionInitialized.current) return;
+    supplierSelectionInitialized.current = true;
+    const availableIds = providers.map((provider) => provider.id);
+    let savedIds: string[] = [];
+    let hasSavedSelection = false;
+    try {
+      const stored = window.localStorage.getItem('dispatch-selected-supplier-feeds');
+      if (stored != null) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          savedIds = parsed.filter((id): id is string => typeof id === 'string');
+          hasSavedSelection = true;
+        }
+      }
+    } catch {
+      savedIds = [];
+    }
+    setSelectedSupplierIds(hasSavedSelection
+      ? savedIds.filter((id) => availableIds.includes(id))
+      : availableIds);
+  }, [providersQuery.data]);
   const quotesQuery = useListSupplierQuotes(
     { query: partName },
     {
@@ -63,14 +122,77 @@ export default function SupplierComparePage({ hub }: Hub) {
       },
     },
   );
+  const catalogQuery = useSearchSupplierCatalog(
+    { query: partName, supplier_ids: selectedSupplierIds },
+    {
+      query: {
+        queryKey: getSearchSupplierCatalogQueryKey({ query: partName, supplier_ids: selectedSupplierIds }),
+        enabled: partName.trim().length >= 2 && selectedSupplierIds.length > 0,
+        refetchInterval: 5 * 60 * 1000,
+        refetchOnWindowFocus: true,
+      },
+    },
+  );
   const saveQuote = useSaveSupplierQuote();
   const offers = useMemo(() => {
-    const result = [...(quotesQuery.data?.quotes ?? [])];
+    const captured: ComparisonOffer[] = (quotesQuery.data?.quotes ?? []).map((offer) => ({
+      id: `quote-${offer.id}`,
+      sourceType: 'captured_quote',
+      supplierName: offer.supplier_name,
+      productName: offer.product_name,
+      productUrl: offer.product_url,
+      priceMyr: unitPrice(offer),
+      packPrice: offer.price_myr,
+      packageQuantity: offer.package_quantity,
+      unitLabel: null,
+      minimumOrderPacks: offer.minimum_order_packs,
+      shippingMyr: offer.shipping_myr,
+      availabilityNote: offer.availability_note,
+      checkedAt: offer.checked_at,
+      sourceUpdatedAt: null,
+      stale: Date.now() - new Date(offer.checked_at).getTime() > staleAfterMs,
+      qualityRating: offer.quality_rating,
+      qualityEvidence: offer.quality_evidence_note,
+      partNumber: offer.part_number,
+    }));
+    const live: ComparisonOffer[] = (catalogQuery.data?.suppliers ?? [])
+      .flatMap((supplier) => supplier.offers)
+      .map((offer) => ({
+        id: `live-${offer.id}`,
+        sourceType: 'live_catalog',
+        supplierName: offer.supplier_name,
+        productName: offer.product_name,
+        productUrl: offer.product_url,
+        priceMyr: unitPrice(offer),
+        packPrice: offer.price_myr,
+        packageQuantity: offer.package_quantity,
+        unitLabel: offer.unit_label,
+        minimumOrderPacks: null,
+        shippingMyr: null,
+        availabilityNote: offer.availability_note,
+        checkedAt: offer.checked_at,
+        sourceUpdatedAt: offer.source_updated_at,
+        stale: offer.is_stale,
+        qualityRating: null,
+        qualityEvidence: null,
+        partNumber: null,
+      }));
+    const result = [...captured, ...live];
     result.sort((a, b) => sortMode === 'price'
-      ? unitPrice(a) - unitPrice(b) || b.quality_rating - a.quality_rating
-      : b.quality_rating - a.quality_rating || unitPrice(a) - unitPrice(b));
+      ? a.priceMyr - b.priceMyr || (b.qualityRating ?? 0) - (a.qualityRating ?? 0)
+      : (b.qualityRating ?? 0) - (a.qualityRating ?? 0) || a.priceMyr - b.priceMyr);
     return result;
-  }, [quotesQuery.data, sortMode]);
+  }, [catalogQuery.data, quotesQuery.data, sortMode]);
+  const suppliersWithErrors = (catalogQuery.data?.suppliers ?? []).filter((supplier) => supplier.status === 'error');
+  const toggleSupplier = (supplierId: string) => {
+    setSelectedSupplierIds((current) => {
+      const next = current.includes(supplierId)
+        ? current.filter((id) => id !== supplierId)
+        : [...current, supplierId];
+      window.localStorage.setItem('dispatch-selected-supplier-feeds', JSON.stringify(next));
+      return next;
+    });
+  };
   const setField = (key: keyof OfferForm, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
 
@@ -117,11 +239,11 @@ export default function SupplierComparePage({ hub }: Hub) {
 
       <div className="af-note af-supplier-disclaimer">
         <ShoppingBag size={14} />
-        <span><strong>Manually captured offers.</strong> This demo does not fetch live store prices. Enter prices and ratings from a supplier listing or your own documented inspection; verify them before ordering.</span>
+        <span><strong>Live feeds and captured offers.</strong> Catalog prices are fetched from configured supplier feeds every five minutes. Confirm current price and stock with the supplier before ordering.</span>
       </div>
 
       <div className="af-supplier-layout">
-        <Card title="Part comparison" aside={<span className="af-mono" style={{ color: '#89867f' }}>{offers.length} saved offers</span>}>
+        <Card title="Part comparison" aside={<span className="af-mono" style={{ color: '#89867f' }}>{offers.length} offers</span>}>
           {parts.length ? (
             <label className="af-supplier-part">
               <span className="af-label">Spare part</span>
@@ -136,11 +258,37 @@ export default function SupplierComparePage({ hub }: Hub) {
             </label>
           ) : <p className="af-hint">Part choices will appear when inventory is available.</p>}
 
+          <div className="af-supplier-feed-picker" aria-label="Supplier catalog feeds">
+            <div className="af-supplier-feed-heading">
+              <strong>Live supplier feeds</strong>
+              {catalogQuery.isFetching && <span role="status"><RefreshCw className="af-spin" size={12} /> Checking prices</span>}
+            </div>
+            {providersQuery.isLoading && <p className="af-hint">Loading supported supplier feeds…</p>}
+            {providersQuery.isError && <p className="af-error" role="alert">Supported supplier feeds could not be loaded.</p>}
+            {!providersQuery.isLoading && !providersQuery.isError && !providersQuery.data?.providers.length && (
+              <p className="af-hint">No live feeds are configured. Manually captured supplier offers are still available below.</p>
+            )}
+            {!!providersQuery.data?.providers.length && (
+              <div className="af-supplier-feed-options">
+                {providersQuery.data.providers.map((provider) => (
+                  <label key={provider.id}>
+                    <input
+                      type="checkbox"
+                      checked={selectedSupplierIds.includes(provider.id)}
+                      onChange={() => toggleSupplier(provider.id)}
+                    />
+                    <span>{provider.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="af-supplier-results">
             <div className="af-supplier-results-head">
               <div>
                 <h2>{partName || 'Supplier offers'}</h2>
-                <p>Quality first, then effective price · MYR</p>
+                <p>{sortMode === 'quality' ? 'Captured quality ratings first, then effective price' : 'Lowest effective price first'} · MYR</p>
               </div>
               <label className="af-sort-control">
                 <ArrowDownWideNarrow size={13} />
@@ -152,44 +300,60 @@ export default function SupplierComparePage({ hub }: Hub) {
               </label>
             </div>
 
-            {quotesQuery.isLoading && <div className="af-supplier-state" role="status"><LoaderCircle className="af-spin" size={15} /> Loading saved offers…</div>}
+            {(quotesQuery.isLoading || (selectedSupplierIds.length > 0 && catalogQuery.isLoading)) && <div className="af-supplier-state" role="status"><LoaderCircle className="af-spin" size={15} /> Loading supplier offers…</div>}
             {quotesQuery.isError && <div className="af-error" role="alert">Supplier offers could not be loaded. Try changing the part or reload this page.</div>}
-            {!quotesQuery.isLoading && !quotesQuery.isError && !offers.length && (
-              <div className="af-empty-log">No offers saved for this part yet. Add a supplier listing to start comparing.</div>
+            {catalogQuery.isError && <div className="af-error af-supplier-feed-error" role="alert">Live catalog results could not be loaded. Saved manual quotes are still available.</div>}
+            {suppliersWithErrors.map((supplier) => (
+              <div className="af-error af-supplier-feed-error" role="alert" key={supplier.id}>
+                <strong>{supplier.name} feed failed:</strong> {supplier.error || 'The supplier feed could not be reached.'}
+              </div>
+            ))}
+            {!quotesQuery.isLoading && !quotesQuery.isError && !catalogQuery.isLoading && !offers.length && (
+              <div className="af-empty-log">No offers found for this part. Add a captured listing or try another part.</div>
             )}
             {!!offers.length && (
               <div className="af-offer-list">
                 {offers.map((offer, index) => {
-                  const price = unitPrice(offer);
-                  const hasShipping = offer.shipping_myr != null;
-                  const best = sortMode === 'quality' ? index === 0 : price === unitPrice(offers[0]);
+                  const best = sortMode === 'quality'
+                    ? offer.qualityRating != null && offer.qualityRating === offers.find((item) => item.qualityRating != null)?.qualityRating &&
+                      offers.findIndex((item) => item.qualityRating != null) === index
+                    : offer.priceMyr === offers[0].priceMyr;
+                  const checkedAt = new Date(offer.checkedAt);
                   return (
-                    <article className={`af-offer ${best ? 'best' : ''}`} key={offer.id}>
+                    <article className={`af-offer ${best ? 'best' : ''} ${offer.stale ? 'stale' : ''}`} key={offer.id}>
                       <div className="af-offer-top">
                         <div>
-                          <div className="af-offer-supplier">{offer.supplier_name}{best && <span className="af-best-tag"><BadgeCheck size={11} /> {sortMode === 'quality' ? 'Top rated' : 'Lowest price'}</span>}</div>
-                          <a className="af-offer-product" href={offer.product_url} target="_blank" rel="noopener noreferrer">
-                            {offer.product_name} <ArrowUpRight size={12} />
+                          <div className="af-offer-supplier">{offer.supplierName}{best && <span className="af-best-tag"><BadgeCheck size={11} /> {sortMode === 'quality' ? 'Top rated' : 'Lowest price'}</span>}</div>
+                          <a className="af-offer-product" href={offer.productUrl} target="_blank" rel="noopener noreferrer">
+                            {offer.productName} <ArrowUpRight size={12} />
                           </a>
-                          {offer.part_number && <span className="af-offer-sku">SKU · {offer.part_number}</span>}
+                          {offer.partNumber && <span className="af-offer-sku">SKU · {offer.partNumber}</span>}
                         </div>
                         <div className="af-offer-price">
-                          <strong>{ringgit.format(price)}</strong>
-                          <span>effective / unit{!hasShipping ? ' · shipping excluded' : ''}</span>
+                          <strong>{ringgit.format(offer.priceMyr)}</strong>
+                          <span>effective / unit{offer.sourceType === 'live_catalog' ? ' · shipping unknown' : offer.shippingMyr == null ? ' · shipping excluded' : ''}</span>
                         </div>
                       </div>
                       <div className="af-offer-meta">
-                        <span className="af-quality-score" aria-label={`Quality rating ${offer.quality_rating} out of 5`}>
-                          {Array.from({ length: 5 }, (_, star) => <Star key={star} size={13} fill={star < offer.quality_rating ? 'currentColor' : 'none'} />)}
-                          <b>{offer.quality_rating}/5</b>
-                        </span>
-                        <span>{ringgit.format(offer.price_myr)} / pack · {offer.package_quantity ?? 1} per pack</span>
-                        <span>Min {offer.minimum_order_packs ?? 1} pack{(offer.minimum_order_packs ?? 1) === 1 ? '' : 's'}{hasShipping ? ` · ${ringgit.format(offer.shipping_myr!)} shipping` : ''}</span>
+                        {offer.qualityRating != null && (
+                          <span className="af-quality-score" aria-label={`Quality rating ${offer.qualityRating} out of 5`}>
+                            {Array.from({ length: 5 }, (_, star) => <Star key={star} size={13} fill={star < offer.qualityRating! ? 'currentColor' : 'none'} />)}
+                            <b>{offer.qualityRating}/5 · team rated</b>
+                          </span>
+                        )}
+                        <span>{ringgit.format(offer.packPrice)} / pack · {offer.unitLabel || (offer.packageQuantity == null ? 'unit size not reported' : `${offer.packageQuantity} per pack`)}</span>
+                        {offer.sourceType === 'captured_quote' && (
+                          <span>Min {offer.minimumOrderPacks ?? 1} pack{(offer.minimumOrderPacks ?? 1) === 1 ? '' : 's'}{offer.shippingMyr != null ? ` · ${ringgit.format(offer.shippingMyr)} shipping` : ''}</span>
+                        )}
                       </div>
-                      <p className="af-offer-evidence"><strong>Quality evidence:</strong> {offer.quality_evidence_note}</p>
+                      {offer.qualityEvidence && <p className="af-offer-evidence"><strong>Quality evidence:</strong> {offer.qualityEvidence}</p>}
                       <div className="af-offer-foot">
-                        <span className={`af-availability ${offer.availability_note === 'In stock' ? 'available' : offer.availability_note === 'Out of stock' ? 'unavailable' : ''}`}>{offer.availability_note}</span>
-                        <time dateTime={new Date(offer.checked_at).toISOString()}>Checked {new Date(offer.checked_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}</time>
+                        <span className={`af-availability ${offer.availabilityNote === 'In stock' ? 'available' : offer.availabilityNote === 'Out of stock' ? 'unavailable' : ''}`}>{offer.availabilityNote}</span>
+                        {offer.stale && <span className="af-stale-tag" role="status">Stale price</span>}
+                        <time dateTime={checkedAt.toISOString()}>
+                          {offer.sourceType === 'live_catalog' ? 'Feed checked' : 'Quote captured'} {checkedAt.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                        </time>
+                        {offer.sourceUpdatedAt && <span>Supplier update: {new Date(offer.sourceUpdatedAt).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
                       </div>
                     </article>
                   );

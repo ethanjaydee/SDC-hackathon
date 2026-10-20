@@ -13,8 +13,11 @@ import {
   ResetTechnicianAvailabilityBody,
   ResetTechnicianAvailabilityResponse,
   GetHubDataResponse,
+  ListSupplierCatalogProvidersResponse,
   ListSupplierQuotesQueryParams,
   ListSupplierQuotesResponse,
+  SearchSupplierCatalogQueryParams,
+  SearchSupplierCatalogResponse,
   SaveSupplierQuoteBody,
   SaveSupplierQuoteResponse,
 } from "@workspace/api-zod";
@@ -271,12 +274,238 @@ const resetTechnicianAvailability = db.transaction(({ technician_id, reset_by })
 });
 
 const router = Router();
+
+const supplierAvailability = new Set([
+  "In stock",
+  "Limited stock",
+  "Out of stock",
+  "Not checked",
+]);
+const supplierCatalogStaleAfterMs = 24 * 60 * 60 * 1000;
+
+function getSupplierCatalogProviders() {
+  const raw = process.env.SUPPLIER_CATALOG_FEEDS?.trim();
+  if (!raw) return [];
+  let configured;
+  try {
+    configured = JSON.parse(raw);
+  } catch {
+    throw new Error("Supplier feed configuration is not valid JSON.");
+  }
+  if (!Array.isArray(configured) || configured.length > 20) {
+    throw new Error("Supplier feed configuration must be a list of at most 20 feeds.");
+  }
+
+  const seenIds = new Set();
+  return configured.map((provider) => {
+    if (!provider || typeof provider !== "object" ||
+        typeof provider.id !== "string" || !/^[a-zA-Z0-9_-]{1,80}$/.test(provider.id) ||
+        typeof provider.name !== "string" || provider.name.trim().length < 2 ||
+        provider.name.trim().length > 120 || typeof provider.endpoint !== "string") {
+      throw new Error("A supplier feed is missing a valid ID, name, or endpoint.");
+    }
+    const id = provider.id;
+    if (seenIds.has(id)) throw new Error("Supplier feed IDs must be unique.");
+    seenIds.add(id);
+    let endpoint;
+    try {
+      endpoint = new URL(provider.endpoint);
+    } catch {
+      throw new Error(`Supplier feed "${id}" has an invalid endpoint URL.`);
+    }
+    const isLoopback = ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname);
+    if (!["http:", "https:"].includes(endpoint.protocol) ||
+        (!isLoopback && endpoint.protocol !== "https:") ||
+        endpoint.username || endpoint.password) {
+      throw new Error(`Supplier feed "${id}" must use a public HTTPS endpoint.`);
+    }
+    let queryParam = "query";
+    if (provider.query_param != null) {
+      if (typeof provider.query_param !== "string" ||
+          !/^[a-zA-Z0-9_-]{1,40}$/.test(provider.query_param)) {
+        throw new Error(`Supplier feed "${id}" has an invalid query parameter name.`);
+      }
+      queryParam = provider.query_param;
+    }
+    return {
+      id,
+      name: provider.name.trim(),
+      endpoint: endpoint.toString(),
+      queryParam,
+    };
+  });
+}
+
+function parseSupplierFeedOffers(payload, supplierName, checkedAt) {
+  const offers = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? payload.offers
+    : null;
+  if (!Array.isArray(offers) || offers.length > 20) {
+    throw new Error("Supplier feed response must contain an offers list of at most 20 items.");
+  }
+
+  return offers.map((offer, index) => {
+    if (!offer || typeof offer !== "object" || Array.isArray(offer) ||
+        typeof offer.product_name !== "string" || !offer.product_name.trim() ||
+        offer.product_name.trim().length > 200 ||
+        typeof offer.product_url !== "string" ||
+        typeof offer.price_myr !== "number" || !Number.isFinite(offer.price_myr) ||
+        offer.price_myr <= 0 || offer.price_myr > 1_000_000) {
+      throw new Error("Supplier feed contains an offer with invalid product, URL, or price data.");
+    }
+    let productUrl;
+    try {
+      productUrl = new URL(offer.product_url);
+    } catch {
+      throw new Error("Supplier feed contains an invalid product URL.");
+    }
+    if (!["http:", "https:"].includes(productUrl.protocol) ||
+        productUrl.username || productUrl.password) {
+      throw new Error("Supplier feed contains an invalid product URL.");
+    }
+    if (offer.availability_note != null && !supplierAvailability.has(offer.availability_note)) {
+      throw new Error("Supplier feed contains an unsupported availability value.");
+    }
+    if (offer.package_quantity != null &&
+        (!Number.isInteger(offer.package_quantity) || offer.package_quantity < 1 ||
+          offer.package_quantity > 100_000)) {
+      throw new Error("Supplier feed contains an invalid package quantity.");
+    }
+    if (offer.unit_label != null &&
+        (typeof offer.unit_label !== "string" || offer.unit_label.length > 100)) {
+      throw new Error("Supplier feed contains an invalid unit label.");
+    }
+
+    let sourceUpdatedAt = null;
+    if (offer.source_updated_at != null) {
+      if (typeof offer.source_updated_at !== "string") {
+        throw new Error("Supplier feed contains an invalid source update time.");
+      }
+      const parsedUpdatedAt = new Date(offer.source_updated_at);
+      if (Number.isNaN(parsedUpdatedAt.getTime())) {
+        throw new Error("Supplier feed contains an invalid source update time.");
+      }
+      sourceUpdatedAt = parsedUpdatedAt.toISOString();
+    }
+    const id = typeof offer.id === "string" && offer.id.trim()
+      ? offer.id.trim().slice(0, 120)
+      : productUrl.toString();
+    return {
+      id: `${supplierName}:${id}:${index}`,
+      supplier_name: supplierName,
+      product_name: offer.product_name.trim(),
+      product_url: productUrl.toString(),
+      price_myr: offer.price_myr,
+      availability_note: offer.availability_note ?? "Not checked",
+      package_quantity: offer.package_quantity ?? null,
+      unit_label: offer.unit_label?.trim() || null,
+      checked_at: checkedAt,
+      source_updated_at: sourceUpdatedAt,
+      is_stale: sourceUpdatedAt != null &&
+        checkedAt.getTime() - new Date(sourceUpdatedAt).getTime() > supplierCatalogStaleAfterMs,
+    };
+  });
+}
+
+async function searchSupplierFeed(provider, query) {
+  const checkedAt = new Date();
+  const result = {
+    id: provider.id,
+    name: provider.name,
+    status: "ok",
+    error: null,
+    checked_at: checkedAt.toISOString(),
+    offers: [],
+  };
+  const url = new URL(provider.endpoint);
+  url.searchParams.set(provider.queryParam, query);
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) {
+      throw new Error(`Supplier feed returned HTTP ${response.status}.`);
+    }
+    let payload;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new Error("Supplier feed response was not valid JSON.");
+    }
+    result.offers = parseSupplierFeedOffers(payload, provider.name, checkedAt);
+  } catch (error) {
+    result.status = "error";
+    result.error = error?.name === "TimeoutError"
+      ? "Supplier feed timed out."
+      : error instanceof Error
+        ? error.message
+        : "Supplier feed could not be reached.";
+    result.offers = [];
+  }
+  return result;
+}
 router.use((_req, res, next) => {
   res.set("Cache-Control", "no-store");
   next();
 });
 router.get("/hub-data", (_req, res) => {
   res.json(GetHubDataResponse.parse(getHubData()));
+});
+
+router.get("/supplier-catalog/providers", (_req, res) => {
+  try {
+    const providers = getSupplierCatalogProviders().map(({ id, name }) => ({ id, name }));
+    res.json(ListSupplierCatalogProvidersResponse.parse({ providers }));
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Supplier feed configuration is invalid.",
+    });
+  }
+});
+
+router.get("/supplier-catalog", async (req, res) => {
+  const rawSupplierIds = Array.isArray(req.query.supplier_ids)
+    ? req.query.supplier_ids
+    : req.query.supplier_ids == null
+      ? []
+      : [req.query.supplier_ids];
+  const parsed = SearchSupplierCatalogQueryParams.safeParse({
+    ...req.query,
+    supplier_ids: rawSupplierIds,
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: "Provide a part name and at least one supported supplier." });
+    return;
+  }
+
+  let providers;
+  try {
+    providers = getSupplierCatalogProviders();
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Supplier feed configuration is invalid.",
+    });
+    return;
+  }
+  const selectedIds = [...new Set(parsed.data.supplier_ids)];
+  const selectedProviders = providers.filter((provider) => selectedIds.includes(provider.id));
+  if (selectedProviders.length !== selectedIds.length) {
+    res.status(400).json({ error: "Select only suppliers with configured catalog feeds." });
+    return;
+  }
+  const suppliers = await Promise.all(
+    selectedProviders.map((provider) => searchSupplierFeed(provider, parsed.data.query.trim())),
+  );
+  for (const supplier of suppliers) {
+    if (supplier.status === "error") {
+      req.log?.warn?.({ supplierId: supplier.id, error: supplier.error }, "Supplier catalog feed failed");
+    }
+  }
+  res.json(SearchSupplierCatalogResponse.parse({
+    query: parsed.data.query.trim(),
+    suppliers,
+  }));
 });
 router.post("/analyze-request", async (req, res) => {
   const parsed = AnalyzeRequestBody.safeParse(req.body);

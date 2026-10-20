@@ -29,6 +29,7 @@ import type {
   ListSupplierQuotesParams,
   SearchSupplierCatalogParams,
   ServiceRequestInput,
+  SupplierCatalogProviders,
   SupplierCatalogSearch,
   SupplierOffer,
   SupplierQuoteInput,
@@ -563,6 +564,14 @@ export const getSearchSupplierCatalogUrl = (params: SearchSupplierCatalogParams,
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["supplier_ids"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
 
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : String(value))
@@ -575,7 +584,7 @@ export const getSearchSupplierCatalogUrl = (params: SearchSupplierCatalogParams,
 }
 
 /**
- * @summary Search the directly accessible Malaysian supplier catalog
+ * @summary Search selected configured supplier JSON catalog feeds
  */
 export const searchSupplierCatalog = async (params: SearchSupplierCatalogParams, options?: Parameters<typeof customFetch>[1]): Promise<SupplierCatalogSearch> => {
 
@@ -622,7 +631,7 @@ export type SearchSupplierCatalogQueryError = ErrorType<InvalidRequestResponse>
 
 
 /**
- * @summary Search the directly accessible Malaysian supplier catalog
+ * @summary Search selected configured supplier JSON catalog feeds
  */
 
 export function useSearchSupplierCatalog<TData = Awaited<ReturnType<typeof searchSupplierCatalog>>, TError = ErrorType<InvalidRequestResponse>>(
@@ -631,6 +640,83 @@ export function useSearchSupplierCatalog<TData = Awaited<ReturnType<typeof searc
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getSearchSupplierCatalogQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSupplierCatalogProvidersUrl = () => {
+
+
+
+
+  return `/api/supplier-catalog/providers`
+}
+
+/**
+ * @summary List supplier catalog feeds configured for this workspace
+ */
+export const listSupplierCatalogProviders = async ( options?: Parameters<typeof customFetch>[1]): Promise<SupplierCatalogProviders> => {
+
+  return customFetch<SupplierCatalogProviders>(getListSupplierCatalogProvidersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSupplierCatalogProvidersQueryKey = () => {
+    return [
+    `/api/supplier-catalog/providers`
+    ] as const;
+    }
+
+
+export const getListSupplierCatalogProvidersQueryOptions = <TData = Awaited<ReturnType<typeof listSupplierCatalogProviders>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupplierCatalogProviders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSupplierCatalogProvidersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSupplierCatalogProviders>>> = ({ signal }) => listSupplierCatalogProviders({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSupplierCatalogProviders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSupplierCatalogProvidersQueryResult = NonNullable<Awaited<ReturnType<typeof listSupplierCatalogProviders>>>
+export type ListSupplierCatalogProvidersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List supplier catalog feeds configured for this workspace
+ */
+
+export function useListSupplierCatalogProviders<TData = Awaited<ReturnType<typeof listSupplierCatalogProviders>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupplierCatalogProviders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSupplierCatalogProvidersQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

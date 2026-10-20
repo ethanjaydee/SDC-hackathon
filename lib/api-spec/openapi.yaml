@@ -129,21 +129,52 @@ paths:
     get:
       operationId: searchSupplierCatalog
       tags: [hub]
-      summary: Search the directly accessible Malaysian supplier catalog
+      summary: Search selected configured supplier JSON catalog feeds
       parameters:
         - name: query
           in: query
           required: true
           schema: { type: string, minLength: 2, maxLength: 120 }
+        - name: supplier_ids
+          in: query
+          required: true
+          style: form
+          explode: true
+          description: One or more IDs returned by /supplier-catalog/providers
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 20
+            items: { type: string, minLength: 1, maxLength: 80 }
       responses:
         "200":
-          description: Current listings with supplier page links and check time
+          description: Per-supplier catalog results, including partial feed errors
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SupplierCatalogSearch"
         "400":
           $ref: "#/components/responses/InvalidRequest"
+    description: |
+      Configure supported feeds with SUPPLIER_CATALOG_FEEDS as a JSON array of
+      {id, name, endpoint, query_param?} records. Use public HTTPS endpoints.
+      Each endpoint receives the search text in query_param (default "query")
+      and must return {"offers":[{product_name, product_url, price_myr,
+      availability_note?, package_quantity?, unit_label?, source_updated_at?}]}.
+      Availability uses the SupplierCatalogOffer enum. Only normalized real
+      supplier data is returned; missing availability is labeled "Not checked".
+  /supplier-catalog/providers:
+    get:
+      operationId: listSupplierCatalogProviders
+      tags: [hub]
+      summary: List supplier catalog feeds configured for this workspace
+      responses:
+        "200":
+          description: Suppliers with supported feeds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierCatalogProviders"
   /supplier-quotes:
     get:
       operationId: listSupplierQuotes
@@ -334,15 +365,55 @@ components:
         quality_evidence_note: { type: string }
     SupplierCatalogSearch:
       type: object
-      required: [query, supplier_name, checked_at, offers]
+      required: [query, suppliers]
       properties:
         query: { type: string }
-        supplier_name: { type: string }
-        checked_at: { type: string, format: date-time }
+        suppliers:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/SupplierCatalogResult" }
+    SupplierCatalogProviders:
+      type: object
+      required: [providers]
+      properties:
+        providers:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/SupplierCatalogProvider" }
+    SupplierCatalogProvider:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+    SupplierCatalogResult:
+      type: object
+      required: [id, name, status, error, checked_at, offers]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        status: { type: string, enum: [ok, error] }
+        error: { type: ["string", "null"] }
+        checked_at: { type: ["string", "null"], format: date-time }
         offers:
           type: array
           maxItems: 20
-          items: { $ref: "#/components/schemas/SupplierOffer" }
+          items: { $ref: "#/components/schemas/SupplierCatalogOffer" }
+    SupplierCatalogOffer:
+      type: object
+      required: [id, supplier_name, product_name, product_url, price_myr, availability_note, package_quantity, unit_label, checked_at, source_updated_at, is_stale]
+      properties:
+        id: { type: string }
+        supplier_name: { type: string }
+        product_name: { type: string }
+        product_url: { type: string, format: uri }
+        price_myr: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+        availability_note: { type: string, enum: [In stock, Limited stock, Out of stock, Not checked] }
+        package_quantity: { type: ["integer", "null"], minimum: 1, maximum: 100000 }
+        unit_label: { type: ["string", "null"], maxLength: 100 }
+        checked_at: { type: string, format: date-time }
+        source_updated_at: { type: ["string", "null"], format: date-time }
+        is_stale: { type: boolean }
     SupplierQuoteList:
       type: object
       required: [query, quotes]

@@ -227,12 +227,78 @@ export interface SupplierOffer {
   quality_evidence_note: string;
 }
 
+export type SupplierCatalogResultStatus = typeof SupplierCatalogResultStatus[keyof typeof SupplierCatalogResultStatus];
+
+
+export const SupplierCatalogResultStatus = {
+  ok: 'ok',
+  error: 'error',
+} as const;
+
+export type SupplierCatalogOfferAvailabilityNote = typeof SupplierCatalogOfferAvailabilityNote[keyof typeof SupplierCatalogOfferAvailabilityNote];
+
+
+export const SupplierCatalogOfferAvailabilityNote = {
+  In_stock: 'In stock',
+  Limited_stock: 'Limited stock',
+  Out_of_stock: 'Out of stock',
+  Not_checked: 'Not checked',
+} as const;
+
+export interface SupplierCatalogOffer {
+  id: string;
+  supplier_name: string;
+  product_name: string;
+  product_url: string;
+  /**
+     * @maximum 1000000
+     * @exclusiveMinimum 0
+     */
+  price_myr: number;
+  availability_note: SupplierCatalogOfferAvailabilityNote;
+  /**
+     * @minimum 1
+     * @maximum 100000
+     * @nullable
+     */
+  package_quantity: number | null;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  unit_label: string | null;
+  checked_at: string;
+  /** @nullable */
+  source_updated_at: string | null;
+  is_stale: boolean;
+}
+
+export interface SupplierCatalogResult {
+  id: string;
+  name: string;
+  status: SupplierCatalogResultStatus;
+  /** @nullable */
+  error: string | null;
+  /** @nullable */
+  checked_at: string | null;
+  /** @maxItems 20 */
+  offers: SupplierCatalogOffer[];
+}
+
 export interface SupplierCatalogSearch {
   query: string;
-  supplier_name: string;
-  checked_at: string;
   /** @maxItems 20 */
-  offers: SupplierOffer[];
+  suppliers: SupplierCatalogResult[];
+}
+
+export interface SupplierCatalogProvider {
+  id: string;
+  name: string;
+}
+
+export interface SupplierCatalogProviders {
+  /** @maxItems 20 */
+  providers: SupplierCatalogProvider[];
 }
 
 export interface SupplierQuoteList {
@@ -332,6 +398,14 @@ export type SearchSupplierCatalogParams = {
  * @maxLength 120
  */
 query: string;
+/**
+ * One or more IDs returned by /supplier-catalog/providers
+ * @minItems 1
+ * @maxItems 20
+ * @items.minLength 1
+ * @items.maxLength 80
+ */
+supplier_ids: string[];
 };
 
 export type ListSupplierQuotesParams = {

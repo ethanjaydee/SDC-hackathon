@@ -277,54 +277,72 @@ export const ResetTechnicianAvailabilityResponse = zod.object({
 
 
 /**
- * @summary Search the directly accessible Malaysian supplier catalog
+ * @summary Search selected configured supplier JSON catalog feeds
  */
 export const searchSupplierCatalogQueryQueryMin = 2;
 export const searchSupplierCatalogQueryQueryMax = 120;
 
+export const searchSupplierCatalogQuerySupplierIdsItemMax = 80;
+
+export const searchSupplierCatalogQuerySupplierIdsMax = 20;
+
 
 
 export const SearchSupplierCatalogQueryParams = zod.object({
-  "query": zod.coerce.string().min(searchSupplierCatalogQueryQueryMin).max(searchSupplierCatalogQueryQueryMax)
+  "query": zod.coerce.string().min(searchSupplierCatalogQueryQueryMin).max(searchSupplierCatalogQueryQueryMax),
+  "supplier_ids": zod.array(zod.coerce.string().min(1).max(searchSupplierCatalogQuerySupplierIdsItemMax)).min(1).max(searchSupplierCatalogQuerySupplierIdsMax).describe('One or more IDs returned by /supplier-catalog/providers')
 })
 
-export const searchSupplierCatalogResponseOffersItemPriceMyrMin = 0;
+export const searchSupplierCatalogResponseSuppliersItemOffersItemPriceMyrExclusiveMin = 0;
+export const searchSupplierCatalogResponseSuppliersItemOffersItemPriceMyrMax = 1000000;
 
+export const searchSupplierCatalogResponseSuppliersItemOffersItemPackageQuantityMax = 100000;
 
+export const searchSupplierCatalogResponseSuppliersItemOffersItemUnitLabelMax = 100;
 
-export const searchSupplierCatalogResponseOffersItemShippingMyrMin = 0;
+export const searchSupplierCatalogResponseSuppliersItemOffersMax = 20;
 
-export const searchSupplierCatalogResponseOffersItemQualityRatingMax = 5;
-
-export const searchSupplierCatalogResponseOffersMax = 20;
+export const searchSupplierCatalogResponseSuppliersMax = 20;
 
 
 
 export const SearchSupplierCatalogResponse = zod.object({
   "query": zod.string(),
-  "supplier_name": zod.string(),
-  "checked_at": zod.coerce.date(),
+  "suppliers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "status": zod.enum(['ok', 'error']),
+  "error": zod.string().nullable(),
+  "checked_at": zod.coerce.date().nullable(),
   "offers": zod.array(zod.object({
   "id": zod.string(),
-  "search_term": zod.string(),
-  "part_name": zod.string(),
-  "part_number": zod.string().nullable(),
-  "product_name": zod.string(),
   "supplier_name": zod.string(),
+  "product_name": zod.string(),
   "product_url": zod.string().url(),
-  "shop_url": zod.string().url(),
-  "price_myr": zod.number().min(searchSupplierCatalogResponseOffersItemPriceMyrMin),
-  "package_quantity": zod.number().int().min(1).nullable(),
-  "minimum_order_packs": zod.number().int().min(1).nullable(),
-  "shipping_myr": zod.number().min(searchSupplierCatalogResponseOffersItemShippingMyrMin).nullable(),
-  "checked_at": zod.coerce.date(),
-  "source_type": zod.enum(['live_catalog', 'captured_quote']),
+  "price_myr": zod.number().gt(searchSupplierCatalogResponseSuppliersItemOffersItemPriceMyrExclusiveMin).max(searchSupplierCatalogResponseSuppliersItemOffersItemPriceMyrMax),
   "availability_note": zod.enum(['In stock', 'Limited stock', 'Out of stock', 'Not checked']),
-  "trust_evidence_url": zod.string().url().nullable(),
-  "trust_evidence_note": zod.string().nullable(),
-  "quality_rating": zod.number().int().min(1).max(searchSupplierCatalogResponseOffersItemQualityRatingMax),
-  "quality_evidence_note": zod.string()
-})).max(searchSupplierCatalogResponseOffersMax)
+  "package_quantity": zod.number().int().min(1).max(searchSupplierCatalogResponseSuppliersItemOffersItemPackageQuantityMax).nullable(),
+  "unit_label": zod.string().max(searchSupplierCatalogResponseSuppliersItemOffersItemUnitLabelMax).nullable(),
+  "checked_at": zod.coerce.date(),
+  "source_updated_at": zod.coerce.date().nullable(),
+  "is_stale": zod.boolean()
+})).max(searchSupplierCatalogResponseSuppliersItemOffersMax)
+})).max(searchSupplierCatalogResponseSuppliersMax)
+})
+
+
+/**
+ * @summary List supplier catalog feeds configured for this workspace
+ */
+export const listSupplierCatalogProvidersResponseProvidersMax = 20;
+
+
+
+export const ListSupplierCatalogProvidersResponse = zod.object({
+  "providers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).max(listSupplierCatalogProvidersResponseProvidersMax)
 })
 
 

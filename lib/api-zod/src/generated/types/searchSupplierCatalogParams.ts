@@ -12,4 +12,12 @@ export type SearchSupplierCatalogParams = {
  * @maxLength 120
  */
 query: string;
+/**
+ * One or more IDs returned by /supplier-catalog/providers
+ * @minItems 1
+ * @maxItems 20
+ * @items.minLength 1
+ * @items.maxLength 80
+ */
+supplier_ids: string[];
 };
