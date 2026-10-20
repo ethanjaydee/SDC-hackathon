@@ -1,2 +1,3 @@
 - [Dispatch location history](dispatch-location-history.md) — legacy sites stay unknown; never infer a historical customer site from current intake or technician zone.
 - [Legacy completion](dispatch-completion-legacy.md) — never guess legacy completion; explicit demo availability resets must protect tracked active jobs and preserve unknown history.
+- [Preview manifest recovery](preview-manifest-recovery.md) — invalid existing TOML can block the validated replacement tool before it reads a corrected candidate.
