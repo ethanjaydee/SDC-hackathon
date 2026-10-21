@@ -23,9 +23,9 @@ const hubData = {
 };
 
 const shortcuts = [
-  { key: 'today', page: '/today' },
-  { key: 'low-stock', page: '/stock/low' },
-  { key: 'reorders', page: '/reorders' },
+  { key: 'today', page: '/today', label: 'Dispatches today' },
+  { key: 'low-stock', page: '/stock/low', label: 'Low-stock lines' },
+  { key: 'reorders', page: '/reorders', label: 'Open reorder drafts' },
 ] as const;
 
 async function startVite(): Promise<{ process: ChildProcess; output: () => string }> {
@@ -80,6 +80,16 @@ async function assertReadinessGroupCentered(page: Page, state: string) {
   const verticalOffset = Math.abs((bodyBox.y + bodyBox.height / 2) - (groupBox.y + groupBox.height / 2));
   assert.ok(horizontalOffset <= 2, `${state}: ring group should be horizontally centered in the card body (offset ${horizontalOffset}px)`);
   assert.ok(verticalOffset <= 2, `${state}: ring group should be vertically centered in the card body (offset ${verticalOffset}px)`);
+}
+
+async function readinessValues(page: Page) {
+  return Promise.all(['available', 'stock', 'healthy'].map(async (key) => {
+    const button = page.getByTestId(`overview-metric-card-${key}`).getByRole('button');
+    return {
+      label: await button.getAttribute('aria-label'),
+      expanded: await button.getAttribute('aria-expanded'),
+    };
+  }));
 }
 
 async function assertRingMeasureKeyboardFlow(
@@ -138,17 +148,27 @@ test('overview readiness layout, keyboard details, reduced motion, and independe
       await assertRingMeasureKeyboardFlow(desktop.page, 'Stock on hand', 'Stock-positive inventory lines', '/stock', 'Space');
       await assertRingMeasureKeyboardFlow(desktop.page, 'Above threshold', 'Above the low-stock threshold', '/stock', 'Enter');
 
+      const readinessBeforeShortcuts = await readinessValues(desktop.page);
       for (const shortcut of shortcuts) {
         const trigger = desktop.page.getByTestId(`button-view-details-${shortcut.key}`);
         await trigger.focus();
         await desktop.page.keyboard.press('Space');
         await assert.equal(await trigger.getAttribute('aria-expanded'), 'true', `${shortcut.key} shortcut should open`);
+        await assert.equal(await trigger.evaluate((element) => element === document.activeElement), true, `${shortcut.key} trigger should retain keyboard focus when opened`);
         await assert.equal(await desktop.page.getByTestId(`link-open-overview-${shortcut.key}`).getAttribute('href'), shortcut.page);
+        await desktop.page.getByRole('region', { name: `${shortcut.label} details` }).waitFor({ state: 'visible' });
+        await desktop.page.waitForTimeout(600);
+        await assertReadinessGroupCentered(desktop.page, `collapsed readiness with ${shortcut.key} details open`);
+        await assert.deepEqual(await readinessValues(desktop.page), readinessBeforeShortcuts, `${shortcut.key} shortcut should not change readiness values or expanded state`);
         for (const other of shortcuts.filter(({ key }) => key !== shortcut.key)) {
           await assert.equal(await desktop.page.getByTestId(`button-view-details-${other.key}`).getAttribute('aria-expanded'), 'false', `${other.key} shortcut should stay closed`);
         }
         await desktop.page.keyboard.press('Space');
         await assert.equal(await trigger.getAttribute('aria-expanded'), 'false', `${shortcut.key} shortcut should close independently`);
+        await assert.equal(await trigger.evaluate((element) => element === document.activeElement), true, `${shortcut.key} trigger should retain keyboard focus when closed`);
+        await desktop.page.waitForTimeout(600);
+        await assertReadinessGroupCentered(desktop.page, `collapsed readiness after closing ${shortcut.key} details`);
+        await assert.deepEqual(await readinessValues(desktop.page), readinessBeforeShortcuts, `closing ${shortcut.key} details should not change readiness values or expanded state`);
       }
 
       const firstRing = desktop.page.getByRole('button', { name: /^Available:/ });
