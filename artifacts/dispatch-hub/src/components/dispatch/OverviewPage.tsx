@@ -99,7 +99,8 @@ export default function OverviewPage({ hub }: Hub) {
       </PageHead>
 
       <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <Card title="Readiness at a glance" aside={<StatusBadge tone={!ready ? 'pending' : hubQ.isError ? 'err' : 'ok'}>{!ready ? 'Awaiting data' : hubQ.isError ? 'Last received data' : 'Current'}</StatusBadge>}>
+        <Card title="Readiness at a glance" aside={<StatusBadge tone={!ready ? 'pending' : hubQ.isError ? 'err' : 'ok'}>{!ready ? 'Awaiting data' : hubQ.isError ? 'Last received data' : 'Current'}</StatusBadge>}
+          className="lg:flex lg:flex-col" bodyClassName="lg:flex lg:flex-1 lg:flex-col lg:justify-center">
           <div
             className={`mx-auto grid w-full gap-2 transition-[max-width,grid-template-columns] duration-500 ease-out motion-reduce:transition-none ${
               detail ? 'max-w-4xl grid-cols-1 sm:grid-cols-2' : 'max-w-3xl grid-cols-1 sm:grid-cols-3'

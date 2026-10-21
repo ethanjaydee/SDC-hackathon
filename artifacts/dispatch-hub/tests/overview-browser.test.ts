@@ -69,6 +69,19 @@ async function openOverview(browser: Browser, width: number, height: number) {
   return { context, page };
 }
 
+async function assertReadinessGroupCentered(page: Page, state: string) {
+  const card = page.getByRole('region', { name: 'Readiness at a glance' });
+  const body = card.locator(':scope > div').nth(1);
+  const group = page.getByTestId('overview-status-rings');
+  const bodyBox = await body.boundingBox();
+  const groupBox = await group.boundingBox();
+  assert.ok(bodyBox && groupBox, `${state}: readiness body and ring group should be laid out`);
+  const horizontalOffset = Math.abs((bodyBox.x + bodyBox.width / 2) - (groupBox.x + groupBox.width / 2));
+  const verticalOffset = Math.abs((bodyBox.y + bodyBox.height / 2) - (groupBox.y + groupBox.height / 2));
+  assert.ok(horizontalOffset <= 2, `${state}: ring group should be horizontally centered in the card body (offset ${horizontalOffset}px)`);
+  assert.ok(verticalOffset <= 2, `${state}: ring group should be vertically centered in the card body (offset ${verticalOffset}px)`);
+}
+
 async function assertRingMeasureKeyboardFlow(
   page: Page,
   label: string,
@@ -83,6 +96,8 @@ async function assertRingMeasureKeyboardFlow(
 
   const detail = page.getByRole('region', { name: detailTitle });
   await detail.waitFor({ state: 'visible' });
+  await page.waitForTimeout(600);
+  await assertReadinessGroupCentered(page, `expanded ${label}`);
   await assert.equal(await detail.getByRole('link', { name: /Open (technicians|van stock)/ }).getAttribute('href'), fullPage);
 
   const close = page.getByRole('button', { name: `Close ${label} details` });
@@ -91,6 +106,8 @@ async function assertRingMeasureKeyboardFlow(
   await page.keyboard.press('Enter');
   await assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
   await assert.equal(await trigger.evaluate((element) => element === document.activeElement), true);
+  await page.waitForTimeout(600);
+  await assertReadinessGroupCentered(page, `collapsed after ${label}`);
 }
 
 test('overview readiness layout, keyboard details, reduced motion, and independent shortcuts', { timeout: 120_000 }, async () => {
@@ -101,14 +118,13 @@ test('overview readiness layout, keyboard details, reduced motion, and independe
   try {
     browser = await chromium.launch({ executablePath: chromiumPath, headless: true, args: ['--no-sandbox'] });
 
-    const desktop = await openOverview(browser, 1440, 1000);
+    const desktop = await openOverview(browser, 1920, 1080);
     try {
       const card = desktop.page.getByRole('region', { name: 'Readiness at a glance' });
       const group = desktop.page.getByTestId('overview-status-rings');
-      const cardBox = await card.boundingBox();
       const groupBox = await group.boundingBox();
-      assert.ok(cardBox && groupBox, 'readiness card and ring group should be laid out');
-      assert.ok(Math.abs((cardBox.x + cardBox.width / 2) - (groupBox.x + groupBox.width / 2)) <= 2, 'ring group should be centered in its card');
+      assert.ok(groupBox, 'readiness ring group should be laid out');
+      await assertReadinessGroupCentered(desktop.page, 'collapsed 16:9 desktop');
       assert.equal(await group.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length), 3, 'wide desktop should show three ring columns');
       const ringCenters = await Promise.all(['available', 'stock', 'healthy'].map(async (key) => {
         const box = await desktop.page.getByTestId(`overview-metric-card-${key}`).getByRole('button').boundingBox();
@@ -153,6 +169,11 @@ test('overview readiness layout, keyboard details, reduced motion, and independe
       const groupBox = await group.boundingBox();
       assert.ok(groupBox, 'phone ring group should be laid out');
       assert.equal(await group.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length), 1, 'phone viewport should stack rings in one column');
+      const readinessCard = phone.page.getByRole('region', { name: 'Readiness at a glance' });
+      const phoneBody = readinessCard.locator(':scope > div').nth(1);
+      const phoneBodyBox = await phoneBody.boundingBox();
+      assert.ok(phoneBodyBox, 'phone readiness body should be laid out');
+      assert.ok(phoneBodyBox.height - groupBox.height <= 40, 'phone readiness body should remain content-sized instead of reserving desktop height');
       const cardBoxes = await Promise.all(['available', 'stock', 'healthy'].map(async (key) => {
         const box = await phone.page.getByTestId(`overview-metric-card-${key}`).getByRole('button').boundingBox();
         assert.ok(box, `${key} ring card should be visible on phone`);
@@ -178,6 +199,10 @@ test('overview readiness layout, keyboard details, reduced motion, and independe
       const reducedMotionDetail = phone.page.getByRole('region', { name: 'Technician roster' });
       await reducedMotionDetail.waitFor({ state: 'visible' });
       await assert.equal(await available.getAttribute('aria-expanded'), 'true', 'readiness details should remain usable with reduced motion');
+      const expandedGroupBox = await group.boundingBox();
+      const expandedPhoneBodyBox = await phoneBody.boundingBox();
+      assert.ok(expandedGroupBox && expandedPhoneBodyBox, 'expanded phone readiness should remain laid out');
+      assert.ok(expandedPhoneBodyBox.height - expandedGroupBox.height <= 40, 'expanded phone readiness body should remain content-sized');
       const animationDuration = await reducedMotionDetail.evaluate((element) => getComputedStyle(element).animationDuration);
       const animationSeconds = animationDuration.split(',').map((duration) => duration.trim()).map((duration) =>
         duration.endsWith('ms') ? parseFloat(duration) / 1000 : parseFloat(duration),
