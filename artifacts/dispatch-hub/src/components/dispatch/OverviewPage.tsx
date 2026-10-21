@@ -31,7 +31,7 @@ export default function OverviewPage({ hub }: Hub) {
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Workshop · dispatch overview" title="A clear view of the floor." sub="Technician availability and van readiness before a repair leaves the desk.">
+      <PageHead kicker="Workshop · dispatch overview" title="Welcome John Doe." sub="Technician availability and van readiness before a repair leaves the desk.">
         <Button asChild><Link href="/intake"><Inbox size={15} /> Start repair intake <ArrowRight size={14} /></Link></Button>
       </PageHead>
 
