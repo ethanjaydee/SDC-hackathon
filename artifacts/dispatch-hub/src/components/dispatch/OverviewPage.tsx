@@ -24,7 +24,6 @@ export default function OverviewPage({ hub }: Hub) {
     { key: 'stock' as const, label: 'Stock on hand', criteria: 'Positive lines / all lines', numerator: positiveStock.length, denominator: inventory.length, colorClass: 'text-ok', title: 'Stock-positive inventory lines', lines: positiveStock.map(describe), to: '/stock' },
     { key: 'healthy' as const, label: 'Above threshold', criteria: 'More than 2 / all lines', numerator: healthyStock.length, denominator: inventory.length, colorClass: 'text-primary', title: 'Above the low-stock threshold', lines: healthyStock.map(describe), to: '/stock' },
   ];
-  const selected = metrics.find((m) => m.key === detail);
   const todayDispatches = activity.filter((entry) =>
     entry.completion_dispatch_id == null &&
     entry.action_details.startsWith('Dispatch approved:') &&
@@ -101,26 +100,52 @@ export default function OverviewPage({ hub }: Hub) {
 
       <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
         <Card title="Readiness at a glance" aside={<StatusBadge tone={!ready ? 'pending' : hubQ.isError ? 'err' : 'ok'}>{!ready ? 'Awaiting data' : hubQ.isError ? 'Last received data' : 'Current'}</StatusBadge>}>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" data-testid="overview-status-rings" aria-busy={hubQ.isLoading}>
-            {metrics.map((m) => (
-              <StatusRing {...m} key={m.key} ready={ready} expanded={detail === m.key}
-                onClick={() => setDetail(detail === m.key ? null : m.key)}
-                buttonRef={(n) => { triggers.current[m.key] = n; }} />
-            ))}
+          <div
+            className={`mx-auto grid w-full gap-2 transition-[max-width,grid-template-columns] duration-500 ease-out motion-reduce:transition-none ${
+              detail ? 'max-w-4xl grid-cols-1 sm:grid-cols-2' : 'max-w-3xl grid-cols-1 sm:grid-cols-3'
+            }`}
+            data-testid="overview-status-rings"
+            aria-busy={hubQ.isLoading}
+          >
+            {metrics.map(({ key, ...metric }) => {
+              const expanded = detail === key;
+              const compact = detail !== null && !expanded;
+              return (
+                <div key={key} data-testid={`overview-metric-card-${key}`}
+                  className={`min-w-0 transition-[padding,border-color,box-shadow] duration-500 ease-out motion-reduce:transition-none ${
+                    expanded ? 'order-first rounded-xl border border-primary/30 bg-muted/30 p-2.5 shadow-sm sm:col-span-2 sm:p-4' : compact ? 'order-last' : ''
+                  }`}>
+                  <div className={expanded ? 'grid gap-3 sm:grid-cols-[minmax(9rem,0.7fr)_minmax(0,1.3fr)] sm:items-center' : ''}>
+                    <StatusRing {...metric} ready={ready} expanded={expanded} compact={compact}
+                      onClick={() => setDetail(expanded ? null : key)}
+                      buttonRef={(n) => { triggers.current[key] = n; }} />
+                    {expanded && (
+                      <div id="hub-readiness-detail" role="region" aria-labelledby="hub-readiness-detail-title" aria-live="polite"
+                        className="dh-rise min-w-0 rounded-lg border bg-card p-3 sm:p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 id="hub-readiness-detail-title" className="text-sm font-semibold">{metric.title}</h3>
+                            <p className="mt-0.5 text-xs text-muted-foreground">{metric.criteria}</p>
+                          </div>
+                          <Button type="button" size="icon" variant="ghost" aria-label={`Close ${metric.label} details`}
+                            onClick={() => { triggers.current[key]?.focus(); setDetail(null); }}>
+                            <X size={15} />
+                          </Button>
+                        </div>
+                        <div className="mt-3 flex max-h-48 flex-wrap gap-1.5 overflow-y-auto">
+                          {metric.lines.map((line) => <span key={line} className="rounded-md border bg-muted/40 px-2 py-1 font-mono text-xs">{line}</span>)}
+                          {!metric.lines.length && <span className="text-xs text-muted-foreground">No records match this measure.</span>}
+                        </div>
+                        <Link href={metric.to} className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
+                          Open {key === 'available' ? 'technicians' : 'van stock'} <ArrowRight size={13} />
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          {selected && (
-            <div id="hub-readiness-detail" aria-live="polite" className="dh-rise mt-4 rounded-lg border bg-muted/40 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">{selected.title}</h3>
-                <Button type="button" size="icon" variant="ghost" aria-label="Close readiness detail" onClick={() => { triggers.current[selected.key]?.focus(); setDetail(null); }}><X size={15} /></Button>
-              </div>
-              <div className="mt-2 flex max-h-48 flex-wrap gap-1.5 overflow-y-auto">
-                {selected.lines.map((l) => <span key={l} className="rounded-md border bg-card px-2 py-1 font-mono text-xs">{l}</span>)}
-                {!selected.lines.length && <span className="text-xs text-muted-foreground">No records match this measure.</span>}
-              </div>
-              <Link href={selected.to} className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">Open {selected.key === 'available' ? 'technicians' : 'van stock'} <ArrowRight size={13} /></Link>
-            </div>
-          )}
         </Card>
 
         <div className={`grid gap-3 ${shortcutDetail ? 'sm:grid-cols-1' : 'sm:grid-cols-3'} lg:grid-cols-1`}>
