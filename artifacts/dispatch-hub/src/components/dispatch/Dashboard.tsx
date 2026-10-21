@@ -81,10 +81,17 @@ export default function Dashboard() {
   );
 
   const sideFooter = (
-    <div className="rounded-lg border border-sidebar-border bg-card/60 p-3 text-xs text-muted-foreground">
-      <p className="font-mono text-[10px] uppercase tracking-widest text-primary">Dispatch desk</p>
-      <p className="mt-1 font-medium text-foreground">One clear handoff.</p>
-      <p className="mt-1">Check people and parts, then route a repair into its workflow.</p>
+    <div role="note" aria-label="Demo profile: John Doe, Dispatch manager" className="rounded-lg border border-sidebar-border bg-card/60 p-3">
+      <div className="flex items-center gap-3">
+        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">JD</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <p className="truncate text-sm font-semibold text-foreground">John Doe</p>
+            <span className="shrink-0 rounded border border-sidebar-border px-1.5 py-0.5 font-mono text-[9px] font-medium tracking-wider text-muted-foreground">DEMO</span>
+          </div>
+          <p className="truncate text-xs text-muted-foreground">Dispatch manager</p>
+        </div>
+      </div>
     </div>
   );
 
