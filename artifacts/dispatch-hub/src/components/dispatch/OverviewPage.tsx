@@ -9,7 +9,7 @@ import StatusRing from './StatusRing';
 type MetricKey = 'available' | 'stock' | 'healthy';
 
 export default function OverviewPage({ hub }: Hub) {
-  const { hubQ, reordersQ, technicians, inventory, availableCount, lowStockCount, openReorderCount, dispatchedToday, activity, analysis } = hub;
+  const { hubQ, reordersQ, technicians, inventory, availableCount, lowStockCount, openReorderCount, dispatchedToday, activity } = hub;
   const [detail, setDetail] = useState<MetricKey | null>(null);
   const triggers = useRef<Partial<Record<MetricKey, HTMLButtonElement | null>>>({});
   const ready = !!hubQ.data;
@@ -32,15 +32,8 @@ export default function OverviewPage({ hub }: Hub) {
   return (
     <div className="space-y-5">
       <PageHead kicker="Workshop · dispatch overview" title="Welcome John Doe." sub="Technician availability and van readiness before a repair leaves the desk.">
-        <Button asChild><Link href="/intake"><Inbox size={15} /> Start repair intake <ArrowRight size={14} /></Link></Button>
+      <Button asChild><Link href="/intake"><Inbox size={15} /> Open customer conversations <ArrowRight size={14} /></Link></Button>
       </PageHead>
-
-      {analysis && (
-        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-pending/30 bg-pending/[0.07] px-4 py-2.5 text-sm">
-          <span className="flex items-center gap-2"><StatusBadge tone="pending">Draft</StatusBadge> A repair intake is ready for review.</span>
-          <Link href="/analysis" className="inline-flex items-center gap-1 font-medium text-primary">Continue to analysis <ArrowRight size={13} /></Link>
-        </div>
-      )}
 
       <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
         <Card title="Readiness at a glance" aside={<StatusBadge tone={!ready ? 'pending' : hubQ.isError ? 'err' : 'ok'}>{!ready ? 'Awaiting data' : hubQ.isError ? 'Last received data' : 'Current'}</StatusBadge>}>

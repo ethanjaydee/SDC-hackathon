@@ -135,6 +135,10 @@ const kindTone = { Approved: 'busy', Completed: 'ok', Reset: 'idle' } as const;
 export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: string; todayOnly?: boolean }) {
   const { activity, hubQ } = hub;
   const [kind, setKind] = useState<Kind>('all');
+  const sourceConversationId = (entry: Activity) => entry.dispatch?.conversation_id ??
+    (entry.completion_dispatch_id != null
+      ? activity.find((candidate) => candidate.id === entry.completion_dispatch_id)?.dispatch?.conversation_id
+      : null);
   const base = todayOnly
     ? activity.filter((e) => e.completion_dispatch_id == null && e.action_details.startsWith('Dispatch approved:') && new Date(e.timestamp).toDateString() === new Date().toDateString())
     : activity;
@@ -144,6 +148,12 @@ export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: stri
     { key: 'time', header: 'Time', sort: (e) => new Date(e.timestamp).getTime(), cell: (e) => <Mono className="whitespace-nowrap text-xs"><time dateTime={e.timestamp}>{dateTime(e.timestamp)}</time></Mono> },
     { key: 'kind', header: 'Event', sort: (e) => kindOf(e), cell: (e) => <StatusBadge tone={kindTone[kindOf(e)]}>{kindOf(e)}</StatusBadge> },
     { key: 'details', header: 'Details', cell: (e) => <span className="block min-w-56">{e.action_details}</span> },
+    { key: 'source', header: 'Source chat', cell: (e) => {
+      const conversationId = sourceConversationId(e);
+      return conversationId != null
+        ? <Link href={`/analysis/${conversationId}`} className="inline-flex items-center gap-1 whitespace-nowrap font-medium text-primary">Chat <Mono>#{conversationId}</Mono></Link>
+        : <span className="text-muted-foreground">—</span>;
+    } },
     { key: 'by', header: 'By', sort: (e) => e.approved_by, cell: (e) => <span className="whitespace-nowrap text-xs">{e.approved_by}</span> },
   ];
   return (
@@ -162,6 +172,7 @@ export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: stri
               <div className="space-y-1.5 rounded-lg border p-3">
                 <div className="flex items-center justify-between gap-2"><StatusBadge tone={kindTone[kindOf(e)]}>{kindOf(e)}</StatusBadge><Mono className="text-xs text-muted-foreground">#{e.id} · {dateTime(e.timestamp)}</Mono></div>
                 <p className="text-sm">{e.action_details}</p>
+                {sourceConversationId(e) != null && <Link href={`/analysis/${sourceConversationId(e)}`} className="inline-flex items-center gap-1 text-xs font-medium text-primary">Open source chat <Mono>#{sourceConversationId(e)}</Mono></Link>}
                 <p className="text-xs text-muted-foreground">By {e.approved_by}</p>
               </div>
             )}

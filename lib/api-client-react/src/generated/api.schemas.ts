@@ -83,6 +83,11 @@ export interface SavedDispatch {
   van_id: number;
   parts: string[];
   customer_site: DemoCustomerSite;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  conversation_id: number | null;
 }
 
 export interface Activity {
@@ -127,8 +132,97 @@ export interface Analysis {
   urgency: AnalysisUrgency;
 }
 
+export type ConversationMessageSenderRole = typeof ConversationMessageSenderRole[keyof typeof ConversationMessageSenderRole];
+
+
+export const ConversationMessageSenderRole = {
+  Customer: 'Customer',
+  Technician: 'Technician',
+} as const;
+
+export interface ConversationMessage {
+  /** @minimum 1 */
+  id: number;
+  /** @minimum 1 */
+  conversation_id: number;
+  sender_role: ConversationMessageSenderRole;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  sender_name: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  text: string;
+  created_at: string;
+}
+
+export type ConversationMessageInputSenderRole = typeof ConversationMessageInputSenderRole[keyof typeof ConversationMessageInputSenderRole];
+
+
+export const ConversationMessageInputSenderRole = {
+  Customer: 'Customer',
+  Technician: 'Technician',
+} as const;
+
+export interface ConversationMessageInput {
+  sender_role: ConversationMessageInputSenderRole;
+  /** @minimum 1 */
+  technician_id?: number;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  text: string;
+}
+
+export interface ConversationSummary {
+  /** @minimum 1 */
+  id: number;
+  customer_name: string;
+  subject: string;
+  customer_site_id: DemoSiteId;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  technician_id: number | null;
+  /** @nullable */
+  technician_name: string | null;
+  mock_summary: string;
+  latest_message: ConversationMessage;
+  /** @minimum 1 */
+  message_count: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  dispatch_activity_id: number | null;
+  updated_at: string;
+}
+
+export interface ConversationList {
+  conversations: ConversationSummary[];
+}
+
+export type ConversationThread = ConversationSummary & ({
+  messages: ConversationMessage[];
+  /** @minimum 1 */
+  latest_message_id: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  analyzed_through_message_id: number | null;
+  analysis: Analysis | null;
+});
+
 export interface DispatchInput {
   customer_site_id: DemoSiteId;
+  /** @minimum 1 */
+  conversation_id?: number;
   /** @minimum 1 */
   tech_id: number;
   /** @minimum 1 */

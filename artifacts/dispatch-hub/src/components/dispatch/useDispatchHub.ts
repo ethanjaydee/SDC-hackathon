@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  getGetHubDataQueryKey, useAnalyzeRequest, useApproveDispatch, useCompleteDispatch,
+  getGetConversationThreadQueryKey, getGetHubDataQueryKey, getListConversationsQueryKey,
+  useAnalyzeRequest, useApproveDispatch, useCompleteDispatch,
   getListReorderDraftsQueryKey, useGetHubData, useListReorderDrafts,
   useResetTechnicianAvailability,
-  type Analysis, type HubData,
+  type Analysis, type HubData, type Technician,
 } from '@workspace/api-client-react';
 import { useToast } from '@/hooks/use-toast';
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
@@ -213,12 +214,59 @@ export function useDispatchHub() {
     }
   };
 
+  const approveConversationDispatch = async (
+    conversationId: number,
+    result: Analysis,
+    siteId: string,
+    technician: Technician,
+  ) => {
+    const site = DEMO_CUSTOMER_SITES.find((item) => item.id === siteId);
+    if (!site || !positiveIdSchema.safeParse(conversationId).success ||
+        !hubQ.data || !rankQualifiedTechnicians(hubQ.data, result.parts, site).some((item) => item.id === technician.id) ||
+        gate.current.busy || connectionLost) return false;
+    const snapshot = { conversationId, site, technician, parts: result.parts };
+    setApproveError('');
+    try {
+      const updated = await writeHub('Dispatching job',
+        (current) => optimisticDispatch(current, snapshot.technician.id, snapshot.technician.van_id, snapshot.parts),
+        () => approve.mutateAsync({
+          data: {
+            conversation_id: snapshot.conversationId,
+            customer_site_id: snapshot.site.id,
+            tech_id: snapshot.technician.id,
+            van_id: snapshot.technician.van_id,
+            parts: snapshot.parts,
+            approved_by: APPROVER,
+          },
+        }));
+      if (!updated) return false;
+      setAnalysis(null);
+      requestId.current += 1;
+      void qc.invalidateQueries({ queryKey: getGetConversationThreadQueryKey(conversationId) });
+      void qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      toast({
+        title: 'Job dispatched',
+        description: `${snapshot.technician.name} · Van ${snapshot.technician.van_id} assigned from chat #${conversationId}.`,
+      });
+      return true;
+    } catch (error) {
+      void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() });
+      const conflict = (error as { status?: number })?.status === 409;
+      const detail = conflict
+        ? 'Hub state or conversation changed before approval. Refresh the chat and review the current stock and technician match.'
+        : message(error);
+      setApproveError(detail);
+      toast({ title: conflict ? 'Dispatch conflict' : 'Dispatch failed', description: detail, variant: 'destructive' });
+      return false;
+    }
+  };
+
   return {
     hubQ, reordersQ, reorders, openReorderCount, analyze, approve, notes, analysis, analysisError, approveError,
     matches, match, technicians, inventory, activity,
     availableCount, lowStockCount, dispatchedToday,
     customerSiteId, customerSite, updateCustomerSite,
-    updateNotes, runAnalysis, approveDispatch,
+    updateNotes, runAnalysis, approveDispatch, approveConversationDispatch,
     complete, completeJob, completionError,
     reset, resetTechnician, resetError,
     writePending, pendingAction, connectionLost,

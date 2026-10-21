@@ -30,6 +30,7 @@ export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMax = 18
 
 
 
+
 export const GetHubDataResponse = zod.object({
   "technicians": zod.array(zod.object({
   "id": zod.number().int(),
@@ -63,7 +64,8 @@ export const GetHubDataResponse = zod.object({
   "area": zod.string(),
   "lat": zod.number().min(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMax),
   "lng": zod.number().min(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMax)
-}).describe('Labeled synthetic coordinates, never live GPS.')
+}).describe('Labeled synthetic coordinates, never live GPS.'),
+  "conversation_id": zod.number().int().min(1).nullable()
 }),zod.null()])
 }))
 })
@@ -84,6 +86,261 @@ export const AnalyzeRequestResponse = zod.object({
 })
 
 
+/**
+ * @summary List synthetic customer-technician conversations and their mock summaries
+ */
+
+
+
+
+export const listConversationsResponseConversationsItemLatestMessageSenderNameMax = 120;
+
+export const listConversationsResponseConversationsItemLatestMessageTextMax = 2000;
+
+
+
+
+
+export const ListConversationsResponse = zod.object({
+  "conversations": zod.array(zod.object({
+  "id": zod.number().int().min(1),
+  "customer_name": zod.string(),
+  "subject": zod.string(),
+  "customer_site_id": zod.enum(['north', 'central', 'south']),
+  "technician_id": zod.number().int().min(1).nullable(),
+  "technician_name": zod.string().nullable(),
+  "mock_summary": zod.string(),
+  "latest_message": zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_name": zod.string().min(1).max(listConversationsResponseConversationsItemLatestMessageSenderNameMax),
+  "text": zod.string().min(1).max(listConversationsResponseConversationsItemLatestMessageTextMax),
+  "created_at": zod.coerce.date()
+}),
+  "message_count": zod.number().int().min(1),
+  "dispatch_activity_id": zod.number().int().min(1).nullable(),
+  "updated_at": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Get one persisted demo conversation and its transcript
+ */
+
+
+
+export const GetConversationThreadParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+
+
+
+
+export const getConversationThreadResponseOneLatestMessageSenderNameMax = 120;
+
+export const getConversationThreadResponseOneLatestMessageTextMax = 2000;
+
+
+
+
+
+export const getConversationThreadResponseTwoMessagesItemSenderNameMax = 120;
+
+export const getConversationThreadResponseTwoMessagesItemTextMax = 2000;
+
+
+
+
+
+export const GetConversationThreadResponse = zod.object({
+  "id": zod.number().int().min(1),
+  "customer_name": zod.string(),
+  "subject": zod.string(),
+  "customer_site_id": zod.enum(['north', 'central', 'south']),
+  "technician_id": zod.number().int().min(1).nullable(),
+  "technician_name": zod.string().nullable(),
+  "mock_summary": zod.string(),
+  "latest_message": zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_name": zod.string().min(1).max(getConversationThreadResponseOneLatestMessageSenderNameMax),
+  "text": zod.string().min(1).max(getConversationThreadResponseOneLatestMessageTextMax),
+  "created_at": zod.coerce.date()
+}),
+  "message_count": zod.number().int().min(1),
+  "dispatch_activity_id": zod.number().int().min(1).nullable(),
+  "updated_at": zod.coerce.date()
+}).and(zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_name": zod.string().min(1).max(getConversationThreadResponseTwoMessagesItemSenderNameMax),
+  "text": zod.string().min(1).max(getConversationThreadResponseTwoMessagesItemTextMax),
+  "created_at": zod.coerce.date()
+})),
+  "latest_message_id": zod.number().int().min(1),
+  "analyzed_through_message_id": zod.number().int().min(1).nullable(),
+  "analysis": zod.union([zod.object({
+  "issue": zod.string(),
+  "parts": zod.array(zod.string()),
+  "urgency": zod.enum(['High', 'Med', 'Low'])
+}),zod.null()])
+}))
+
+
+/**
+ * @summary Append a simulated customer or technician message
+ */
+
+
+
+export const SendConversationMessageParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+
+export const sendConversationMessageBodyTextMax = 2000;
+
+
+
+export const SendConversationMessageBody = zod.object({
+  "sender_role": zod.enum(['Customer', 'Technician']),
+  "technician_id": zod.number().int().min(1).optional(),
+  "text": zod.string().min(1).max(sendConversationMessageBodyTextMax)
+})
+
+
+
+
+
+export const sendConversationMessageResponseOneLatestMessageSenderNameMax = 120;
+
+export const sendConversationMessageResponseOneLatestMessageTextMax = 2000;
+
+
+
+
+
+export const sendConversationMessageResponseTwoMessagesItemSenderNameMax = 120;
+
+export const sendConversationMessageResponseTwoMessagesItemTextMax = 2000;
+
+
+
+
+
+export const SendConversationMessageResponse = zod.object({
+  "id": zod.number().int().min(1),
+  "customer_name": zod.string(),
+  "subject": zod.string(),
+  "customer_site_id": zod.enum(['north', 'central', 'south']),
+  "technician_id": zod.number().int().min(1).nullable(),
+  "technician_name": zod.string().nullable(),
+  "mock_summary": zod.string(),
+  "latest_message": zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_name": zod.string().min(1).max(sendConversationMessageResponseOneLatestMessageSenderNameMax),
+  "text": zod.string().min(1).max(sendConversationMessageResponseOneLatestMessageTextMax),
+  "created_at": zod.coerce.date()
+}),
+  "message_count": zod.number().int().min(1),
+  "dispatch_activity_id": zod.number().int().min(1).nullable(),
+  "updated_at": zod.coerce.date()
+}).and(zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_name": zod.string().min(1).max(sendConversationMessageResponseTwoMessagesItemSenderNameMax),
+  "text": zod.string().min(1).max(sendConversationMessageResponseTwoMessagesItemTextMax),
+  "created_at": zod.coerce.date()
+})),
+  "latest_message_id": zod.number().int().min(1),
+  "analyzed_through_message_id": zod.number().int().min(1).nullable(),
+  "analysis": zod.union([zod.object({
+  "issue": zod.string(),
+  "parts": zod.array(zod.string()),
+  "urgency": zod.enum(['High', 'Med', 'Low'])
+}),zod.null()])
+}))
+
+
+/**
+ * @summary Analyze only the selected conversation with the mock model
+ */
+
+
+
+export const AnalyzeConversationParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+
+
+
+
+export const analyzeConversationResponseOneLatestMessageSenderNameMax = 120;
+
+export const analyzeConversationResponseOneLatestMessageTextMax = 2000;
+
+
+
+
+
+export const analyzeConversationResponseTwoMessagesItemSenderNameMax = 120;
+
+export const analyzeConversationResponseTwoMessagesItemTextMax = 2000;
+
+
+
+
+
+export const AnalyzeConversationResponse = zod.object({
+  "id": zod.number().int().min(1),
+  "customer_name": zod.string(),
+  "subject": zod.string(),
+  "customer_site_id": zod.enum(['north', 'central', 'south']),
+  "technician_id": zod.number().int().min(1).nullable(),
+  "technician_name": zod.string().nullable(),
+  "mock_summary": zod.string(),
+  "latest_message": zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_name": zod.string().min(1).max(analyzeConversationResponseOneLatestMessageSenderNameMax),
+  "text": zod.string().min(1).max(analyzeConversationResponseOneLatestMessageTextMax),
+  "created_at": zod.coerce.date()
+}),
+  "message_count": zod.number().int().min(1),
+  "dispatch_activity_id": zod.number().int().min(1).nullable(),
+  "updated_at": zod.coerce.date()
+}).and(zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_name": zod.string().min(1).max(analyzeConversationResponseTwoMessagesItemSenderNameMax),
+  "text": zod.string().min(1).max(analyzeConversationResponseTwoMessagesItemTextMax),
+  "created_at": zod.coerce.date()
+})),
+  "latest_message_id": zod.number().int().min(1),
+  "analyzed_through_message_id": zod.number().int().min(1).nullable(),
+  "analysis": zod.union([zod.object({
+  "issue": zod.string(),
+  "parts": zod.array(zod.string()),
+  "urgency": zod.enum(['High', 'Med', 'Low'])
+}),zod.null()])
+}))
+
+
+
 
 
 export const approveDispatchBodyPartsItemMax = 120;
@@ -96,6 +353,7 @@ export const approveDispatchBodyApprovedByMax = 80;
 
 export const ApproveDispatchBody = zod.object({
   "customer_site_id": zod.enum(['north', 'central', 'south']),
+  "conversation_id": zod.number().int().min(1).optional(),
   "tech_id": zod.number().int().min(1),
   "van_id": zod.number().int().min(1),
   "parts": zod.array(zod.string().min(1).max(approveDispatchBodyPartsItemMax)).min(1).max(approveDispatchBodyPartsMax),
@@ -109,6 +367,7 @@ export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMax
 
 export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMin = -180;
 export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax = 180;
+
 
 
 
@@ -145,7 +404,8 @@ export const ApproveDispatchResponse = zod.object({
   "area": zod.string(),
   "lat": zod.number().min(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMax),
   "lng": zod.number().min(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax)
-}).describe('Labeled synthetic coordinates, never live GPS.')
+}).describe('Labeled synthetic coordinates, never live GPS.'),
+  "conversation_id": zod.number().int().min(1).nullable()
 }),zod.null()])
 }))
 })
@@ -171,6 +431,7 @@ export const completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMa
 
 export const completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMin = -180;
 export const completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax = 180;
+
 
 
 
@@ -207,7 +468,8 @@ export const CompleteDispatchResponse = zod.object({
   "area": zod.string(),
   "lat": zod.number().min(completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMax),
   "lng": zod.number().min(completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax)
-}).describe('Labeled synthetic coordinates, never live GPS.')
+}).describe('Labeled synthetic coordinates, never live GPS.'),
+  "conversation_id": zod.number().int().min(1).nullable()
 }),zod.null()])
 }))
 })
@@ -234,6 +496,7 @@ export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustom
 
 export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMin = -180;
 export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMax = 180;
+
 
 
 
@@ -270,7 +533,8 @@ export const ResetTechnicianAvailabilityResponse = zod.object({
   "area": zod.string(),
   "lat": zod.number().min(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMin).max(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMax),
   "lng": zod.number().min(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMin).max(resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLngMax)
-}).describe('Labeled synthetic coordinates, never live GPS.')
+}).describe('Labeled synthetic coordinates, never live GPS.'),
+  "conversation_id": zod.number().int().min(1).nullable()
 }),zod.null()])
 }))
 })

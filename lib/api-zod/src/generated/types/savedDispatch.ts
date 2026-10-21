@@ -18,4 +18,9 @@ export interface SavedDispatch {
   van_id: number;
   parts: string[];
   customer_site: DemoCustomerSite;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  conversation_id: number | null;
 }

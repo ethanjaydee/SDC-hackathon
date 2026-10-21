@@ -1,74 +1,115 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowRight, Eraser, FileText, FlaskConical, Inbox, ScanSearch } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { ArrowRight, FlaskConical, Inbox, MessageSquareText, ScanSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { intakeSchema } from '@/lib/validation';
+import {
+  getGetConversationThreadQueryKey, getListConversationsQueryKey,
+  useAnalyzeConversation, useListConversations,
+} from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
-import { Card, InlineError, PageHead, StatusBadge, fieldClass, type Hub } from './shared';
+import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, dateTime, errorText } from './shared';
+import { useToast } from '@/hooks/use-toast';
 
-const SAMPLE =
-  'Customer: Halvorsen Marine, slip 14. 2016 Yamaha console — dash went completely dark mid-trip, smelled hot plastic near the gauge pod. Engine still cranks. Owner says cluster flickered for a week before. Needs someone today, charter booked tomorrow 7am.';
-
-export default function IntakePage({ hub }: Hub) {
-  const { notes, analyze, analysisError, updateNotes, runAnalysis, customerSiteId, updateCustomerSite, customerSite, writePending } = hub;
+export default function IntakePage() {
   const [, navigate] = useLocation();
-  const [errors, setErrors] = useState<{ text?: string; customer_site_id?: string }>({});
-  const busy = analyze.isPending || writePending;
-  const submit = async () => {
-    const parsed = intakeSchema.safeParse({ text: notes, customer_site_id: customerSiteId });
-    if (!parsed.success) {
-      const f = parsed.error.flatten().fieldErrors;
-      setErrors({ text: f.text?.[0], customer_site_id: f.customer_site_id?.[0] });
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const conversationsQ = useListConversations({
+    query: { queryKey: getListConversationsQueryKey() },
+  });
+  const analyze = useAnalyzeConversation();
+  const [openingId, setOpeningId] = useState<number | null>(null);
+
+  const openConversation = async (id: number) => {
+    if (analyze.isPending) return;
+    const selected = conversations.find((item) => item.id === id);
+    if (selected?.dispatch_activity_id != null) {
+      navigate(`/analysis/${id}`);
       return;
     }
-    setErrors({});
-    if (await runAnalysis()) navigate('/analysis');
+    setOpeningId(id);
+    try {
+      const thread = await analyze.mutateAsync({ id });
+      qc.setQueryData(getGetConversationThreadQueryKey(id), thread);
+      void qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      toast({ title: 'Conversation ready', description: 'Only this selected chat was sent to the mock analyzer.' });
+      navigate(`/analysis/${id}`);
+    } catch {
+      // The mutation error is shown inline so the dispatcher can retry.
+    } finally {
+      setOpeningId(null);
+    }
   };
+
+  const conversations = conversationsQ.data?.conversations ?? [];
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <PageHead kicker="Step 1 of 2" title="Repair intake" sub="Describe the fault, pick the customer site, then analyze." />
-      <Card title={<><Inbox size={15} /> Fault notes</>} aside={<StatusBadge tone="pending"><FlaskConical size={10} /> Mock AI</StatusBadge>}>
-        <form className="space-y-4" noValidate onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="site-select">Customer site <span className="text-muted-foreground">(sample location)</span></label>
-            <select id="site-select" className={fieldClass} data-testid="select-customer-site" value={customerSiteId} disabled={busy}
-              aria-invalid={!!errors.customer_site_id} aria-describedby={errors.customer_site_id ? 'site-error' : 'site-hint'}
-              onChange={(e) => { setErrors((x) => ({ ...x, customer_site_id: undefined })); updateCustomerSite(e.target.value); }}>
-              {DEMO_CUSTOMER_SITES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
-            {errors.customer_site_id ? <p id="site-error" className="text-xs text-err">{errors.customer_site_id}</p>
-              : <p id="site-hint" className="text-xs text-muted-foreground">Synthetic coordinates in {customerSite.area}. Saved with the dispatch on approval. Changing the site clears any existing analysis.</p>}
-          </div>
+    <div className="space-y-5">
+      <PageHead kicker="Step 1 · Customer conversations" title="Repair intake" sub="Review what the customer and technician said. Open one conversation to analyze it and prepare a dispatch.">
+        <StatusBadge tone="pending"><FlaskConical size={10} /> Mock summaries</StatusBadge>
+      </PageHead>
 
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="text-sm font-medium" htmlFor="fault-notes">Fault notes</label>
-              <div className="flex gap-1">
-                <Button type="button" size="sm" variant="ghost" onClick={() => { setErrors({}); updateNotes(SAMPLE); }} disabled={busy}><FileText size={13} /> Load sample</Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => updateNotes('')} disabled={busy || !notes}><Eraser size={13} /> Clear</Button>
-              </div>
-            </div>
-            <textarea id="fault-notes" className={`${fieldClass} min-h-44 resize-y leading-relaxed`} data-testid="input-fault-notes" disabled={writePending} value={notes}
-              aria-invalid={!!errors.text} aria-describedby={errors.text ? 'notes-error' : 'notes-count'}
-              onChange={(e) => { if (errors.text) setErrors((x) => ({ ...x, text: undefined })); updateNotes(e.target.value); }}
-              onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') void submit(); }}
-              maxLength={5000} placeholder="Paste the customer's message, call notes or technician scribbles. Messy is fine." />
-            <div className="flex justify-between gap-2 text-xs">
-              {errors.text ? <p id="notes-error" className="text-err">{errors.text}</p> : <span />}
-              <span id="notes-count" className="font-mono tabular text-muted-foreground">{notes.length}/5000</span>
-            </div>
-          </div>
+      {analyze.error && (
+        <InlineError onRetry={() => openingId != null && void openConversation(openingId)} retrying={analyze.isPending} retryLabel="Retry analysis">
+          {errorText(analyze.error, 'The selected conversation could not be analyzed.')}
+        </InlineError>
+      )}
 
-          {analysisError && <InlineError onRetry={() => void submit()} retrying={analyze.isPending} retryLabel="Retry analysis">{analysisError}</InlineError>}
+      <Card title={<><Inbox size={15} /> Conversation inbox</>} aside={<span className="font-mono">{conversations.length} saved chats</span>}>
+        {conversationsQ.isLoading ? <SkeletonRows rows={4} label="Loading saved conversations" />
+          : conversationsQ.isError && !conversationsQ.data
+            ? <InlineError onRetry={() => void conversationsQ.refetch()} retrying={conversationsQ.isFetching}>Saved conversations could not be loaded.</InlineError>
+            : conversations.length === 0
+              ? <EmptyState icon={<MessageSquareText size={17} />} title="No saved conversations">Synthetic demo chats will appear here when available.</EmptyState>
+              : <div className="grid gap-3 lg:grid-cols-2">
+                {conversations.map((conversation) => {
+                  const site = DEMO_CUSTOMER_SITES.find((item) => item.id === conversation.customer_site_id);
+                  const isOpening = openingId === conversation.id && analyze.isPending;
+                  return (
+                    <article key={conversation.id} data-testid={`conversation-card-${conversation.id}`}
+                      className="group min-w-0 rounded-xl border border-card-border bg-card p-4 transition-all hover:border-primary/35 hover:shadow-md">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Chat <Mono>#{conversation.id}</Mono></p>
+                          <h2 className="mt-1 truncate font-display text-base font-semibold">{conversation.subject}</h2>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">
+                            {conversation.customer_name} · {site?.label ?? 'Demo site'}
+                          </p>
+                        </div>
+                        {conversation.dispatch_activity_id != null
+                          ? <StatusBadge tone="ok">Dispatched</StatusBadge>
+                          : <StatusBadge tone="pending">Needs review</StatusBadge>}
+                      </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">Mock AI returns the fixed sample diagnosis. <kbd className="font-mono">Ctrl + Enter</kbd> to analyze.</p>
-            <Button type="submit" data-testid="button-analyze" disabled={!notes.trim() || busy}>
-              <ScanSearch size={15} className={analyze.isPending ? 'animate-pulse' : ''} /> {analyze.isPending ? 'Reading repair notes…' : 'Analyze request'} {!analyze.isPending && <ArrowRight size={14} />}
-            </Button>
-          </div>
-        </form>
+                      <div className="mt-4 rounded-lg bg-secondary/55 p-3">
+                        <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-primary">
+                          <FlaskConical size={11} /> Mock AI summary
+                        </div>
+                        <p className="line-clamp-3 text-sm leading-relaxed text-foreground/90">{conversation.mock_summary}</p>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <span className="min-w-0 truncate">
+                          Latest: <b className="text-foreground">{conversation.latest_message.sender_name}</b>
+                          {conversation.technician_name && <span> · {conversation.technician_name} in chat</span>}
+                        </span>
+                        <time className="shrink-0 font-mono tabular" dateTime={conversation.updated_at}>{dateTime(conversation.updated_at)}</time>
+                      </div>
+                      <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{conversation.latest_message.text}</p>
+
+                      <div className="mt-4 flex items-center justify-between gap-2 border-t border-card-border pt-3">
+                        <span className="font-mono text-[10px] text-muted-foreground">{conversation.message_count} messages</span>
+                        <Button type="button" size="sm" onClick={() => void openConversation(conversation.id)}
+                          disabled={analyze.isPending} data-testid={`button-review-conversation-${conversation.id}`}>
+                          <ScanSearch size={13} /> {isOpening ? 'Analyzing…' : conversation.dispatch_activity_id != null ? 'View conversation' : 'Review & analyze'} <ArrowRight size={13} />
+                        </Button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>}
       </Card>
+      <p className="text-xs text-muted-foreground">Summaries and analysis are generated by deterministic demo logic. No live customer accounts or external AI service are connected.</p>
     </div>
   );
 }

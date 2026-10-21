@@ -55,6 +55,85 @@ paths:
                 $ref: "#/components/schemas/Analysis"
         "400":
           $ref: "#/components/responses/InvalidRequest"
+  /conversations:
+    get:
+      operationId: listConversations
+      tags: [hub]
+      summary: List synthetic customer-technician conversations and their mock summaries
+      responses:
+        "200":
+          description: Persisted demo conversations ordered by latest message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationList"
+  /conversations/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      operationId: getConversationThread
+      tags: [hub]
+      summary: Get one persisted demo conversation and its transcript
+      responses:
+        "200":
+          description: Conversation transcript, current mock analysis, and dispatch association
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationThread"
+        "404":
+          $ref: "#/components/responses/InvalidRequest"
+  /conversations/{id}/messages:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: sendConversationMessage
+      tags: [hub]
+      summary: Append a simulated customer or technician message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationMessageInput"
+      responses:
+        "200":
+          description: Updated persisted thread and transcript
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationThread"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "404":
+          $ref: "#/components/responses/InvalidRequest"
+  /conversations/{id}/analyze:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: analyzeConversation
+      tags: [hub]
+      summary: Analyze only the selected conversation with the mock model
+      responses:
+        "200":
+          description: Selected thread with analysis tied to the current message version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationThread"
+        "404":
+          $ref: "#/components/responses/InvalidRequest"
+        "409":
+          $ref: "#/components/responses/InvalidRequest"
   /approve-dispatch:
     post:
       operationId: approveDispatch
@@ -336,7 +415,7 @@ components:
         lng: { type: number, minimum: -180, maximum: 180 }
     SavedDispatch:
       type: object
-      required: [tech_id, technician_name, van_id, parts, customer_site, status, completed_at]
+      required: [tech_id, technician_name, van_id, parts, customer_site, status, completed_at, conversation_id]
       properties:
         status:
           type: string
@@ -350,6 +429,7 @@ components:
           type: array
           items: { type: string }
         customer_site: { $ref: "#/components/schemas/DemoCustomerSite" }
+        conversation_id: { type: ["integer", "null"], minimum: 1 }
     HubData:
       type: object
       required: [technicians, inventory, activity_log]
@@ -377,11 +457,66 @@ components:
           type: array
           items: { type: string }
         urgency: { type: string, enum: [High, Med, Low] }
+    ConversationMessage:
+      type: object
+      required: [id, conversation_id, sender_role, sender_name, text, created_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        conversation_id: { type: integer, minimum: 1 }
+        sender_role: { type: string, enum: [Customer, Technician] }
+        sender_name: { type: string, minLength: 1, maxLength: 120 }
+        text: { type: string, minLength: 1, maxLength: 2000 }
+        created_at: { type: string, format: date-time }
+    ConversationMessageInput:
+      type: object
+      required: [sender_role, text]
+      properties:
+        sender_role: { type: string, enum: [Customer, Technician] }
+        technician_id: { type: integer, minimum: 1 }
+        text: { type: string, minLength: 1, maxLength: 2000 }
+    ConversationSummary:
+      type: object
+      required: [id, customer_name, subject, customer_site_id, technician_id, technician_name, mock_summary, latest_message, message_count, dispatch_activity_id, updated_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        customer_name: { type: string }
+        subject: { type: string }
+        customer_site_id: { $ref: "#/components/schemas/DemoSiteId" }
+        technician_id: { type: ["integer", "null"], minimum: 1 }
+        technician_name: { type: ["string", "null"] }
+        mock_summary: { type: string }
+        latest_message: { $ref: "#/components/schemas/ConversationMessage" }
+        message_count: { type: integer, minimum: 1 }
+        dispatch_activity_id: { type: ["integer", "null"], minimum: 1 }
+        updated_at: { type: string, format: date-time }
+    ConversationList:
+      type: object
+      required: [conversations]
+      properties:
+        conversations:
+          type: array
+          items: { $ref: "#/components/schemas/ConversationSummary" }
+    ConversationThread:
+      allOf:
+        - $ref: "#/components/schemas/ConversationSummary"
+        - type: object
+          required: [messages, latest_message_id, analyzed_through_message_id, analysis]
+          properties:
+            messages:
+              type: array
+              items: { $ref: "#/components/schemas/ConversationMessage" }
+            latest_message_id: { type: integer, minimum: 1 }
+            analyzed_through_message_id: { type: ["integer", "null"], minimum: 1 }
+            analysis:
+              oneOf:
+                - $ref: "#/components/schemas/Analysis"
+                - type: "null"
     DispatchInput:
       type: object
       required: [tech_id, van_id, parts, approved_by, customer_site_id]
       properties:
         customer_site_id: { $ref: "#/components/schemas/DemoSiteId" }
+        conversation_id: { type: integer, minimum: 1 }
         tech_id: { type: integer, minimum: 1 }
         van_id: { type: integer, minimum: 1 }
         parts:

@@ -51,7 +51,7 @@ test('additive migration preserves legacy history and atomically saves canonical
     assert.deepEqual(entry.dispatch, {
       tech_id: 1, technician_name: 'Tech A', van_id: 1,
       parts: input.parts, customer_site: demoSites.central,
-      status: 'Active', completed_at: null,
+      status: 'Active', completed_at: null, conversation_id: null,
     });
     assert.equal(saved.technicians[0].status, 'Busy');
     assert.equal(saved.inventory.find((i) => i.van_id === 1 && i.part_name === '100uF Capacitor').quantity, 7);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
-import { Activity, Boxes, ClipboardList, FlaskConical, History, Inbox, Loader2, Map as MapIcon, Menu, Radio, ScanSearch, ShoppingBag, Users } from 'lucide-react';
+import { Activity, Boxes, ClipboardList, FlaskConical, History, Inbox, Loader2, Map as MapIcon, Menu, Radio, ShoppingBag, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -12,7 +12,7 @@ import MapPage from './MapPage';
 import SupplierComparePage from './SupplierComparePage';
 import ReordersPage from './ReordersPage';
 import { LogPage, StockPage, TechniciansPage } from './ListPages';
-import { InlineError, IntakeFirst, SkeletonRows, StatusBadge } from './shared';
+import { InlineError, StatusBadge } from './shared';
 import { ConnectionStatus, useConnection } from './ConnectionStatus';
 import { RouteBoundary } from './RouteBoundary';
 import { ThemeToggle } from './theme';
@@ -29,31 +29,23 @@ function Brand() {
 
 export default function Dashboard() {
   const hub = useDispatchHub();
-  const { hubQ, analysis, match, approveDispatch, openReorderCount, lowStockCount, pendingAction } = hub;
+  const { hubQ, openReorderCount, lowStockCount, pendingAction } = hub;
   const connection = useConnection(hubQ);
   const [location, navigate] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   const [notice, setNotice] = useState('');
-  const [completingDispatch, setCompletingDispatch] = useState(false);
 
   useEffect(() => { setMenuOpen(false); window.scrollTo(0, 0); }, [location]);
 
-  const approve = async () => {
-    if (completingDispatch) return;
-    setCompletingDispatch(true);
-    const who = match ? `${match.name} · Van ${match.van_id}` : '';
-    if (await approveDispatch()) {
-      setNotice(`Job dispatched. ${who} assigned and parts reserved.`);
-      navigate('/log');
-    }
-    setCompletingDispatch(false);
+  const afterApproval = (tech: { name: string; van_id: number }) => {
+    setNotice(`Job dispatched. ${tech.name} · Van ${tech.van_id} assigned and parts reserved.`);
+    navigate('/log');
   };
 
   const items = [
     { to: '/', label: 'Overview', Icon: Activity },
-    { to: '/intake', label: 'Repair intake', Icon: Inbox },
-    ...(analysis ? [{ to: '/analysis', label: 'Analysis & approval', Icon: ScanSearch, badge: 'Draft' }] : []),
+    { to: '/intake', label: 'Customer conversations', Icon: Inbox },
     { to: '/map', label: 'Technician map', Icon: MapIcon },
     { to: '/technicians', label: 'Technicians', Icon: Users },
     { to: '/stock', label: 'Van stock', Icon: Boxes, count: lowStockCount || undefined },
@@ -94,12 +86,6 @@ export default function Dashboard() {
       </div>
     </div>
   );
-
-  const analysisRoute = analysis
-    ? <AnalysisPage hub={hub} onApprove={approve} />
-    : completingDispatch ? <div role="status"><SkeletonRows rows={3} label="Completing dispatch" /></div>
-    : hub.analyze.isPending ? <IntakeFirst text="Analysis in progress" />
-    : <Redirect to="/intake" replace />;
 
   return (
     <div className="min-h-[100dvh] lg:grid lg:grid-cols-[256px_minmax(0,1fr)]">
@@ -151,8 +137,9 @@ export default function Dashboard() {
             <RouteBoundary route={location}>
               <Switch>
                 <Route path="/"><OverviewPage hub={hub} /></Route>
-                <Route path="/intake"><IntakePage hub={hub} /></Route>
-                <Route path="/analysis">{analysisRoute}</Route>
+                <Route path="/intake"><IntakePage /></Route>
+                <Route path="/analysis"><Redirect to="/intake" replace /></Route>
+                <Route path="/analysis/:id">{(params) => <AnalysisPage hub={hub} conversationId={Number(params.id)} onApprove={afterApproval} />}</Route>
                 <Route path="/map"><MapPage hub={hub} /></Route>
                 <Route path="/technicians"><TechniciansPage hub={hub} /></Route>
                 <Route path="/stock/low"><StockPage hub={hub} lowOnly /></Route>

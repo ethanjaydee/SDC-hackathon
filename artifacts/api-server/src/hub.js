@@ -26,6 +26,12 @@ import {
   CreateReorderDraftResponse,
   ApproveReorderDraftBody,
   ApproveReorderDraftResponse,
+  ListConversationsResponse,
+  GetConversationThreadParams,
+  GetConversationThreadResponse,
+  SendConversationMessageBody,
+  SendConversationMessageResponse,
+  AnalyzeConversationResponse,
 } from "@workspace/api-zod";
 
 // The managed Express service mounts this router at /api.
@@ -66,6 +72,28 @@ db.exec(`
     parts_json TEXT NOT NULL,
     customer_site_json TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS conversation_threads (
+    id INTEGER PRIMARY KEY,
+    customer_name TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    customer_site_id TEXT NOT NULL CHECK(customer_site_id IN ('north', 'central', 'south')),
+    technician_id INTEGER REFERENCES technicians(id),
+    mock_summary TEXT NOT NULL DEFAULT '',
+    analysis_json TEXT,
+    analysis_message_id INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS conversation_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversation_threads(id),
+    sender_role TEXT NOT NULL CHECK(sender_role IN ('Customer', 'Technician')),
+    sender_name TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS conversation_messages_thread
+    ON conversation_messages(conversation_id, id);
   CREATE TABLE IF NOT EXISTS supplier_quotes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     search_term TEXT NOT NULL,
@@ -137,11 +165,16 @@ db.transaction(() => {
         AND tech_id IN (SELECT tech_id FROM dispatches GROUP BY tech_id HAVING COUNT(*) = 1);
     `);
   }
+  if (!columns.some((column) => column.name === "conversation_id")) {
+    db.exec("ALTER TABLE dispatches ADD COLUMN conversation_id INTEGER REFERENCES conversation_threads(id)");
+  }
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS one_active_dispatch_per_tech
       ON dispatches(tech_id) WHERE status = 'Active';
     CREATE UNIQUE INDEX IF NOT EXISTS one_dispatch_per_completion
       ON dispatches(completion_activity_id) WHERE completion_activity_id IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS one_dispatch_per_conversation
+      ON dispatches(conversation_id) WHERE conversation_id IS NOT NULL;
   `);
 }).immediate();
 
@@ -169,19 +202,74 @@ db.transaction(() => {
   ]) insertPart.run(...row);
 }).immediate();
 
+const seedDemoConversations = db.transaction(() => {
+  if (db.prepare("SELECT 1 FROM conversation_threads LIMIT 1").get()) return;
+  const now = Date.now();
+  const insertThread = db.prepare(`
+    INSERT INTO conversation_threads
+      (id, customer_name, subject, customer_site_id, technician_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertMessage = db.prepare(`
+    INSERT INTO conversation_messages (conversation_id, sender_role, sender_name, text, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const demos = [
+    {
+      id: 1, customer: "North Demo Customer", subject: "Instrument cluster loses power",
+      site: "north", technicianId: 1, technician: "Tech A",
+      messages: [
+        ["Customer", "The instrument cluster went dark during our last trip. The speedometer needle stopped and there was a warm smell near the panel."],
+        ["Technician", "I checked the accessible connector and fuse. The display still loses power, so the board needs a closer inspection."],
+        ["Customer", "Please let me know what parts may be needed before the morning booking."],
+      ],
+    },
+    {
+      id: 2, customer: "Central Demo Customer", subject: "Oil filter housing is seeping",
+      site: "central", technicianId: 3, technician: "Tech C",
+      messages: [
+        ["Customer", "There is fresh oil around the Wix 57356 filter housing after today's run. The pressure gauge looks normal."],
+        ["Technician", "I can see a small seep near the filter seal. I will verify the housing and filter fit before replacing anything."],
+        ["Customer", "Understood. Please check the filter stock before scheduling a visit."],
+      ],
+    },
+    {
+      id: 3, customer: "South Demo Customer", subject: "Accessory power cuts in and out",
+      site: "south", technicianId: 2, technician: "Tech B",
+      messages: [
+        ["Customer", "Cockpit accessory power drops out whenever the navigation lights are switched on."],
+        ["Technician", "The 12V relay clicks intermittently. The terminals look worn, but I have not replaced the relay yet."],
+        ["Customer", "Please confirm a suitable replacement and dispatch when it is available."],
+      ],
+    },
+  ];
+  for (const demo of demos) {
+    const firstAt = new Date(now - (demos.length - demo.id) * 60 * 60 * 1000).toISOString();
+    insertThread.run(demo.id, demo.customer, demo.subject, demo.site, demo.technicianId, firstAt, firstAt);
+    demo.messages.forEach(([role, text], index) => {
+      const senderName = role === "Customer" ? demo.customer : demo.technician;
+      const createdAt = new Date(Date.parse(firstAt) + (index + 1) * 60 * 1000).toISOString();
+      insertMessage.run(demo.id, role, senderName, text, createdAt);
+    });
+    db.prepare("UPDATE conversation_threads SET mock_summary = ?, updated_at = ? WHERE id = ?")
+      .run(buildMockSummary(demo.messages.map(([role, text]) => ({ sender_role: role, text }))), new Date(now - (demos.length - demo.id) * 60 * 60 * 1000 + 3 * 60 * 1000).toISOString(), demo.id);
+  }
+});
+seedDemoConversations.immediate();
+
 function getHubData() {
   return {
     technicians: db.prepare("SELECT * FROM technicians ORDER BY id").all(),
     inventory: db.prepare("SELECT * FROM inventory ORDER BY van_id, id").all(),
     activity_log: db.prepare(`
-      SELECT a.*, d.tech_id, d.technician_name, d.van_id, d.parts_json, d.customer_site_json,
+      SELECT a.*, d.tech_id, d.technician_name, d.van_id, d.parts_json, d.customer_site_json, d.conversation_id,
         d.status AS dispatch_status, completed.timestamp AS completed_at,
         original.activity_id AS completion_dispatch_id
       FROM activity_log a LEFT JOIN dispatches d ON d.activity_id = a.id
       LEFT JOIN activity_log completed ON completed.id = d.completion_activity_id
       LEFT JOIN dispatches original ON original.completion_activity_id = a.id
       ORDER BY a.id DESC
-    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, dispatch_status, completed_at, ...activity }) => ({
+    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, conversation_id, dispatch_status, completed_at, ...activity }) => ({
       ...activity,
       dispatch: tech_id == null ? null : {
         tech_id, technician_name, van_id,
@@ -189,9 +277,124 @@ function getHubData() {
         completed_at,
         parts: JSON.parse(parts_json),
         customer_site: JSON.parse(customer_site_json),
+        conversation_id,
       },
     })),
   };
+}
+
+function buildMockSummary(messages) {
+  const customerMessage = [...messages].reverse().find((item) => item.sender_role === "Customer");
+  const technicianMessage = [...messages].reverse().find((item) => item.sender_role === "Technician");
+  const excerpt = (text) => {
+    const compact = text.trim().replace(/\s+/g, " ");
+    return compact.length > 150 ? `${compact.slice(0, 147)}…` : compact;
+  };
+  const lines = [];
+  if (customerMessage) lines.push(`Customer: ${excerpt(customerMessage.text)}`);
+  if (technicianMessage) lines.push(`Technician: ${excerpt(technicianMessage.text)}`);
+  return lines.join(" ");
+}
+
+function listConversationSummaries() {
+  return db.prepare(`
+    SELECT c.id, c.customer_name, c.subject, c.customer_site_id, c.technician_id,
+      t.name AS technician_name, c.mock_summary, c.updated_at,
+      COUNT(m.id) AS message_count, d.activity_id AS dispatch_activity_id
+    FROM conversation_threads c
+    LEFT JOIN technicians t ON t.id = c.technician_id
+    LEFT JOIN conversation_messages m ON m.conversation_id = c.id
+    LEFT JOIN dispatches d ON d.conversation_id = c.id
+    GROUP BY c.id
+    ORDER BY c.updated_at DESC, c.id DESC
+  `).all().map((thread) => ({
+    ...thread,
+    latest_message: db.prepare(`
+      SELECT id, conversation_id, sender_role, sender_name, text, created_at
+      FROM conversation_messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1
+    `).get(thread.id),
+  }));
+}
+
+function getConversationThread(id) {
+  const summary = listConversationSummaries().find((item) => item.id === id);
+  if (!summary) return null;
+  const messages = db.prepare(`
+    SELECT id, conversation_id, sender_role, sender_name, text, created_at
+    FROM conversation_messages WHERE conversation_id = ? ORDER BY id
+  `).all(id);
+  const thread = db.prepare("SELECT analysis_json, analysis_message_id FROM conversation_threads WHERE id = ?").get(id);
+  return {
+    ...summary,
+    messages,
+    latest_message_id: messages[messages.length - 1]?.id,
+    analyzed_through_message_id: thread.analysis_message_id,
+    analysis: thread.analysis_json ? JSON.parse(thread.analysis_json) : null,
+  };
+}
+
+class ConversationNotFound extends Error {}
+class ConversationConflict extends Error {}
+class ConversationInputError extends Error {}
+
+const appendConversationMessage = db.transaction(({ id, sender_role, technician_id, text }) => {
+  const thread = db.prepare("SELECT * FROM conversation_threads WHERE id = ?").get(id);
+  if (!thread) throw new ConversationNotFound("Conversation not found.");
+
+  let senderName = thread.customer_name;
+  let updatedTechnicianId = thread.technician_id;
+  if (sender_role === "Technician") {
+    const participantId = technician_id ?? thread.technician_id;
+    const technician = participantId == null ? null : db.prepare("SELECT id, name FROM technicians WHERE id = ?").get(participantId);
+    if (!technician) throw new ConversationInputError("Choose an existing technician for the simulated reply.");
+    senderName = technician.name;
+    updatedTechnicianId = technician.id;
+  } else if (technician_id != null) {
+    throw new ConversationInputError("Customer messages cannot include a technician.");
+  }
+
+  const createdAt = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO conversation_messages (conversation_id, sender_role, sender_name, text, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, sender_role, senderName, text.trim(), createdAt);
+  const allMessages = db.prepare(`
+    SELECT sender_role, text FROM conversation_messages WHERE conversation_id = ? ORDER BY id
+  `).all(id);
+  db.prepare(`
+    UPDATE conversation_threads
+    SET technician_id = ?, mock_summary = ?, updated_at = ?, analysis_json = NULL, analysis_message_id = NULL
+    WHERE id = ?
+  `).run(updatedTechnicianId, buildMockSummary(allMessages), createdAt, id);
+  return getConversationThread(id);
+});
+
+async function analyzeConversation(id) {
+  const thread = db.prepare("SELECT id FROM conversation_threads WHERE id = ?").get(id);
+  if (!thread) throw new ConversationNotFound("Conversation not found.");
+  const messages = db.prepare(`
+    SELECT id, sender_role, sender_name, text FROM conversation_messages
+    WHERE conversation_id = ? ORDER BY id
+  `).all(id);
+  if (!messages.some((message) => message.sender_role === "Customer")) {
+    throw new ConversationConflict("Add a customer message before analyzing this conversation.");
+  }
+  const analyzedThrough = messages[messages.length - 1]?.id;
+  const transcript = messages.map((message) => `${message.sender_role} (${message.sender_name}): ${message.text}`).join("\n");
+  const result = await callRunPodModel(transcript);
+  const latest = db.prepare(`
+    SELECT id FROM conversation_messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1
+  `).get(id);
+  if (latest?.id !== analyzedThrough) {
+    throw new ConversationConflict("This conversation changed during analysis. Analyze the latest messages again.");
+  }
+  const updatedAt = new Date().toISOString();
+  db.prepare(`
+    UPDATE conversation_threads
+    SET analysis_json = ?, analysis_message_id = ?, updated_at = ?
+    WHERE id = ?
+  `).run(JSON.stringify(result), analyzedThrough, updatedAt, id);
+  return getConversationThread(id);
 }
 
 export async function callRunPodModel(text) {
@@ -208,7 +411,21 @@ export async function callRunPodModel(text) {
   // });
   // Check response.ok, parse choices[0].message.content, and validate the
   // parsed result with AnalyzeRequestResponse before returning it.
-  void text;
+  const notes = text.toLowerCase();
+  if (/\b(wix|oil filter|filter housing|filter seal)\b/.test(notes)) {
+    return {
+      issue: "Oil Filter Housing Seep",
+      parts: ["Wix 57356 Filter"],
+      urgency: "Med",
+    };
+  }
+  if (/\b(12v relay|relay clicks|relay)\b/.test(notes)) {
+    return {
+      issue: "Accessory Power Relay Fault",
+      parts: ["12V Relay"],
+      urgency: "Med",
+    };
+  }
   return {
     issue: "Instrument Cluster Power Failure",
     parts: ["100uF Capacitor", "NPN Transistor"],
@@ -218,7 +435,27 @@ export async function callRunPodModel(text) {
 
 class DispatchConflict extends Error {}
 
-const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer_site_id }) => {
+const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer_site_id, conversation_id }) => {
+  if (conversation_id != null) {
+    const source = db.prepare("SELECT * FROM conversation_threads WHERE id = ?").get(conversation_id);
+    if (!source) throw new DispatchConflict("The selected conversation no longer exists. Refresh and review another request.");
+    const latest = db.prepare(`
+      SELECT id FROM conversation_messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1
+    `).get(conversation_id);
+    const analyzed = source.analysis_json ? JSON.parse(source.analysis_json) : null;
+    const sameParts = analyzed && Array.isArray(analyzed.parts) &&
+      [...analyzed.parts].map((part) => part.trim().toLowerCase()).sort().join("\n") ===
+      [...parts].map((part) => part.trim().toLowerCase()).sort().join("\n");
+    if (!latest || source.analysis_message_id !== latest.id || !sameParts) {
+      throw new DispatchConflict("The conversation or its analysis changed. Review the latest messages and analyze again.");
+    }
+    if (source.customer_site_id !== customer_site_id) {
+      throw new DispatchConflict("The dispatch site does not match the selected customer conversation.");
+    }
+    if (db.prepare("SELECT 1 FROM dispatches WHERE conversation_id = ?").get(conversation_id)) {
+      throw new DispatchConflict("This conversation already has a saved dispatch.");
+    }
+  }
   const technician = db.prepare(
     "SELECT * FROM technicians WHERE id = ? AND van_id = ?",
   ).get(tech_id, van_id);
@@ -246,9 +483,13 @@ const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer
     approved_by,
   );
   db.prepare(`
-    INSERT INTO dispatches (activity_id, tech_id, technician_name, van_id, parts_json, customer_site_json, status)
-    VALUES (?, ?, ?, ?, ?, ?, 'Active')
-  `).run(activity.lastInsertRowid, tech_id, technician.name, van_id, JSON.stringify(parts), JSON.stringify(demoSites[customer_site_id]));
+    INSERT INTO dispatches (activity_id, tech_id, technician_name, van_id, parts_json, customer_site_json, status, conversation_id)
+    VALUES (?, ?, ?, ?, ?, ?, 'Active', ?)
+  `).run(activity.lastInsertRowid, tech_id, technician.name, van_id, JSON.stringify(parts), JSON.stringify(demoSites[customer_site_id]), conversation_id ?? null);
+  if (conversation_id != null) {
+    db.prepare("UPDATE conversation_threads SET technician_id = ?, updated_at = ? WHERE id = ?")
+      .run(tech_id, new Date().toISOString(), conversation_id);
+  }
   return getHubData();
 });
 
@@ -588,6 +829,62 @@ router.use((_req, res, next) => {
 });
 router.get("/hub-data", (_req, res) => {
   res.json(GetHubDataResponse.parse(getHubData()));
+});
+router.get("/conversations", (_req, res) => {
+  res.json(ListConversationsResponse.parse({
+    conversations: listConversationSummaries(),
+  }));
+});
+router.get("/conversations/:id", (req, res) => {
+  const parsed = GetConversationThreadParams.safeParse({ id: req.params.id });
+  if (!parsed.success) {
+    res.status(400).json({ error: "Provide a valid conversation ID." });
+    return;
+  }
+  const thread = getConversationThread(parsed.data.id);
+  if (!thread) {
+    res.status(404).json({ error: "Conversation not found." });
+    return;
+  }
+  res.json(GetConversationThreadResponse.parse(thread));
+});
+router.post("/conversations/:id/messages", (req, res, next) => {
+  const params = GetConversationThreadParams.safeParse({ id: req.params.id });
+  const body = SendConversationMessageBody.safeParse(req.body);
+  if (!params.success || !body.success || !body.data.text.trim()) {
+    res.status(400).json({ error: "Choose a customer or technician, then enter a message of 1 to 2,000 characters." });
+    return;
+  }
+  try {
+    const thread = appendConversationMessage.immediate({
+      id: params.data.id,
+      ...body.data,
+      text: body.data.text.trim(),
+    });
+    res.json(SendConversationMessageResponse.parse(thread));
+  } catch (error) {
+    if (error instanceof ConversationNotFound || error instanceof ConversationInputError) {
+      res.status(error instanceof ConversationNotFound ? 404 : 400).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
+});
+router.post("/conversations/:id/analyze", async (req, res, next) => {
+  const parsed = GetConversationThreadParams.safeParse({ id: req.params.id });
+  if (!parsed.success) {
+    res.status(400).json({ error: "Provide a valid conversation ID." });
+    return;
+  }
+  try {
+    res.json(AnalyzeConversationResponse.parse(await analyzeConversation(parsed.data.id)));
+  } catch (error) {
+    if (error instanceof ConversationNotFound || error instanceof ConversationConflict) {
+      res.status(error instanceof ConversationNotFound ? 404 : 409).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
 });
 router.get("/reorder-drafts", (_req, res) => {
   res.json(ListReorderDraftsResponse.parse({

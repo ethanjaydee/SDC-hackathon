@@ -10,6 +10,8 @@ import type { DemoSiteId } from './demoSiteId';
 export interface DispatchInput {
   customer_site_id: DemoSiteId;
   /** @minimum 1 */
+  conversation_id?: number;
+  /** @minimum 1 */
   tech_id: number;
   /** @minimum 1 */
   van_id: number;
