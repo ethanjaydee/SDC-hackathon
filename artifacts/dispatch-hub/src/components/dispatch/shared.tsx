@@ -37,12 +37,12 @@ export function Mono({ children, className }: { children: ReactNode; className?:
   return <span className={cn('font-mono text-[0.92em] tabular tracking-tight', className)}>{children}</span>;
 }
 
-export function PageHead({ kicker, title, sub, children }: { kicker: string; title: string; sub: string; children?: ReactNode }) {
+export function PageHead({ kicker, title, sub, children, large = false }: { kicker: string; title: string; sub: string; children?: ReactNode; large?: boolean }) {
   return (
     <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between pb-2">
       <div className="min-w-0">
         <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary">{kicker}</p>
-        <h1 className="mt-1 text-[28px] leading-[1.05] font-semibold md:text-[34px]">{title}</h1>
+        <h1 className={`mt-1 leading-[1.05] font-semibold ${large ? 'text-[36px] md:text-[46px]' : 'text-[28px] md:text-[34px]'}`}>{title}</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{sub}</p>
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}

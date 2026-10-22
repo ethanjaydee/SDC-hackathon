@@ -63,7 +63,7 @@ export function useDispatchHub() {
     [...(hub?.activity_log || [])].sort((a, b) => b.id - a.id),
   [hub]);
   const availableCount = technicians.filter((tech) => tech.status === 'Available').length;
-  const lowStockCount = inventory.filter((item) => item.quantity <= 2).length;
+  const lowStockCount = inventory.filter((item) => item.quantity < 5).length;
   const dispatchedToday = activity.filter((entry) =>
     entry.completion_dispatch_id == null &&
     entry.action_details.startsWith('Dispatch approved:') &&

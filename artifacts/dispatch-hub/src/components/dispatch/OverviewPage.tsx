@@ -29,10 +29,10 @@ export default function OverviewPage({ hub }: Hub) {
     entry.action_details.startsWith('Dispatch approved:') &&
     new Date(entry.timestamp).toDateString() === new Date().toDateString(),
   );
-  const lowStockItems = inventory.filter((item) => item.quantity <= 2);
+  const lowStockItems = inventory.filter((item) => item.quantity < 5);
   const counts = [
     { key: 'today' as const, to: '/today', label: 'Dispatches today', value: ready ? dispatchedToday : null, foot: 'Approved allocations', Icon: PackageCheck, aria: ready ? `Open today's ${dispatchedToday} dispatches` : 'Open today’s dispatch log', tone: '' },
-    { key: 'low-stock' as const, to: '/stock/low', label: 'Low-stock lines', value: ready ? lowStockCount : null, foot: '2 units or fewer', Icon: Boxes, aria: ready ? `Open ${lowStockCount} low-stock lines` : 'Open low-stock inventory', tone: lowStockCount ? 'text-pending' : '' },
+    { key: 'low-stock' as const, to: '/stock/low', label: 'Low-stock lines', value: ready ? lowStockCount : null, foot: 'Fewer than 5 units', Icon: Boxes, aria: ready ? `Open ${lowStockCount} low-stock lines` : 'Open low-stock inventory', tone: lowStockCount ? 'text-pending' : '' },
   ];
   const displayName = user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'Technician';
 
@@ -55,7 +55,7 @@ export default function OverviewPage({ hub }: Hub) {
     if (key === 'low-stock') {
       if (hubQ.isLoading && !hubQ.data) return <div className="space-y-2" role="status" aria-label="Loading low-stock items"><Skeleton className="h-10" /><Skeleton className="h-10" /></div>;
       if (!ready && hubQ.isError) return <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Low-stock inventory is unavailable until the hub reconnects.</InlineError>;
-      if (!lowStockItems.length) return <p className="text-sm text-muted-foreground">No inventory lines are at or below the low-stock threshold.</p>;
+      if (!lowStockItems.length) return <p className="text-sm text-muted-foreground">No inventory lines are below 5 units.</p>;
       return (
         <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
           {lowStockItems.map((item) => (

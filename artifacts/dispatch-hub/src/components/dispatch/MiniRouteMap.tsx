@@ -55,7 +55,7 @@ function LeafletMap({ customer, technicians, height }: Props) {
       pts.push([t.lat, t.lng]);
       L.marker([t.lat, t.lng], { icon: icon(t.selected ? 'best' : t.eligible ? 'ok' : 'busy', abbr(t.name)), title: `${t.name}${t.eligible ? '' : ' (not eligible)'}`, opacity: t.eligible || t.selected ? 1 : 0.55 }).addTo(g);
     });
-    m.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 13, animate: false });
+    m.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15, animate: false });
   }, [customer, technicians]);
   return <div ref={box} style={{ height }} className="w-full rounded-lg border" role="img" aria-label="Map of customer site and sample technician positions" />;
 }
@@ -99,7 +99,7 @@ export function MiniRouteMap(props: Props) {
       <figcaption className="text-[11px] leading-snug text-muted-foreground">
         {google
           ? 'Google Maps. Technician positions are synthetic samples, not live GPS. A route line appears only when Google returns one.'
-          : 'OpenStreetMap sample view, not Google. Positions are synthetic samples, not live GPS. No route is drawn.'}
+          : 'OpenStreetMap view of the selected van and customer only. Not Google: no route line, distance or ETA is drawn. Positions are synthetic samples.'}
       </figcaption>
     </figure>
   );

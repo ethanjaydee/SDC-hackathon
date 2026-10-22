@@ -7,7 +7,7 @@ import { DEMO_CUSTOMER_SITES, getTechnicianLocation } from './demoLocations';
 import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, fieldClass, techTone, type Hub, type Tone } from './shared';
 import { CompletionControl } from './CompletionControl';
 import { cn } from '@/lib/utils';
-import { LevelBadge, levelText } from './techMeta';
+import { LEVEL_NAME, LevelBadge, levelText } from './techMeta';
 
 type Readiness = 'Parts not checked' | 'Stock ready' | 'Missing parts';
 const readinessTone: Record<Readiness, Tone> = { 'Parts not checked': 'idle', 'Stock ready': 'ok', 'Missing parts': 'err' };
@@ -152,7 +152,10 @@ export default function MapPage({ hub }: Hub) {
           <Card title="Technicians" aside={<Mono>{rows.length}</Mono>} bodyClassName="p-2 md:p-2">
             {hubQ.isLoading ? <div className="p-2"><SkeletonRows rows={3} /></div> : rows.length ? (
               <div className="space-y-1">
-                {rows.map((r) => (
+                {[1, 2, 3, 0].map((lv) => ({ lv, items: rows.filter((r) => (lv === 0 ? ![1, 2, 3].includes(r.t.level ?? 0) : r.t.level === lv)) })).filter((g) => g.items.length).map((grp) => (
+                  <section key={grp.lv} aria-label={grp.lv ? `Level ${grp.lv} technicians` : 'Level not verified technicians'} className="space-y-1">
+                    <h3 className="px-2.5 pt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{grp.lv ? `Level ${grp.lv} · ${LEVEL_NAME[grp.lv]}` : 'Level not verified'} ({grp.items.length})</h3>
+                  {grp.items.map((r) => (
                   <button key={r.t.id} type="button" disabled={!r.loc} onClick={() => focus(r.t.id)} data-testid={`map-tech-${r.t.id}`}
                     className={cn('w-full rounded-lg border border-transparent p-2.5 text-left transition-colors hover:bg-muted/50 disabled:opacity-60', selected === r.t.id && 'border-border bg-muted/60')}>
                     <span className="flex items-center justify-between gap-2"><b className="truncate text-sm font-medium">{r.t.name}</b><StatusBadge tone={techTone(r.t.status)} pulse={r.t.status === 'Busy'}>{r.t.status}</StatusBadge></span>
@@ -164,6 +167,8 @@ export default function MapPage({ hub }: Hub) {
                       {r.nearest && <StatusBadge tone="ok">Top qualified</StatusBadge>}
                     </span>
                   </button>
+                ))}
+                  </section>
                 ))}
               </div>
             ) : <p className="p-3 text-sm text-muted-foreground">No technicians found.</p>}

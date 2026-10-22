@@ -82,12 +82,12 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
   const { inventory, technicians, hubQ } = hub;
   const [van, setVan] = useState<number | null>(null);
   const vans = useMemo(() => [...new Set(inventory.map((i) => i.van_id))].sort((a, b) => a - b).slice(0, 3), [inventory]);
-  const lines = (v: number) => inventory.filter((i) => i.van_id === v && (!lowOnly || i.quantity <= 2)).sort((a, b) => a.part_name.localeCompare(b.part_name));
+  const lines = (v: number) => inventory.filter((i) => i.van_id === v && (!lowOnly || i.quantity < 5)).sort((a, b) => a.part_name.localeCompare(b.part_name));
   const active = van != null && vans.includes(van) ? van : null;
   const owner = (v: number) => technicians.filter((t) => t.van_id === v).map((t) => t.name).join(', ');
   return (
     <div className="space-y-5">
-      <PageHead kicker="Inventory" title={lowOnly ? 'Low-stock lines' : 'Van stock'} sub={lowOnly ? 'Items at two units or fewer.' : 'Pick a van to see every part on board.'}>
+      <PageHead kicker="Inventory" title={lowOnly ? 'Low-stock lines' : 'Van stock'} sub={lowOnly ? 'Items strictly below five units.' : 'Pick a van to see every part on board.'}>
         {lowOnly ? <Button asChild variant="outline"><Link href="/stock">All stock</Link></Button>
           : <Button asChild variant="outline"><Link href="/stock/low">Low stock only</Link></Button>}
       </PageHead>
@@ -99,7 +99,7 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
             <div className="grid gap-3 sm:grid-cols-3" role="group" aria-label="Choose a van">
               {vans.map((v) => {
                 const all = inventory.filter((i) => i.van_id === v);
-                const low = all.filter((i) => i.quantity <= 2).length;
+                const low = all.filter((i) => i.quantity < 5).length;
                 const on = active === v;
                 return (
                   <button key={v} type="button" aria-pressed={on} onClick={() => setVan(on ? null : v)} data-testid={`van-card-${v}`}
@@ -113,12 +113,12 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
             </div>
             {active == null ? <p className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">Select a van to list its parts and quantities.</p> : (
               <div className="dh-rise" data-testid={`van-parts-${active}`}>
-                {lines(active).length === 0 ? <EmptyState icon={<Boxes size={16} />} title={lowOnly ? 'No low-stock lines in this van' : 'No parts in this van'}>{lowOnly ? 'Every line is above two units.' : 'Nothing is recorded for this van.'}</EmptyState> : (
+                {lines(active).length === 0 ? <EmptyState icon={<Boxes size={16} />} title={lowOnly ? 'No low-stock lines in this van' : 'No parts in this van'}>{lowOnly ? 'Every line has five units or more.' : 'Nothing is recorded for this van.'}</EmptyState> : (
                   <ul className="divide-y rounded-lg border">
                     {lines(active).map((i) => (
                       <li key={i.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm" data-testid={lowOnly ? `low-stock-${i.id}` : undefined}>
                         <span className="min-w-0 truncate">{i.part_name}</span>
-                        <span data-testid={`text-qty-${i.id}`} className={`inline-flex min-w-8 justify-center rounded-md px-1.5 py-0.5 font-mono font-semibold tabular ${i.quantity <= 2 ? 'bg-pending/12 text-pending' : ''}`}>{i.quantity}</span>
+                        <span data-testid={`text-qty-${i.id}`} className={`inline-flex min-w-8 justify-center rounded-md px-1.5 py-0.5 font-mono font-semibold tabular ${i.quantity < 5 ? 'bg-pending/12 text-pending' : ''}`}>{i.quantity}</span>
                       </li>
                     ))}
                   </ul>
@@ -127,7 +127,7 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
             )}
           </div>
         )}
-        <p className="mt-3 text-xs text-muted-foreground">Amber quantities are two units or fewer.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Amber quantities are below 5 units.</p>
       </Card>
     </div>
   );

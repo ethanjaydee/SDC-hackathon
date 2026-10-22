@@ -61,7 +61,7 @@ export default function IntakePage() {
   const groups = LEVELS.map((meta) => ({ ...meta, items: conversations.filter((c) => complexityOf(c) === meta.level) }));
   return (
     <div className="space-y-5">
-      <PageHead kicker="Step 1 · Customer conversations" title="Service Requests" sub="Review what the customer and technician said. Open one conversation to analyze it and prepare a dispatch.">
+      <PageHead large kicker="Step 1 · Customer conversations" title="Service Requests" sub="Review what the customer and technician said. Open one conversation to analyze it and prepare a dispatch.">
         <StatusBadge tone="pending"><FlaskConical size={10} /> Mock summaries</StatusBadge>
       </PageHead>
 

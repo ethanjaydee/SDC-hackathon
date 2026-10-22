@@ -21,6 +21,7 @@ export function SlideToApprove({ onConfirm, disabled, resetKey, idleLabel = 'Sli
   const keyRef = useRef(resetKey);
   const [pos, setPos] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [trackW, setTrackW] = useState(0);
   const [status, setStatus] = useState<Status>('idle');
   const onConfirmRef = useRef(onConfirm);
   onConfirmRef.current = onConfirm;
@@ -31,6 +32,14 @@ export function SlideToApprove({ onConfirm, disabled, resetKey, idleLabel = 'Sli
     drag.current = null;
     setPos(0); setStatus('idle'); setDragging(false);
   }, [resetKey]);
+
+  useEffect(() => {
+    const el = track.current; if (!el) return;
+    const measure = () => setTrackW(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => { if (disabled && status === 'idle') setPos(0); }, [disabled, status]);
 
@@ -76,19 +85,20 @@ export function SlideToApprove({ onConfirm, disabled, resetKey, idleLabel = 'Sli
   };
 
   const label = status === 'pending' ? 'Allocating parts…' : status === 'success' ? 'Dispatch approved' : disabled ? disabledLabel : idleLabel;
-  const maxPx = track.current ? Math.max(0, track.current.clientWidth - HANDLE - 8) : 0;
+  const maxPx = Math.max(0, trackW - HANDLE - 8);
   return (
     <div className="space-y-1.5">
       <div ref={track} data-testid={testId} data-status={status}
         className={`relative h-14 select-none overflow-hidden rounded-full border p-1 transition-colors duration-300 motion-reduce:transition-none ${status === 'success' ? 'border-ok/40 bg-ok/15' : status === 'failed' ? 'border-err/40 bg-err/[0.07]' : disabled ? 'border-card-border bg-muted/50 opacity-70' : 'border-ok/30 bg-ok/[0.07]'}`}>
-        <div aria-hidden="true" className="absolute inset-y-0 left-0 bg-ok/20" style={{ width: `${HANDLE + pos * maxPx}px`, transition: dragging ? 'none' : 'width .25s ease' }} />
-        <span className="pointer-events-none absolute inset-0 grid place-items-center pl-10 text-sm font-medium text-foreground/80" aria-live="polite">{label}</span>
+        <div aria-hidden="true" className="absolute inset-0 origin-left bg-ok/20 motion-reduce:!transition-none"
+          style={{ transform: `scaleX(${trackW ? (HANDLE + 4 + pos * maxPx) / trackW : 0})`, transition: dragging ? 'none' : 'transform .5s cubic-bezier(.22,1.2,.36,1)', willChange: 'transform' }} />
+        <span className="pointer-events-none absolute inset-0 grid place-items-center pl-10 text-sm font-medium text-foreground/80 motion-reduce:!transition-none" aria-live="polite" style={{ opacity: status === 'pending' || status === 'success' ? 1 : Math.max(0, 1 - pos * 1.6), transition: dragging ? 'none' : 'opacity .3s ease' }}>{label}</span>
         <div role="slider" tabIndex={locked ? -1 : 0} aria-label="Slide right to approve dispatch" aria-valuemin={0} aria-valuemax={100}
           aria-valuenow={Math.round(pos * 100)} aria-valuetext={pos >= 0.99 ? 'Ready. Press Enter to confirm.' : `${Math.round(pos * 100)} percent`}
           aria-disabled={locked} aria-describedby={`${testId}-help`} data-testid={`${testId}-handle`}
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel} onKeyDown={onKey}
-          style={{ width: HANDLE, height: HANDLE, transform: `translateX(${pos * maxPx}px)`, transition: dragging ? 'none' : 'transform .25s cubic-bezier(.2,.7,.2,1)', touchAction: 'none' }}
-          className={`relative z-10 grid place-items-center rounded-full bg-ok text-white shadow-md ${locked ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'} motion-reduce:!transition-none`}>
+          style={{ width: HANDLE, height: HANDLE, transform: `translateX(${pos * maxPx}px) scale(${dragging ? 1.06 : 1})`, transition: dragging ? 'transform .15s ease-out' : 'transform .5s cubic-bezier(.22,1.2,.36,1)', willChange: 'transform', touchAction: 'none' }}
+          className={`relative z-10 grid place-items-center rounded-full bg-ok text-white ${dragging ? 'shadow-lg' : 'shadow-md'} ${locked ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'} motion-reduce:!transition-none`}>
           {status === 'pending' ? <Loader2 size={18} className="animate-spin" /> : status === 'success' ? <CheckCircle2 size={18} /> : <ChevronsRight size={18} />}
         </div>
       </div>
