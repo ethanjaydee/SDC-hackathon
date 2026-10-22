@@ -20,6 +20,16 @@ const failureMessage = (code) => code === 401 || code === 404
         ? "Telegram rate-limited the receiver. It will retry automatically."
         : "Telegram could not be reached. The receiver will retry automatically.";
 
+const sendPrivateReply = async (call, chatId, text) => {
+  try {
+    await call("sendMessage", { chat_id: chatId, text, disable_web_page_preview: true });
+  } catch (error) {
+    state.error = error?.safeCode === 403
+      ? "Request saved, but Telegram could not send a bot reply. Open the bot and tap Start."
+      : "Request saved, but Telegram could not send a confirmation.";
+  }
+};
+
 /** Never log request URLs/errors: Telegram embeds credentials in its API URL. */
 export function startTelegramReceiver({ token = process.env.TELEGRAM_BOT_TOKEN, apiFetch = fetch } = {}) {
   if (!token) return () => {};
@@ -76,14 +86,37 @@ export function startTelegramReceiver({ token = process.env.TELEGRAM_BOT_TOKEN, 
           backoff = 2000;
           for (const update of updates) {
             if (signal.aborted) break;
+            const text = typeof update.message?.text === "string" ? update.message.text.trim() : "";
+            const privateChat = update.message?.chat?.type === "private" &&
+              Number.isSafeInteger(update.message.chat.id) && !update.message.from?.is_bot;
             const result = ingestTelegramUpdate(bot.id, update);
             if (result.imported) {
               state.last_received_at = getTelegramCheckpoint(bot.id).last_received_at;
+              let reviewed = true;
               try {
                 await analyzeConversation(result.conversationId);
               } catch {
+                reviewed = false;
                 state.error = "Message saved. Mock review failed; open the conversation to retry analysis.";
               }
+              if (privateChat) {
+                const confirmation = reviewed
+                  ? `Received. Your request is in Dispatch Hub as conversation #${result.conversationId}; mock review is ready. Open Customer conversations and choose the newest Telegram chat. Nothing is dispatched automatically.`
+                  : `Received as conversation #${result.conversationId}. Open Customer conversations in Dispatch Hub to review the message and retry mock analysis. Nothing is dispatched automatically.`;
+                await sendPrivateReply(call, update.message.chat.id, confirmation);
+              }
+            } else if (!result.duplicate && privateChat && result.conversationId == null) {
+              const command = text.match(/^\/([a-z0-9_]+)(?:@\w+)?(?:\s|$)/i)?.[1]?.toLowerCase();
+              const replies = {
+                start: "Welcome. Send a private text repair request here. It will appear in Dispatch Hub as a customer conversation for mock review; select a sample site before dispatching. Use /new before a separate request. Please use test data only.",
+                help: "Send a private text repair request to add it to Dispatch Hub. Use /new before a separate request. Only private text is imported; photos and voice notes are not. Analysis is mock-only and dispatch is never automatic.",
+                new: "Ready for a separate request. Send its repair details in your next message. Your existing conversation and history are unchanged.",
+              };
+              await sendPrivateReply(
+                call,
+                update.message.chat.id,
+                replies[command] ?? "Send a text repair request, or use /new to begin a separate request.",
+              );
             }
           }
         }

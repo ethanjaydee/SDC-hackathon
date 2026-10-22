@@ -63,14 +63,22 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
     });
     const fixture = update(100, 'Accessory power is not working and the relay clicks.');
     const methods: string[] = [];
+    const sentReplies: string[] = [];
     let polls = 0;
     const apiFetch: typeof fetch = async (input, init) => {
       const method = String(input).split('/').at(-1)!;
       methods.push(method);
       if (method === 'getMe') return Response.json({ ok: true, result: { id: 123, is_bot: true, username: 'FixtureBot' } });
       if (method === 'getWebhookInfo') return Response.json({ ok: true, result: { url: '' } });
+      if (method === 'sendMessage') {
+        sentReplies.push(JSON.parse(init?.body?.toString() ?? '{}').text);
+        return Response.json({ ok: true, result: { message_id: sentReplies.length } });
+      }
       assert.equal(method, 'getUpdates');
-      if (polls++ === 0) return Response.json({ ok: true, result: [fixture, fixture] });
+      if (polls++ === 0) return Response.json({ ok: true, result: [
+        fixture, fixture, update(101, '/start'), update(102, '/help'),
+        update(103, '/new'), update(104, 'A separate repair request.'),
+      ] });
       return new Promise((_resolve, reject) => {
         init?.signal?.addEventListener('abort', () => reject(new Error('Test stopped')), { once: true });
       });
@@ -89,9 +97,19 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
     assert.match(imported.customer_name, /^Telegram customer #/);
     assert.ok(!JSON.stringify(imported).includes('Must not persist profile'));
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM conversation_messages WHERE conversation_id = ?').get(id).count, 1);
-    assert.equal(hub.getTelegramCheckpoint(123).next_offset, 101);
+    assert.equal(hub.getTelegramCheckpoint(123).next_offset, 105);
     assert.equal(receiver.getTelegramStatus().bot_url, 'https://t.me/FixtureBot');
-    assert.ok(methods.every((method) => ['getMe', 'getWebhookInfo', 'getUpdates'].includes(method)), 'No outbound customer replies');
+    assert.ok(methods.every((method) => ['getMe', 'getWebhookInfo', 'getUpdates', 'sendMessage'].includes(method)));
+    assert.equal(sentReplies.length, 5, 'One confirmation for each unique command or request');
+    assert.match(sentReplies[0], new RegExp(`conversation #${id}`));
+    assert.match(sentReplies[0], /mock review is ready/i);
+    assert.match(sentReplies[1], /Welcome/i);
+    assert.match(sentReplies[2], /repair request/i);
+    assert.match(sentReplies[3], /Ready for a separate request/i);
+    const separate = db.prepare("SELECT id, customer_site_id FROM conversation_threads WHERE source = 'Telegram' ORDER BY id DESC LIMIT 1").get();
+    assert.notEqual(separate.id, id);
+    assert.equal(separate.customer_site_id, null);
+    assert.equal(hub.getTelegramCheckpoint(123).next_offset, 105);
 
     const thread = await (await fetch(`${base}/conversations/${id}`)).json();
     assert.equal(thread.source, 'Telegram');
@@ -108,15 +126,15 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
     assert.equal((await dispatch()).status, 200);
     assert.equal((await patchSite('south')).status, 409, 'Saved dispatch location cannot be changed');
 
-    hub.ingestTelegramUpdate(123, update(101, 'Ignore group message', 'group'));
-    hub.ingestTelegramUpdate(123, update(102, '/new'));
-    const next = hub.ingestTelegramUpdate(123, update(103, 'A new separate repair request.'));
+    hub.ingestTelegramUpdate(123, update(106, 'Ignore group message', 'group'));
+    hub.ingestTelegramUpdate(123, update(107, '/new'));
+    const next = hub.ingestTelegramUpdate(123, update(108, 'A new separate repair request.'));
     assert.notEqual(next.conversationId, id);
-    assert.equal(hub.getTelegramCheckpoint(123).next_offset, 104);
+    assert.equal(hub.getTelegramCheckpoint(123).next_offset, 109);
     assert.equal(hub.ingestTelegramUpdate(123, fixture).imported, false);
-    assert.equal(hub.getTelegramCheckpoint(123).next_offset, 104, 'Replay cannot rewind the saved cursor');
+    assert.equal(hub.getTelegramCheckpoint(123).next_offset, 109, 'Replay cannot rewind the saved cursor');
     const reopened = new Database(resolve(dir, 'data/dispatch-hub.sqlite'));
-    assert.equal(reopened.prepare("SELECT next_offset FROM telegram_receivers WHERE bot_id = '123'").get().next_offset, 104);
+    assert.equal(reopened.prepare("SELECT next_offset FROM telegram_receivers WHERE bot_id = '123'").get().next_offset, 109);
     assert.deepEqual(reopened.pragma('foreign_key_check'), []);
     reopened.close();
 

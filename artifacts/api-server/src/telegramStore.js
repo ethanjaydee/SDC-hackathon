@@ -53,7 +53,7 @@ export function createTelegramStorage(db, appendMessage) {
     if (!Number.isSafeInteger(update?.update_id) || update.update_id < 0) throw new Error("Invalid Telegram update.");
     const bot = String(botId);
     const inserted = db.prepare("INSERT OR IGNORE INTO telegram_updates (bot_id, update_id) VALUES (?, ?)").run(bot, update.update_id);
-    if (!inserted.changes) return { conversationId: null, imported: false };
+    if (!inserted.changes) return { conversationId: null, imported: false, duplicate: true };
     const message = update.message;
     let conversationId = null;
     const text = typeof message?.text === "string" ? message.text.trim() : "";
@@ -84,7 +84,7 @@ export function createTelegramStorage(db, appendMessage) {
       ON CONFLICT(bot_id) DO UPDATE SET next_offset = MAX(next_offset, excluded.next_offset),
       last_received_at = COALESCE(excluded.last_received_at, last_received_at)
     `).run(bot, update.update_id + 1, receivedAt);
-    return { conversationId, imported: conversationId != null };
+    return { conversationId, imported: conversationId != null, duplicate: false };
   });
   return { checkpoint, ingest: (botId, update) => ingest.immediate(botId, update) };
 }

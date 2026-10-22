@@ -9,7 +9,14 @@ export function MessagingConnectionNotice() {
   });
   const status = statusQ.data;
   const connected = !statusQ.isError && status?.connected;
-  const label = statusQ.isLoading ? 'Checking…' : statusQ.isError ? 'Status unavailable' : connected ? 'Receiving messages' : status?.error ? 'Needs attention' : status?.configured ? 'Connecting…' : 'Not connected';
+  const label = statusQ.isLoading ? 'Checking…' : statusQ.isError ? 'Status unavailable' : status?.error ? 'Needs attention' : connected ? 'Receiving messages' : status?.configured ? 'Connecting…' : 'Not connected';
+  const description = status?.error ?? (connected
+    ? 'Open the bot, tap Start, then send a private text repair request. It appears in this inbox as a customer conversation and is automatically sent to the mock analyzer. Send /new before your next separate repair request.'
+    : statusQ.isError
+      ? 'The receiver status could not be checked. It refreshes automatically.'
+      : status?.configured
+        ? 'Verifying the bot and starting its receiver…'
+        : 'No Telegram bot token is configured. Existing saved conversations remain available for mock AI review.');
   return (
     <section aria-label="Customer messaging connection" className="rounded-lg border border-card-border bg-secondary/40 p-3" data-testid="messaging-connection-status">
       <div className="flex flex-wrap items-center gap-2">
@@ -18,9 +25,7 @@ export function MessagingConnectionNotice() {
         <StatusBadge tone={connected ? 'ok' : 'pending'}>{label}</StatusBadge>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        {connected
-          ? 'Open the bot, tap Start, then send a private text repair request. It appears in this inbox as a customer conversation and is automatically sent to the mock analyzer. Send /new before your next separate repair request.'
-          : statusQ.isError ? 'The receiver status could not be checked. It refreshes automatically.' : status?.error ?? (status?.configured ? 'Verifying the bot and starting its receiver…' : 'No Telegram bot token is configured. Existing saved conversations remain available for mock AI review.')}
+        {description}
       </p>
       {connected && status?.bot_url && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
