@@ -58,4 +58,5 @@ export * from './supplierQuoteList';
 export * from './technician';
 export * from './technicianResetInput';
 export * from './technicianStatus';
+export * from './telegramReplyInput';
 export * from './telegramStatus';

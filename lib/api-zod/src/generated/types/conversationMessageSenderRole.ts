@@ -12,4 +12,5 @@ export type ConversationMessageSenderRole = typeof ConversationMessageSenderRole
 export const ConversationMessageSenderRole = {
   Customer: 'Customer',
   Technician: 'Technician',
+  Staff: 'Staff',
 } as const;

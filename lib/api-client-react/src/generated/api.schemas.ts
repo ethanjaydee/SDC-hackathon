@@ -155,6 +155,7 @@ export type ConversationMessageSenderRole = typeof ConversationMessageSenderRole
 export const ConversationMessageSenderRole = {
   Customer: 'Customer',
   Technician: 'Technician',
+  Staff: 'Staff',
 } as const;
 
 export interface ConversationMessage {
@@ -191,6 +192,14 @@ export interface ConversationMessageInput {
   /**
      * @minLength 1
      * @maxLength 2000
+     */
+  text: string;
+}
+
+export interface TelegramReplyInput {
+  /**
+     * @minLength 1
+     * @maxLength 4096
      */
   text: string;
 }
@@ -255,6 +264,7 @@ export type ConversationThread = ConversationSummary & ({
      * @nullable
      */
   analyzed_through_message_id: number | null;
+  can_send_telegram_reply: boolean;
   analysis: Analysis | null;
 });
 

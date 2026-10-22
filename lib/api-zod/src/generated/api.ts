@@ -67,7 +67,7 @@ export const SetConversationSiteResponse = zod.object({
   "latest_message": zod.object({
   "id": zod.number().int().min(1),
   "conversation_id": zod.number().int().min(1),
-  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
   "sender_name": zod.string().min(1).max(setConversationSiteResponseOneLatestMessageSenderNameMax),
   "text": zod.string().min(1).max(setConversationSiteResponseOneLatestMessageTextMax),
   "created_at": zod.coerce.date()
@@ -79,13 +79,14 @@ export const SetConversationSiteResponse = zod.object({
   "messages": zod.array(zod.object({
   "id": zod.number().int().min(1),
   "conversation_id": zod.number().int().min(1),
-  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
   "sender_name": zod.string().min(1).max(setConversationSiteResponseTwoMessagesItemSenderNameMax),
   "text": zod.string().min(1).max(setConversationSiteResponseTwoMessagesItemTextMax),
   "created_at": zod.coerce.date()
 })),
   "latest_message_id": zod.number().int().min(1),
   "analyzed_through_message_id": zod.number().int().min(1).nullable(),
+  "can_send_telegram_reply": zod.boolean(),
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
@@ -200,7 +201,7 @@ export const ListConversationsResponse = zod.object({
   "latest_message": zod.object({
   "id": zod.number().int().min(1),
   "conversation_id": zod.number().int().min(1),
-  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
   "sender_name": zod.string().min(1).max(listConversationsResponseConversationsItemLatestMessageSenderNameMax),
   "text": zod.string().min(1).max(listConversationsResponseConversationsItemLatestMessageTextMax),
   "created_at": zod.coerce.date()
@@ -254,7 +255,7 @@ export const GetConversationThreadResponse = zod.object({
   "latest_message": zod.object({
   "id": zod.number().int().min(1),
   "conversation_id": zod.number().int().min(1),
-  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
   "sender_name": zod.string().min(1).max(getConversationThreadResponseOneLatestMessageSenderNameMax),
   "text": zod.string().min(1).max(getConversationThreadResponseOneLatestMessageTextMax),
   "created_at": zod.coerce.date()
@@ -266,13 +267,14 @@ export const GetConversationThreadResponse = zod.object({
   "messages": zod.array(zod.object({
   "id": zod.number().int().min(1),
   "conversation_id": zod.number().int().min(1),
-  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
   "sender_name": zod.string().min(1).max(getConversationThreadResponseTwoMessagesItemSenderNameMax),
   "text": zod.string().min(1).max(getConversationThreadResponseTwoMessagesItemTextMax),
   "created_at": zod.coerce.date()
 })),
   "latest_message_id": zod.number().int().min(1),
   "analyzed_through_message_id": zod.number().int().min(1).nullable(),
+  "can_send_telegram_reply": zod.boolean(),
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
@@ -334,7 +336,7 @@ export const SendConversationMessageResponse = zod.object({
   "latest_message": zod.object({
   "id": zod.number().int().min(1),
   "conversation_id": zod.number().int().min(1),
-  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
   "sender_name": zod.string().min(1).max(sendConversationMessageResponseOneLatestMessageSenderNameMax),
   "text": zod.string().min(1).max(sendConversationMessageResponseOneLatestMessageTextMax),
   "created_at": zod.coerce.date()
@@ -346,13 +348,92 @@ export const SendConversationMessageResponse = zod.object({
   "messages": zod.array(zod.object({
   "id": zod.number().int().min(1),
   "conversation_id": zod.number().int().min(1),
-  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
   "sender_name": zod.string().min(1).max(sendConversationMessageResponseTwoMessagesItemSenderNameMax),
   "text": zod.string().min(1).max(sendConversationMessageResponseTwoMessagesItemTextMax),
   "created_at": zod.coerce.date()
 })),
   "latest_message_id": zod.number().int().min(1),
   "analyzed_through_message_id": zod.number().int().min(1).nullable(),
+  "can_send_telegram_reply": zod.boolean(),
+  "analysis": zod.union([zod.object({
+  "issue": zod.string(),
+  "parts": zod.array(zod.string()),
+  "urgency": zod.enum(['High', 'Med', 'Low'])
+}),zod.null()])
+}))
+
+
+/**
+ * @summary Send a staff reply to a Telegram customer and record it in the thread
+ */
+
+
+
+export const SendTelegramReplyParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const sendTelegramReplyBodyTextMax = 4096;
+
+
+
+export const SendTelegramReplyBody = zod.object({
+  "text": zod.string().min(1).max(sendTelegramReplyBodyTextMax)
+})
+
+
+
+
+
+export const sendTelegramReplyResponseOneLatestMessageSenderNameMax = 120;
+
+export const sendTelegramReplyResponseOneLatestMessageTextMax = 4096;
+
+
+
+
+
+export const sendTelegramReplyResponseTwoMessagesItemSenderNameMax = 120;
+
+export const sendTelegramReplyResponseTwoMessagesItemTextMax = 4096;
+
+
+
+
+
+export const SendTelegramReplyResponse = zod.object({
+  "id": zod.number().int().min(1),
+  "customer_name": zod.string(),
+  "subject": zod.string(),
+  "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
+  "source": zod.enum(['Demo', 'Telegram']),
+  "technician_id": zod.number().int().min(1).nullable(),
+  "technician_name": zod.string().nullable(),
+  "mock_summary": zod.string(),
+  "latest_message": zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
+  "sender_name": zod.string().min(1).max(sendTelegramReplyResponseOneLatestMessageSenderNameMax),
+  "text": zod.string().min(1).max(sendTelegramReplyResponseOneLatestMessageTextMax),
+  "created_at": zod.coerce.date()
+}),
+  "message_count": zod.number().int().min(1),
+  "dispatch_activity_id": zod.number().int().min(1).nullable(),
+  "updated_at": zod.coerce.date()
+}).and(zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
+  "sender_name": zod.string().min(1).max(sendTelegramReplyResponseTwoMessagesItemSenderNameMax),
+  "text": zod.string().min(1).max(sendTelegramReplyResponseTwoMessagesItemTextMax),
+  "created_at": zod.coerce.date()
+})),
+  "latest_message_id": zod.number().int().min(1),
+  "analyzed_through_message_id": zod.number().int().min(1).nullable(),
+  "can_send_telegram_reply": zod.boolean(),
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
@@ -403,7 +484,7 @@ export const AnalyzeConversationResponse = zod.object({
   "latest_message": zod.object({
   "id": zod.number().int().min(1),
   "conversation_id": zod.number().int().min(1),
-  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
   "sender_name": zod.string().min(1).max(analyzeConversationResponseOneLatestMessageSenderNameMax),
   "text": zod.string().min(1).max(analyzeConversationResponseOneLatestMessageTextMax),
   "created_at": zod.coerce.date()
@@ -415,13 +496,14 @@ export const AnalyzeConversationResponse = zod.object({
   "messages": zod.array(zod.object({
   "id": zod.number().int().min(1),
   "conversation_id": zod.number().int().min(1),
-  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_role": zod.enum(['Customer', 'Technician', 'Staff']),
   "sender_name": zod.string().min(1).max(analyzeConversationResponseTwoMessagesItemSenderNameMax),
   "text": zod.string().min(1).max(analyzeConversationResponseTwoMessagesItemTextMax),
   "created_at": zod.coerce.date()
 })),
   "latest_message_id": zod.number().int().min(1),
   "analyzed_through_message_id": zod.number().int().min(1).nullable(),
+  "can_send_telegram_reply": zod.boolean(),
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),

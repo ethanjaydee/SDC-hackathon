@@ -152,6 +152,41 @@ paths:
           $ref: "#/components/responses/InvalidRequest"
         "404":
           $ref: "#/components/responses/InvalidRequest"
+  /conversations/{id}/reply:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: sendTelegramReply
+      tags: [hub]
+      summary: Send a staff reply to a Telegram customer and record it in the thread
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramReplyInput"
+      responses:
+        "200":
+          description: The delivered reply and updated conversation transcript
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationThread"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "404":
+          $ref: "#/components/responses/InvalidRequest"
+        "409":
+          $ref: "#/components/responses/InvalidRequest"
+        "429":
+          $ref: "#/components/responses/InvalidRequest"
+        "503":
+          $ref: "#/components/responses/InvalidRequest"
+        "504":
+          $ref: "#/components/responses/InvalidRequest"
   /conversations/{id}/analyze:
     parameters:
       - name: id
@@ -517,7 +552,7 @@ components:
       properties:
         id: { type: integer, minimum: 1 }
         conversation_id: { type: integer, minimum: 1 }
-        sender_role: { type: string, enum: [Customer, Technician] }
+        sender_role: { type: string, enum: [Customer, Technician, Staff] }
         sender_name: { type: string, minLength: 1, maxLength: 120 }
         text: { type: string, minLength: 1, maxLength: 4096 }
         created_at: { type: string, format: date-time }
@@ -528,6 +563,11 @@ components:
         sender_role: { type: string, enum: [Customer, Technician] }
         technician_id: { type: integer, minimum: 1 }
         text: { type: string, minLength: 1, maxLength: 2000 }
+    TelegramReplyInput:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 4096 }
     ConversationSummary:
       type: object
       required: [id, customer_name, subject, customer_site_id, technician_id, technician_name, mock_summary, latest_message, message_count, dispatch_activity_id, updated_at, source]
@@ -555,13 +595,14 @@ components:
       allOf:
         - $ref: "#/components/schemas/ConversationSummary"
         - type: object
-          required: [messages, latest_message_id, analyzed_through_message_id, analysis]
+          required: [messages, latest_message_id, analyzed_through_message_id, analysis, can_send_telegram_reply]
           properties:
             messages:
               type: array
               items: { $ref: "#/components/schemas/ConversationMessage" }
             latest_message_id: { type: integer, minimum: 1 }
             analyzed_through_message_id: { type: ["integer", "null"], minimum: 1 }
+            can_send_telegram_reply: { type: boolean }
             analysis:
               oneOf:
                 - $ref: "#/components/schemas/Analysis"

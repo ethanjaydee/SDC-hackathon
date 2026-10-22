@@ -43,6 +43,7 @@ import type {
   SupplierQuoteInput,
   SupplierQuoteList,
   TechnicianResetInput,
+  TelegramReplyInput,
   TelegramStatus
 } from './api.schemas';
 
@@ -717,6 +718,95 @@ export const useSendConversationMessage = <TError = ErrorType<InvalidRequestResp
         TContext
       > => {
       return useMutation(getSendConversationMessageMutationOptions(options));
+    }
+
+export const getSendTelegramReplyUrl = (id: number,) => {
+
+
+
+
+  return `/api/conversations/${id}/reply`
+}
+
+/**
+ * @summary Send a staff reply to a Telegram customer and record it in the thread
+ */
+export const sendTelegramReply = async (id: number,
+    telegramReplyInput: TelegramReplyInput, options?: Parameters<typeof customFetch>[1]): Promise<ConversationThread> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ConversationThread>(getSendTelegramReplyUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(telegramReplyInput)
+  }
+);}
+
+
+
+
+
+export const getSendTelegramReplyMutationKey = () => ['sendTelegramReply'] as const;
+
+export const getSendTelegramReplyMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTelegramReply>>, TError,SendTelegramReplyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendTelegramReply>>, TError,SendTelegramReplyMutationVariables, TContext> => {
+
+const mutationKey = getSendTelegramReplyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendTelegramReply>>, SendTelegramReplyMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  sendTelegramReply(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendTelegramReplyMutationResult = NonNullable<Awaited<ReturnType<typeof sendTelegramReply>>>
+    export type SendTelegramReplyMutationBody = BodyType<TelegramReplyInput>
+    export type SendTelegramReplyMutationError = ErrorType<InvalidRequestResponse>
+    export type SendTelegramReplyMutationVariables = {id: number;data: BodyType<TelegramReplyInput>}
+
+    /**
+ * @summary Send a staff reply to a Telegram customer and record it in the thread
+ */
+export const useSendTelegramReply = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTelegramReply>>, TError,SendTelegramReplyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendTelegramReply>>,
+        TError,
+        SendTelegramReplyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendTelegramReplyMutationOptions(options));
     }
 
 export const getAnalyzeConversationUrl = (id: number,) => {

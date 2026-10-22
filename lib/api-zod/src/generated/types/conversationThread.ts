@@ -18,5 +18,6 @@ export type ConversationThread = ConversationSummary & ({
      * @nullable
      */
   analyzed_through_message_id: number | null;
+  can_send_telegram_reply: boolean;
   analysis: Analysis | null;
 });

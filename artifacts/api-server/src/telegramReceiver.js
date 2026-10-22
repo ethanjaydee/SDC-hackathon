@@ -1,4 +1,5 @@
 import { analyzeConversation, getTelegramCheckpoint, ingestTelegramUpdate } from "./hub.js";
+import { registerTelegramSender } from "./telegramTransport.js";
 
 const state = {
   configured: Boolean(process.env.TELEGRAM_BOT_TOKEN),
@@ -40,19 +41,20 @@ export function startTelegramReceiver({ token = process.env.TELEGRAM_BOT_TOKEN, 
   const controller = new AbortController();
   const signal = controller.signal;
   let backoff = 2000;
+  let unregisterSender = () => {};
   const wait = (ms) => new Promise((resolve) => {
     if (signal.aborted) { resolve(); return; }
     const finish = () => { clearTimeout(timer); signal.removeEventListener("abort", finish); resolve(); };
     const timer = setTimeout(finish, ms);
     signal.addEventListener("abort", finish, { once: true });
   });
-  const call = async (method, body = {}) => {
+  const call = async (method, body = {}, timeoutMs = 35000) => {
     try {
       const response = await apiFetch(`https://api.telegram.org/bot${token}/${method}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(35000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
       });
       const payload = await response.json();
       if (!payload.ok) throw { safeCode: Number(payload.error_code) || 0 };
@@ -71,6 +73,12 @@ export function startTelegramReceiver({ token = process.env.TELEGRAM_BOT_TOKEN, 
         state.bot_url = `https://t.me/${bot.username}`;
         const webhook = await call("getWebhookInfo");
         if (webhook.url) throw { safeCode: "webhook" };
+        unregisterSender();
+        unregisterSender = registerTelegramSender(
+          bot.id,
+          () => state.connected,
+          (chatId, text) => call("sendMessage", { chat_id: chatId, text, disable_web_page_preview: true }, 10000),
+        );
         state.last_received_at = getTelegramCheckpoint(bot.id).last_received_at;
         state.error = null;
         while (!signal.aborted) {
@@ -132,5 +140,9 @@ export function startTelegramReceiver({ token = process.env.TELEGRAM_BOT_TOKEN, 
   };
   // All failures are sanitized and retried inside run().
   void run();
-  return () => controller.abort();
+  return () => {
+    controller.abort();
+    unregisterSender();
+    state.connected = false;
+  };
 }

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowLeft, CheckCircle2, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Truck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Send, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getGetConversationThreadQueryKey, getListConversationsQueryKey,
-  useAnalyzeConversation, useGetConversationThread, useSetConversationSite,
+  useAnalyzeConversation, useGetConversationThread, useSendTelegramReply, useSetConversationSite,
   type Technician, type DemoSiteId,
 } from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES, distanceKm, getTechnicianLocation } from './demoLocations';
@@ -30,6 +30,17 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     },
   });
   const analyze = useAnalyzeConversation();
+  const [replyText, setReplyText] = useState('');
+  const sendReply = useSendTelegramReply({
+    mutation: {
+      onSuccess: async (updated) => {
+        await qc.cancelQueries({ queryKey: getGetConversationThreadQueryKey(conversationId) });
+        qc.setQueryData(getGetConversationThreadQueryKey(conversationId), updated);
+        void qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+        setReplyText('');
+      },
+    },
+  });
   const setSite = useSetConversationSite({
     mutation: {
       onSuccess: async (updated) => {
@@ -44,6 +55,11 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   const autoAnalyzeAttempted = useRef(new Set<number>());
 
   useEffect(() => {
+    setReplyText('');
+    sendReply.reset();
+  }, [conversationId]);
+
+  useEffect(() => {
     const thread = threadQ.data;
     const latestMessageId = thread?.latest_message_id;
     if (!thread || latestMessageId == null) return;
@@ -55,8 +71,12 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
       return;
     }
     if (latestMessageId > previous.messageId) {
-      const addedCount = thread.messages.filter((message) => message.id > previous.messageId).length;
-      setNewMessagesSinceOpen((count) => count + Math.max(addedCount, 1));
+      const addedCustomerMessages = thread.messages.filter(
+        (message) => message.id > previous.messageId && message.sender_role === 'Customer',
+      ).length;
+      if (addedCustomerMessages > 0) {
+        setNewMessagesSinceOpen((count) => count + addedCustomerMessages);
+      }
       lastObservedMessage.current = { conversationId, messageId: latestMessageId };
     }
   }, [conversationId, threadQ.data]);
@@ -173,6 +193,42 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                 );
               })}
             </ol>
+            {thread.source === 'Telegram' && (
+              <form className="mt-4 border-t border-card-border pt-4" data-testid="telegram-reply-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (thread.can_send_telegram_reply && replyText.trim() && !sendReply.isPending) {
+                    sendReply.mutate({ id: conversationId, data: { text: replyText.trim() } });
+                  }
+                }}>
+                <label htmlFor="telegram-customer-reply" className="mb-2 block text-xs font-medium">
+                  Reply to customer on Telegram
+                </label>
+                <textarea id="telegram-customer-reply" rows={3} maxLength={4096} className={fieldClass}
+                  value={replyText}
+                  disabled={!thread.can_send_telegram_reply || sendReply.isPending}
+                  placeholder={thread.can_send_telegram_reply ? 'Write a reply…' : 'Ask the customer to send one more Telegram message first.'}
+                  aria-describedby="telegram-reply-help"
+                  onChange={(event) => {
+                    if (sendReply.error) sendReply.reset();
+                    setReplyText(event.target.value);
+                  }} />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p id="telegram-reply-help" className="text-[10px] text-muted-foreground">
+                    {thread.can_send_telegram_reply
+                      ? 'This sends a real Telegram message to the customer. Nothing is sent until you choose Send.'
+                      : 'This older conversation has no saved reply address. A new incoming message links it securely.'}
+                    <span className="ml-2 font-mono">{replyText.length}/4096</span>
+                  </p>
+                  <Button type="submit" disabled={!thread.can_send_telegram_reply || !replyText.trim() || sendReply.isPending}
+                    data-testid="button-send-telegram-reply">
+                    {sendReply.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                    {sendReply.isPending ? 'Sending…' : 'Send reply'}
+                  </Button>
+                </div>
+                {sendReply.error && <p role="alert" className="mt-2 text-xs text-err">{errorText(sendReply.error)}</p>}
+              </form>
+            )}
             <div className="mt-4 border-t border-card-border pt-4"><MessagingConnectionNotice /></div>
           </Card>
         </div>

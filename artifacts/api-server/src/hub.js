@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { demoSites } from "./demoSites.js";
 import { isOfferStale } from "./offerFreshness.js";
 import { prepareTelegramStorage, createTelegramStorage } from "./telegramStore.js";
+import { sendTelegramMessage, TelegramDeliveryError } from "./telegramTransport.js";
 import {
   AnalyzeRequestBody,
   AnalyzeRequestResponse,
@@ -30,6 +31,8 @@ import {
   ListConversationsResponse,
   GetConversationThreadParams,
   GetConversationThreadResponse,
+  SendTelegramReplyBody,
+  SendTelegramReplyResponse,
   SendConversationMessageBody,
   SendConversationMessageResponse,
   AnalyzeConversationResponse,
@@ -89,7 +92,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS conversation_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     conversation_id INTEGER NOT NULL REFERENCES conversation_threads(id),
-    sender_role TEXT NOT NULL CHECK(sender_role IN ('Customer', 'Technician')),
+    sender_role TEXT NOT NULL CHECK(sender_role IN ('Customer', 'Technician', 'Staff')),
     sender_name TEXT NOT NULL,
     text TEXT NOT NULL,
     created_at TEXT NOT NULL
@@ -334,6 +337,7 @@ function getConversationThread(id) {
     latest_message_id: messages[messages.length - 1]?.id,
     analyzed_through_message_id: thread.analysis_message_id,
     analysis: thread.analysis_json ? JSON.parse(thread.analysis_json) : null,
+    can_send_telegram_reply: telegramStorage.hasReplyAddress(id),
   };
 }
 
@@ -373,9 +377,28 @@ const appendConversationMessage = db.transaction(({ id, sender_role, technician_
   return getConversationThread(id);
 });
 
+const appendTelegramReply = db.transaction(({ id, text }) => {
+  const thread = db.prepare("SELECT * FROM conversation_threads WHERE id = ?").get(id);
+  if (!thread) throw new ConversationNotFound("Conversation not found.");
+  if (thread.source !== "Telegram") throw new ConversationConflict("Replies can only be sent to Telegram conversations.");
+
+  const createdAt = new Date().toISOString();
+  const result = db.prepare(`
+    INSERT INTO conversation_messages (conversation_id, sender_role, sender_name, text, created_at)
+    VALUES (?, 'Staff', 'Dispatch team', ?, ?)
+  `).run(id, text.trim(), createdAt);
+  db.prepare(`
+    UPDATE conversation_threads
+    SET updated_at = ?, analysis_message_id = CASE WHEN analysis_json IS NOT NULL THEN ? ELSE NULL END
+    WHERE id = ?
+  `).run(createdAt, Number(result.lastInsertRowid), id);
+  return getConversationThread(id);
+});
+
 const telegramStorage = createTelegramStorage(db, (message) => appendConversationMessage(message));
 export const ingestTelegramUpdate = (botId, update) => telegramStorage.ingest(botId, update);
 export const getTelegramCheckpoint = (botId) => telegramStorage.checkpoint(botId);
+const telegramReplyLocks = new Set();
 
 export async function analyzeConversation(id) {
   const thread = db.prepare("SELECT id FROM conversation_threads WHERE id = ?").get(id);
@@ -872,6 +895,54 @@ router.get("/conversations/:id", (req, res) => {
     return;
   }
   res.json(GetConversationThreadResponse.parse(thread));
+});
+router.post("/conversations/:id/reply", async (req, res, next) => {
+  const params = GetConversationThreadParams.safeParse({ id: req.params.id });
+  const body = SendTelegramReplyBody.safeParse(req.body);
+  if (!params.success || !body.success || !body.data.text.trim()) {
+    res.status(400).json({ error: "Enter a reply of 1 to 4,096 characters." });
+    return;
+  }
+
+  const { id } = params.data;
+  const thread = getConversationThread(id);
+  if (!thread) { res.status(404).json({ error: "Conversation not found." }); return; }
+  if (thread.source !== "Telegram") {
+    res.status(409).json({ error: "Real replies are available only for Telegram conversations." });
+    return;
+  }
+  if (!thread.can_send_telegram_reply) {
+    res.status(409).json({ error: "Ask the customer to send one more Telegram message before replying to this older conversation." });
+    return;
+  }
+  if (telegramReplyLocks.has(id)) {
+    res.status(409).json({ error: "A reply is already being sent for this conversation." });
+    return;
+  }
+
+  telegramReplyLocks.add(id);
+  try {
+    const address = telegramStorage.getReplyAddress(id);
+    if (!address) {
+      res.status(409).json({ error: "This conversation has no saved Telegram reply address." });
+      return;
+    }
+    await sendTelegramMessage(address.botId, address.chatId, body.data.text.trim());
+    const updated = appendTelegramReply.immediate({ id, text: body.data.text.trim() });
+    res.json(SendTelegramReplyResponse.parse(updated));
+  } catch (error) {
+    if (error instanceof TelegramDeliveryError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    if (error instanceof ConversationNotFound || error instanceof ConversationConflict) {
+      res.status(error instanceof ConversationNotFound ? 404 : 409).json({ error: error.message });
+      return;
+    }
+    next(error);
+  } finally {
+    telegramReplyLocks.delete(id);
+  }
 });
 router.post("/conversations/:id/messages", (req, res, next) => {
   const params = GetConversationThreadParams.safeParse({ id: req.params.id });

@@ -18,10 +18,16 @@ test('nullable conversation-site migration preserves IDs, messages and foreign k
         customer_name TEXT NOT NULL,
         customer_site_id TEXT NOT NULL CHECK(customer_site_id IN ('north', 'central', 'south'))
       );
-      CREATE TABLE conversation_messages (id INTEGER PRIMARY KEY, conversation_id INTEGER REFERENCES conversation_threads(id), text TEXT);
+      CREATE TABLE conversation_messages (
+        id INTEGER PRIMARY KEY,
+        conversation_id INTEGER NOT NULL REFERENCES conversation_threads(id),
+        sender_role TEXT NOT NULL CHECK(sender_role IN ('Customer', 'Technician')),
+        sender_name TEXT NOT NULL, text TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE INDEX conversation_messages_thread ON conversation_messages(conversation_id, id);
       CREATE TABLE dispatches (id INTEGER PRIMARY KEY, conversation_id INTEGER REFERENCES conversation_threads(id));
       INSERT INTO conversation_threads VALUES (7, 'Existing sample customer', 'south');
-      INSERT INTO conversation_messages VALUES (11, 7, 'Preserve this message');
+      INSERT INTO conversation_messages VALUES (11, 7, 'Technician', 'Sample technician', 'Preserve this message', '2025-01-01T00:00:00.000Z');
       INSERT INTO dispatches VALUES (3, 7);
     `);
     prepareTelegramStorage(db);
@@ -31,6 +37,9 @@ test('nullable conversation-site migration preserves IDs, messages and foreign k
     });
     assert.equal(db.prepare('SELECT text FROM conversation_messages WHERE id = 11').get().text, 'Preserve this message');
     assert.equal(db.prepare('SELECT conversation_id FROM dispatches WHERE id = 3').get().conversation_id, 7);
+    assert.match(db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='conversation_messages'").get().sql, /'Staff'/);
+    db.prepare("INSERT INTO conversation_messages VALUES (12, 7, 'Staff', 'Dispatch team', 'Reply roles are enabled', '2025-01-01T00:01:00.000Z')").run();
+    assert.deepEqual(db.prepare('PRAGMA index_list(conversation_messages)').all().map((item) => item.name), ['conversation_messages_thread']);
     assert.deepEqual(db.pragma('foreign_key_check'), []);
     assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
     db.prepare("INSERT INTO conversation_threads VALUES (8, 'Unknown customer', NULL, 'Telegram')").run();
@@ -44,7 +53,9 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
   let server;
   let db;
   let stop = () => {};
+  const previousSessionSecret = process.env.SESSION_SECRET;
   try {
+    process.env.SESSION_SECRET = 'unit-test-only-telegram-address-key';
     process.chdir(dir);
     const hub = await import('../src/hub.js');
     const receiver = await import('../src/telegramReceiver.js');
@@ -64,6 +75,7 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
     const fixture = update(100, 'Accessory power is not working and the relay clicks.');
     const methods: string[] = [];
     const sentReplies: string[] = [];
+    const sentChatIds: string[] = [];
     let polls = 0;
     const apiFetch: typeof fetch = async (input, init) => {
       const method = String(input).split('/').at(-1)!;
@@ -71,7 +83,9 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
       if (method === 'getMe') return Response.json({ ok: true, result: { id: 123, is_bot: true, username: 'FixtureBot' } });
       if (method === 'getWebhookInfo') return Response.json({ ok: true, result: { url: '' } });
       if (method === 'sendMessage') {
-        sentReplies.push(JSON.parse(init?.body?.toString() ?? '{}').text);
+        const message = JSON.parse(init?.body?.toString() ?? '{}');
+        sentReplies.push(message.text);
+        sentChatIds.push(String(message.chat_id));
         return Response.json({ ok: true, result: { message_id: sentReplies.length } });
       }
       assert.equal(method, 'getUpdates');
@@ -85,12 +99,11 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
     };
     stop = receiver.startTelegramReceiver({ token: 'test-placeholder-not-a-credential', apiFetch });
     let imported;
-    for (let attempt = 0; attempt < 100; attempt++) {
+    for (let attempt = 0; attempt < 100 && sentReplies.length < 5; attempt++) {
       imported = db.prepare("SELECT * FROM conversation_threads WHERE source = 'Telegram'").get();
-      if (imported?.analysis_json) break;
       await delay(10);
     }
-    stop();
+    imported = db.prepare("SELECT * FROM conversation_threads WHERE source = 'Telegram' ORDER BY id LIMIT 1").get();
     assert.ok(imported?.analysis_json, 'Receiver automatically generated mock analysis');
     const id = imported.id;
     assert.equal(imported.customer_site_id, null);
@@ -110,9 +123,13 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
     assert.notEqual(separate.id, id);
     assert.equal(separate.customer_site_id, null);
     assert.equal(hub.getTelegramCheckpoint(123).next_offset, 105);
+    const encryptedAddress = db.prepare("SELECT chat_id_ciphertext FROM telegram_conversation_addresses WHERE conversation_id = ?").get(id);
+    assert.ok(encryptedAddress.chat_id_ciphertext.startsWith('v1.'));
+    assert.ok(!encryptedAddress.chat_id_ciphertext.includes('98765'));
 
     const thread = await (await fetch(`${base}/conversations/${id}`)).json();
     assert.equal(thread.source, 'Telegram');
+    assert.equal(thread.can_send_telegram_reply, true);
     assert.equal(thread.messages[0].sender_role, 'Customer');
     assert.equal(thread.analyzed_through_message_id, thread.latest_message_id);
     assert.deepEqual(thread.analysis.parts, ['12V Relay']);
@@ -125,6 +142,21 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
     assert.equal((await (await fetch(`${base}/conversations/${id}`)).json()).customer_site_id, 'central');
     assert.equal((await dispatch()).status, 200);
     assert.equal((await patchSite('south')).status, 409, 'Saved dispatch location cannot be changed');
+    const replyResponse = await fetch(`${base}/conversations/${id}/reply`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'We can book your air conditioner repair for tomorrow.' }),
+    });
+    assert.equal(replyResponse.status, 200);
+    const replied = await replyResponse.json();
+    assert.equal(replied.messages.at(-1).sender_role, 'Staff');
+    assert.equal(replied.messages.at(-1).sender_name, 'Dispatch team');
+    assert.equal(replied.messages.at(-1).text, 'We can book your air conditioner repair for tomorrow.');
+    assert.equal(replied.can_send_telegram_reply, true);
+    assert.equal(replied.analyzed_through_message_id, replied.latest_message_id, 'Staff replies preserve current mock analysis');
+    assert.equal(sentReplies.length, 6);
+    assert.equal(sentChatIds.at(-1), '98765');
+    assert.ok(!JSON.stringify(replied).includes('98765'), 'The API never exposes the Telegram chat ID');
+    stop();
 
     hub.ingestTelegramUpdate(123, update(106, 'Ignore group message', 'group'));
     hub.ingestTelegramUpdate(123, update(107, '/new'));
@@ -162,6 +194,8 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
     process.chdir(cwd);
     if (server) await new Promise<void>((done) => server!.close(() => done()));
     db?.close();
+    if (previousSessionSecret === undefined) delete process.env.SESSION_SECRET;
+    else process.env.SESSION_SECRET = previousSessionSecret;
     rmSync(dir, { recursive: true, force: true });
   }
 });
