@@ -44,7 +44,9 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 
 ## Product
 
-Separate screens for overview, repair intake, post-intake analysis, technician map, technicians, van stock, reorder requests, and append-only dispatch history. Keep the desktop sidebar fixed instead of scrolling the entire dashboard between sections. Keep the interface focused on clear information technicians need in the field; omit the store-comparison screen.
+Separate screens for overview, repair intake, post-intake analysis, technician map, technicians, van stock, and append-only dispatch history. Keep the desktop sidebar fixed instead of scrolling the entire dashboard between sections. Keep the interface focused on clear information technicians need in the field; omit store comparison and reorder screens.
+
+Clerk sign-in is required for all dispatch API routes except the health check. Authenticated accounts share the same synthetic demo workspace; there is no per-technician data isolation or role-based authorization.
 
 ## User preferences
 

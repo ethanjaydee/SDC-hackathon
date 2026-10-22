@@ -1,8 +1,16 @@
 import express, { type Express, type ErrorRequestHandler } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import { clerkMiddleware, getAuth } from "@clerk/express";
+import { publishableKeyFromHost } from "@clerk/shared/keys";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import {
+  CLERK_PROXY_PATH,
+  clerkProxyMiddleware,
+  getClerkProxyHost,
+} from "./middlewares/clerkProxyMiddleware";
+import type { RequestHandler } from "express";
 
 const app: Express = express();
 
@@ -25,7 +33,30 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+app.use(cors({ credentials: true, origin: true }));
+app.use(
+  clerkMiddleware((req) => ({
+    publishableKey: publishableKeyFromHost(
+      getClerkProxyHost(req) ?? "",
+      process.env.CLERK_PUBLISHABLE_KEY,
+    ),
+  })),
+);
+
+const protectApi: RequestHandler = (req, res, next) => {
+  if (req.path === "/healthz" || req.path.startsWith("/__clerk/")) {
+    next();
+    return;
+  }
+  if (!getAuth(req).userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  next();
+};
+
+app.use("/api", protectApi);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

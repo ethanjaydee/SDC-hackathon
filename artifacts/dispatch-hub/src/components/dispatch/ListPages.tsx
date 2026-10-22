@@ -95,7 +95,7 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
         {lowOnly ? <Button asChild variant="outline"><Link href="/stock">All stock</Link></Button>
           : <Button asChild variant="outline"><Link href="/stock/low">Low stock only</Link></Button>}
       </PageHead>
-      <Card title={<><Boxes size={15} /> {lowOnly ? 'Reorder review' : 'Stock lines'}</>} aside={<Mono>{rows.length} SKU lines</Mono>}>
+      <Card title={<><Boxes size={15} /> {lowOnly ? 'Low-stock lines' : 'Stock lines'}</>} aside={<Mono>{rows.length} SKU lines</Mono>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Inventory data unavailable.</InlineError> : (
           <DataTable caption="Stock lines" rows={rows} columns={columns} rowKey={(i) => i.id} loading={hubQ.isLoading}
             pageSize={12} initialSort={lowOnly ? { key: 'qty', dir: 'asc' } : { key: 'van', dir: 'asc' }}

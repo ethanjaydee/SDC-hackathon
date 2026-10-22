@@ -1,16 +1,18 @@
 import { useRef, useState } from 'react';
 import { Link } from 'wouter';
-import { ArrowRight, Boxes, ChevronDown, ClipboardList, History, Inbox, PackageCheck, X } from 'lucide-react';
+import { ArrowRight, Boxes, ChevronDown, History, Inbox, PackageCheck, X } from 'lucide-react';
+import { useUser } from '@clerk/react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, EmptyState, InlineError, Mono, PageHead, StatusBadge, dateTime, type Hub } from './shared';
 import StatusRing from './StatusRing';
 
 type MetricKey = 'available' | 'stock' | 'healthy';
-type ShortcutKey = 'today' | 'low-stock' | 'reorders';
+type ShortcutKey = 'today' | 'low-stock';
 
 export default function OverviewPage({ hub }: Hub) {
-  const { hubQ, reordersQ, technicians, inventory, availableCount, lowStockCount, openReorderCount, dispatchedToday, activity } = hub;
+  const { hubQ, technicians, inventory, availableCount, lowStockCount, dispatchedToday, activity } = hub;
+  const { user } = useUser();
   const [detail, setDetail] = useState<MetricKey | null>(null);
   const [shortcutDetail, setShortcutDetail] = useState<ShortcutKey | null>(null);
   const triggers = useRef<Partial<Record<MetricKey, HTMLButtonElement | null>>>({});
@@ -30,12 +32,11 @@ export default function OverviewPage({ hub }: Hub) {
     new Date(entry.timestamp).toDateString() === new Date().toDateString(),
   );
   const lowStockItems = inventory.filter((item) => item.quantity <= 2);
-  const openDrafts = reordersQ.data?.reorders.filter((reorder) => reorder.status === 'Draft') ?? [];
   const counts = [
     { key: 'today' as const, to: '/today', label: 'Dispatches today', value: ready ? dispatchedToday : null, foot: 'Approved allocations', Icon: PackageCheck, aria: ready ? `Open today's ${dispatchedToday} dispatches` : 'Open today’s dispatch log', tone: '' },
     { key: 'low-stock' as const, to: '/stock/low', label: 'Low-stock lines', value: ready ? lowStockCount : null, foot: '2 units or fewer', Icon: Boxes, aria: ready ? `Open ${lowStockCount} low-stock lines` : 'Open low-stock inventory', tone: lowStockCount ? 'text-pending' : '' },
-    { key: 'reorders' as const, to: '/reorders', label: 'Open reorder drafts', value: reordersQ.data ? openReorderCount : null, foot: 'Separate from van stock', Icon: ClipboardList, aria: reordersQ.data ? `Open ${openReorderCount} reorder drafts` : 'Open reorder drafts', tone: openReorderCount ? 'text-pending' : '' },
   ];
+  const displayName = user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'Technician';
 
   const shortcutDetails = (key: ShortcutKey) => {
     if (key === 'today') {
@@ -70,31 +71,12 @@ export default function OverviewPage({ hub }: Hub) {
         </ul>
       );
     }
-    if (reordersQ.isLoading && !reordersQ.data) {
-      return <div className="space-y-2" role="status" aria-label="Loading reorder drafts"><Skeleton className="h-10" /><Skeleton className="h-10" /></div>;
-    }
-    if (reordersQ.isError && !reordersQ.data) {
-      return <InlineError onRetry={() => void reordersQ.refetch()} retrying={reordersQ.isFetching}>Reorder drafts could not be loaded.</InlineError>;
-    }
-    if (!openDrafts.length) return <p className="text-sm text-muted-foreground">No open reorder drafts.</p>;
-    return (
-      <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
-        {openDrafts.map((reorder) => (
-          <li key={reorder.id} data-testid={`overview-reorder-draft-${reorder.id}`} className="flex min-w-0 items-start justify-between gap-3 rounded-md border bg-background/60 px-3 py-2">
-            <span className="min-w-0">
-              <span className="block truncate text-xs font-medium">{reorder.part_name} · Van {reorder.van_id}</span>
-              <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{reorder.supplier_name} · {reorder.requested_quantity} requested</span>
-            </span>
-            <Mono className="shrink-0 text-[10px] text-muted-foreground">#{reorder.id}</Mono>
-          </li>
-        ))}
-      </ul>
-    );
+    return null;
   };
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Workshop · dispatch overview" title="Welcome John Doe." sub="Technician availability and van readiness before a repair leaves the desk.">
+      <PageHead kicker="Workshop · dispatch overview" title={`Welcome ${displayName}.`} sub="Technician availability and van readiness before a repair leaves the desk.">
       <Button asChild><Link href="/intake"><Inbox size={15} /> Open customer conversations <ArrowRight size={14} /></Link></Button>
       </PageHead>
 
@@ -149,7 +131,7 @@ export default function OverviewPage({ hub }: Hub) {
           </div>
         </Card>
 
-        <div className={`grid gap-3 ${shortcutDetail ? 'sm:grid-cols-1' : 'sm:grid-cols-3'} lg:grid-cols-1`}>
+        <div className={`grid gap-3 ${shortcutDetail ? 'sm:grid-cols-1' : 'sm:grid-cols-2'} lg:grid-cols-1`}>
           {counts.map(({ key, to, label, value, foot, Icon, aria, tone }) => {
             const expanded = shortcutDetail === key;
             const compact = shortcutDetail !== null && !expanded;

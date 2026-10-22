@@ -25,7 +25,6 @@ const hubData = {
 const shortcuts = [
   { key: 'today', page: '/today', label: 'Dispatches today' },
   { key: 'low-stock', page: '/stock/low', label: 'Low-stock lines' },
-  { key: 'reorders', page: '/reorders', label: 'Open reorder drafts' },
 ] as const;
 
 async function startVite(): Promise<{ process: ChildProcess; output: () => string }> {
@@ -56,7 +55,6 @@ async function startVite(): Promise<{ process: ChildProcess; output: () => strin
 
 async function mockOverviewApi(page: Page) {
   await page.route('**/api/hub-data', (route) => route.fulfill({ json: hubData }));
-  await page.route('**/api/reorder-drafts', (route) => route.fulfill({ json: { reorders: [] } }));
 }
 
 async function openOverview(browser: Browser, width: number, height: number) {

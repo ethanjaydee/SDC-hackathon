@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
-import { Activity, Boxes, ClipboardList, FlaskConical, History, Inbox, Loader2, Map as MapIcon, Menu, Radio, Users } from 'lucide-react';
+import { Activity, Boxes, FlaskConical, History, Inbox, Loader2, LogOut, Map as MapIcon, Menu, Radio, Users } from 'lucide-react';
+import { useClerk, useUser } from '@clerk/react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -9,7 +10,6 @@ import OverviewPage from './OverviewPage';
 import IntakePage from './IntakePage';
 import AnalysisPage from './AnalysisPage';
 import MapPage from './MapPage';
-import ReordersPage from './ReordersPage';
 import { LogPage, StockPage, TechniciansPage } from './ListPages';
 import { InlineError, StatusBadge } from './shared';
 import { ConnectionStatus, useConnection } from './ConnectionStatus';
@@ -28,7 +28,9 @@ function Brand() {
 
 export default function Dashboard() {
   const hub = useDispatchHub();
-  const { hubQ, openReorderCount, lowStockCount, pendingAction } = hub;
+  const { hubQ, lowStockCount, pendingAction } = hub;
+  const { user } = useUser();
+  const { signOut } = useClerk();
   const connection = useConnection(hubQ);
   const [location, navigate] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -48,7 +50,6 @@ export default function Dashboard() {
     { to: '/map', label: 'Technician map', Icon: MapIcon },
     { to: '/technicians', label: 'Technicians', Icon: Users },
     { to: '/stock', label: 'Van stock', Icon: Boxes, count: lowStockCount || undefined },
-    { to: '/reorders', label: 'Reorder requests', Icon: ClipboardList, count: openReorderCount || undefined },
     { to: '/log', label: 'Dispatch log', Icon: History },
   ] as { to: string; label: string; Icon: typeof Activity; badge?: string; count?: number }[];
 
@@ -70,18 +71,22 @@ export default function Dashboard() {
     </nav>
   );
 
+  const displayName = user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || 'Technician';
+  const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   const sideFooter = (
-    <div role="note" aria-label="Demo profile: John Doe, Dispatch manager" className="rounded-lg border border-sidebar-border bg-card/60 p-3">
+    <div className="rounded-lg border border-sidebar-border bg-card/60 p-3">
       <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">JD</span>
+        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">{initials}</span>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center justify-between gap-2">
-            <p className="truncate text-sm font-semibold text-foreground">John Doe</p>
-            <span className="shrink-0 rounded border border-sidebar-border px-1.5 py-0.5 font-mono text-[9px] font-medium tracking-wider text-muted-foreground">DEMO</span>
+            <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
           </div>
-          <p className="truncate text-xs text-muted-foreground">Dispatch manager</p>
+          <p className="truncate text-xs text-muted-foreground">Signed in</p>
         </div>
       </div>
+      <Button type="button" variant="ghost" size="sm" className="mt-2 w-full justify-start text-muted-foreground" onClick={() => void signOut({ redirectUrl: '/' })}>
+        <LogOut size={14} /> Sign out
+      </Button>
     </div>
   );
 
@@ -143,7 +148,7 @@ export default function Dashboard() {
                 <Route path="/stock/low"><StockPage hub={hub} lowOnly /></Route>
                 <Route path="/stock"><StockPage hub={hub} /></Route>
                 <Route path="/suppliers"><Redirect to="/stock" replace /></Route>
-                <Route path="/reorders"><ReordersPage hub={hub} /></Route>
+                <Route path="/reorders"><Redirect to="/stock" replace /></Route>
                 <Route path="/today"><LogPage hub={hub} notice={notice} todayOnly /></Route>
                 <Route path="/log"><LogPage hub={hub} notice={notice} /></Route>
                 <Route component={NotFound} />

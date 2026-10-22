@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@layer theme, base, clerk, components, utilities;
 @import 'tailwindcss';
+@import '@clerk/themes/shadcn.css';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
 
@@ -251,7 +253,20 @@ body::before {
 
 /* Leaflet markers (DOM built in MapPage) */
 .leaflet-container { font-family: var(--app-font-sans); background: hsl(var(--muted)); }
-.dark .leaflet-tile-pane { filter: invert(.92) hue-rotate(180deg) saturate(.4) brightness(.9); }
+.leaflet-container,
+.dark .leaflet-container { background: #eef0ed; }
+
+@keyframes theme-bloom {
+  from { clip-path: circle(0 at var(--theme-origin-x) var(--theme-origin-y)); }
+  to { clip-path: circle(var(--theme-reveal-radius) at var(--theme-origin-x) var(--theme-origin-y)); }
+}
+
+html { view-transition-name: root; }
+::view-transition-old(root) { animation: none; z-index: 1; }
+::view-transition-new(root) {
+  animation: theme-bloom 680ms cubic-bezier(.18,.72,.23,1) both;
+  z-index: 2;
+}
 .af-pin-wrap { background: none; border: 0; }
 .af-pin {
   width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center;
