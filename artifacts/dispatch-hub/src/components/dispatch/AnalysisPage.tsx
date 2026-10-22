@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowLeft, CheckCircle2, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Send, Truck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronDown, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Send, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -100,6 +100,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   }, [analyze, conversationId, qc, threadQ.data]);
 
   const thread = threadQ.data;
+  const orderedMessages = [...(thread?.messages ?? [])].sort((a, b) => a.id - b.id);
   const site = DEMO_CUSTOMER_SITES.find((item) => item.id === thread?.customer_site_id);
   const analysis = thread?.analysis ?? null;
   const analysisIsCurrent = !!thread && !!analysis &&
@@ -144,6 +145,8 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   }
 
   const loc = match ? getTechnicianLocation(match.id) : undefined;
+  const earlierMessages = orderedMessages.slice(0, -2);
+  const recentMessages = orderedMessages.slice(-2);
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHead kicker={`Selected conversation · #${thread.id}`} title="Analysis & dispatch review"
@@ -156,36 +159,32 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
         <div className="min-w-0 space-y-4">
           <Card title={<><MessageSquareText size={15} /> Customer conversation</>} aside={
             <span className="flex flex-wrap items-center justify-end gap-2">
-              <Mono>#{thread.id} · {thread.message_count} messages</Mono>
+              <Mono>{thread.message_count} messages</Mono>
               <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                 <RefreshCw size={10} className={threadQ.isFetching ? 'animate-spin' : ''} />
-                Auto-check every 5 sec
+                Auto-updating
               </span>
             </span>
           }>
             {threadQ.isError && (
               <p role="status" className="mb-3 rounded-md border border-pending/30 bg-pending/[0.07] p-3 text-xs">
-                The latest replies could not be checked. This conversation may have changed; approval stays disabled until it is refreshed and analyzed.
-                <button type="button" className="ml-1 underline" onClick={() => void threadQ.refetch()}>Try again</button>
+                New replies could not be checked. Refresh before dispatching.
+                <button type="button" className="ml-1 underline" onClick={() => void threadQ.refetch()}>Refresh</button>
               </p>
             )}
             {newMessagesSinceOpen > 0 && (
               <p role="status" className="mb-3 rounded-md border border-pending/30 bg-pending/[0.07] p-3 text-xs">
-                {newMessagesSinceOpen} new {newMessagesSinceOpen === 1 ? 'message has' : 'messages have'} arrived while this conversation was open. The analysis is stale; analyze the latest chat before dispatching.
+                {newMessagesSinceOpen} new {newMessagesSinceOpen === 1 ? 'message' : 'messages'} · re-analyze before dispatching.
               </p>
             )}
-            <div className="mb-4 rounded-lg border border-primary/20 bg-primary/[0.04] p-3">
-              <p className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-primary"><FlaskConical size={11} /> Mock AI summary · extractive demo</p>
-              <p className="text-sm leading-relaxed">{thread.mock_summary}</p>
-            </div>
-            <ol className="max-h-[430px] space-y-3 overflow-y-auto pr-1" aria-label="Conversation transcript" data-testid="conversation-transcript">
-              {thread.messages.map((message) => {
+            <ol className="space-y-3" aria-label="Most recent conversation messages" data-testid="conversation-transcript">
+              {recentMessages.map((message) => {
                 const customer = message.sender_role === 'Customer';
                 return (
                   <li key={message.id} data-testid={`message-${message.id}`}
-                    className={`max-w-[94%] rounded-xl border p-3 sm:max-w-[85%] ${customer ? 'mr-auto border-card-border bg-secondary/50' : 'ml-auto border-primary/20 bg-primary/[0.06]'}`}>
+                    className={`max-w-[96%] rounded-xl border p-3 sm:max-w-[92%] ${customer ? 'mr-auto border-card-border bg-secondary/50' : 'ml-auto border-primary/20 bg-primary/[0.06]'}`}>
                     <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <span className="font-semibold">{message.sender_name} <span className="font-normal text-muted-foreground">· {message.sender_role}</span></span>
+                      <span className="font-semibold">{message.sender_role}</span>
                       <time className="font-mono tabular text-[10px] text-muted-foreground" dateTime={message.created_at}>{dateTime(message.created_at)}</time>
                     </div>
                     <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.text}</p>
@@ -193,6 +192,36 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                 );
               })}
             </ol>
+            {earlierMessages.length > 0 && (
+              <details className="group mt-3 rounded-lg border border-card-border bg-card">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
+                  <span>Earlier messages <Mono className="ml-1 text-muted-foreground">({earlierMessages.length})</Mono></span>
+                  <ChevronDown size={15} className="text-muted-foreground transition-transform group-open:rotate-180" />
+                </summary>
+                <ol className="max-h-[320px] space-y-2 overflow-y-auto border-t border-card-border p-3" aria-label="Earlier conversation messages">
+                  {earlierMessages.map((message) => {
+                    const customer = message.sender_role === 'Customer';
+                    return (
+                      <li key={message.id} data-testid={`message-${message.id}`}
+                        className={`rounded-lg border p-3 ${customer ? 'border-card-border bg-secondary/50' : 'border-primary/20 bg-primary/[0.06]'}`}>
+                        <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <span className="font-semibold">{message.sender_role}</span>
+                          <time className="font-mono tabular text-[10px] text-muted-foreground" dateTime={message.created_at}>{dateTime(message.created_at)}</time>
+                        </div>
+                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.text}</p>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </details>
+            )}
+            <details className="group mt-3 rounded-lg border border-card-border bg-card">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
+                <span className="inline-flex items-center gap-2"><FlaskConical size={13} className="text-primary" /> AI summary</span>
+                <ChevronDown size={15} className="text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              <p className="border-t border-card-border px-3 py-3 text-sm leading-relaxed">{thread.mock_summary}</p>
+            </details>
             {thread.source === 'Telegram' && (
               <form className="mt-4 border-t border-card-border pt-4" data-testid="telegram-reply-form"
                 onSubmit={(event) => {
@@ -202,9 +231,9 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                   }
                 }}>
                 <label htmlFor="telegram-customer-reply" className="mb-2 block text-xs font-medium">
-                  Reply to customer on Telegram
+                  Reply to customer
                 </label>
-                <textarea id="telegram-customer-reply" rows={3} maxLength={4096} className={fieldClass}
+                <textarea id="telegram-customer-reply" rows={2} maxLength={4096} className={fieldClass}
                   value={replyText}
                   disabled={!thread.can_send_telegram_reply || sendReply.isPending}
                   placeholder={thread.can_send_telegram_reply ? 'Write a reply…' : 'Ask the customer to send one more Telegram message first.'}
@@ -216,20 +245,26 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                   <p id="telegram-reply-help" className="text-[10px] text-muted-foreground">
                     {thread.can_send_telegram_reply
-                      ? 'This sends a real Telegram message to the customer. Nothing is sent until you choose Send.'
-                      : 'This older conversation has no saved reply address. A new incoming message links it securely.'}
+                      ? 'Telegram sends only when you press Send.'
+                      : 'Ask the customer for one more Telegram message first.'}
                     <span className="ml-2 font-mono">{replyText.length}/4096</span>
                   </p>
                   <Button type="submit" disabled={!thread.can_send_telegram_reply || !replyText.trim() || sendReply.isPending}
                     data-testid="button-send-telegram-reply">
                     {sendReply.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                    {sendReply.isPending ? 'Sending…' : 'Send reply'}
+                    {sendReply.isPending ? 'Sending…' : 'Send'}
                   </Button>
                 </div>
                 {sendReply.error && <p role="alert" className="mt-2 text-xs text-err">{errorText(sendReply.error)}</p>}
               </form>
             )}
-            <div className="mt-4 border-t border-card-border pt-4"><MessagingConnectionNotice /></div>
+            <details className="group mt-4 border-t border-card-border pt-3">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
+                <span>Telegram details</span>
+                <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="mt-3"><MessagingConnectionNotice /></div>
+            </details>
           </Card>
         </div>
 
