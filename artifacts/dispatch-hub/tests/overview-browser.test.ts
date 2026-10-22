@@ -48,6 +48,9 @@ async function startVite(): Promise<{ process: ChildProcess; output: () => strin
 
 async function mockOverviewApi(page: Page) {
   await page.route('**/api/hub-data', (route) => route.fulfill({ json: hubData }));
+  await page.route('**/api/conversations', (route) => route.fulfill({ json: { conversations: [
+    { id: 1, dispatch_activity_id: null }, { id: 2, dispatch_activity_id: null },
+  ] } }));
 }
 
 async function openOverview(browser: Browser, width: number, height: number) {
@@ -60,7 +63,7 @@ async function openOverview(browser: Browser, width: number, height: number) {
   return { context, page };
 }
 
-test('overview prioritizes technician readiness with stock and dispatch summaries', {
+test('overview prioritizes technician readiness with unfinished requests and salary summaries', {
   timeout: 120_000,
   skip: authStorageState ? false : 'Requires DISPATCH_TEST_AUTH_STATE with a Clerk-authenticated Playwright storage state for the test-server origin.',
 }, async () => {
@@ -77,7 +80,9 @@ test('overview prioritizes technician readiness with stock and dispatch summarie
       assert.equal(await circle.getAttribute('aria-expanded'), 'false');
       assert.match(await circle.getAttribute('aria-label') || '', /1 of 2 available/);
       assert.equal(await page.getByTestId('overview-availability-value').innerText(), '1/ 2');
-      assert.equal(await page.getByTestId('overview-stock-units').innerText(), '9', 'stock total is the sum of units, not number of inventory lines');
+      assert.equal(await page.getByTestId('overview-unfinished-count').innerText(), '2');
+      assert.match(await page.getByTestId('overview-salary-ytd-value').innerText(), /^RM [\d,]+$/);
+      assert.match(await page.getByTestId('overview-salary-ytd').innerText(), /Mock data/i);
       assert.equal(await page.getByTestId('overview-low-stock-count-value').innerText(), '2', 'low stock includes only quantities strictly below five');
 
       const availableRow = page.getByTestId('overview-technician-1');
@@ -86,8 +91,8 @@ test('overview prioritizes technician readiness with stock and dispatch summarie
       await assert.equal(await busyRow.innerText().then((text) => text.includes('Busy') && text.includes('Unavailable')), true);
       assert.equal(await busyRow.locator('svg').count(), 1, 'unavailable technicians retain an icon alongside their status label');
       assert.equal(await page.getByTestId('link-overview-technicians').getAttribute('href'), '/technicians');
-      assert.equal(await page.getByTestId('link-overview-stock').getAttribute('href'), '/stock');
-      assert.equal(await page.getByTestId('link-overview-today').getAttribute('href'), '/today');
+      assert.equal(await page.getByTestId('link-overview-requests').getAttribute('href'), '/intake');
+      assert.equal(await page.getByTestId('link-overview-salary').getAttribute('href'), '/workshop-analysis');
       assert.equal(await page.getByTestId('link-overview-low-stock').getAttribute('href'), '/stock/low');
       assert.equal(await page.getByTestId('link-overview-log').getAttribute('href'), '/log');
 
@@ -99,7 +104,7 @@ test('overview prioritizes technician readiness with stock and dispatch summarie
       await assert.equal(await circle.getAttribute('aria-expanded'), 'false');
 
       const circleBox = await circle.boundingBox();
-      const stockBox = await page.getByTestId('overview-stock-total').boundingBox();
+      const stockBox = await page.getByTestId('overview-unfinished-requests').boundingBox();
       assert.ok(circleBox && stockBox);
       assert.ok(circleBox.width > 220, 'the availability circle remains the dominant visual element');
       assert.ok(stockBox.x > circleBox.x, 'stock summaries sit in the secondary right-side column');
@@ -111,7 +116,7 @@ test('overview prioritizes technician readiness with stock and dispatch summarie
     try {
       const page = phone.page;
       const circleBox = await page.getByTestId('overview-availability-circle').boundingBox();
-      const stockBox = await page.getByTestId('overview-stock-total').boundingBox();
+      const stockBox = await page.getByTestId('overview-unfinished-requests').boundingBox();
       assert.ok(circleBox && stockBox, 'mobile readiness and stock are laid out');
       assert.ok(stockBox.y > circleBox.y, 'secondary stock summaries stack beneath the main circle');
       for (const id of ['overview-technician-1', 'overview-technician-2']) {

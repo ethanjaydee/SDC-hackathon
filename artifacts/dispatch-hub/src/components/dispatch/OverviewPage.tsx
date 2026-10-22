@@ -1,18 +1,36 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
-import { ArrowRight, Boxes, History, Inbox, PackageCheck, UserRound } from 'lucide-react';
+import { ArrowRight, Boxes, History, Inbox, Wallet, UserRound } from 'lucide-react';
 import { useUser } from '@clerk/react';
+import { getListConversationsQueryKey, useListConversations } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, EmptyState, InlineError, Mono, PageHead, StatusBadge, dateTime, type Hub } from './shared';
+import { canAutoRefresh, pollInterval } from '@/lib/reliability';
+import { getUnfinishedRequests } from './overviewMetrics';
+import { ANALYTICS_YEARS, MONTHS, getSalaryYtd } from './workshopAnalytics';
 
 export default function OverviewPage({ hub }: Hub) {
-  const { hubQ, technicians, inventory, dispatchedToday, activity } = hub;
+  const { hubQ, technicians, inventory, activity } = hub;
+  const requestsQ = useListConversations({
+    query: {
+      queryKey: getListConversationsQueryKey(),
+      refetchInterval: pollInterval(),
+      refetchOnWindowFocus: canAutoRefresh,
+      enabled: !hub.writePending,
+    },
+  });
   const { user } = useUser();
   const [rosterOpen, setRosterOpen] = useState(false);
   const ready = !!hubQ.data;
   const availableCount = technicians.filter((tech) => tech.status === 'Available').length;
-  const totalUnits = inventory.reduce((sum, line) => sum + line.quantity, 0);
+  const requestsReady = ready && !!requestsQ.data;
+  const requestCounts = getUnfinishedRequests(requestsQ.data?.conversations ?? [], activity);
+  const dateParts = new Intl.DateTimeFormat('en', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: 'numeric' }).formatToParts(new Date());
+  const currentYear = Number(dateParts.find((part) => part.type === 'year')!.value);
+  const salaryYear = ANALYTICS_YEARS.find((year) => year === currentYear) ?? ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1];
+  const salaryMonth = salaryYear === currentYear ? Number(dateParts.find((part) => part.type === 'month')!.value) : 12;
+  const salaryYtd = getSalaryYtd(salaryYear, salaryMonth);
   const lowStockItems = inventory.filter((line) => line.quantity < 5);
   const latest = activity.slice(0, 4);
   const displayName = user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'Technician';
@@ -130,45 +148,47 @@ export default function OverviewPage({ hub }: Hub) {
 
         <div className="grid min-w-0 content-start gap-3">
           <Card
-            title="Stock on hand"
-            aside={<StatusBadge tone={!ready ? 'pending' : hubQ.isError ? 'err' : 'ok'}>{!ready ? 'Awaiting data' : hubQ.isError ? 'Cached data' : 'All vans'}</StatusBadge>}
+            title="Unfinished service requests"
+            aside={<StatusBadge tone={!requestsReady ? 'pending' : hubQ.isError || requestsQ.isError ? 'err' : 'ok'}>{!requestsReady ? 'Awaiting data' : hubQ.isError || requestsQ.isError ? 'Cached data' : 'Open requests'}</StatusBadge>}
             className="min-w-0"
           >
-            {hubQ.isLoading && !ready ? (
-              <div role="status" aria-label="Loading stock on hand" data-testid="overview-stock-loading"><Skeleton className="h-14 w-40" /><Skeleton className="mt-3 h-4 w-52" /></div>
-            ) : !ready && hubQ.isError ? (
-              <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching} testId="overview-stock-error">Stock quantities are unavailable until the hub reconnects.</InlineError>
+            {!requestsReady && !hubQ.isError && !requestsQ.isError ? (
+              <div role="status" aria-label="Loading unfinished requests" data-testid="overview-requests-loading"><Skeleton className="h-14 w-40" /><Skeleton className="mt-3 h-4 w-52" /></div>
+            ) : !requestsReady && (hubQ.isError || requestsQ.isError) ? (
+              <InlineError onRetry={() => { void hubQ.refetch(); void requestsQ.refetch(); }} retrying={hubQ.isFetching || requestsQ.isFetching} testId="overview-requests-error">Service requests are unavailable until the hub reconnects.</InlineError>
             ) : (
-              <div data-testid="overview-stock-total">
+              <div data-testid="overview-unfinished-requests">
                 <div className="flex items-end gap-3">
-                  <span className="font-mono text-5xl font-semibold leading-none tracking-[-0.07em] tabular text-foreground sm:text-6xl" data-testid="overview-stock-units">{ready ? totalUnits : '—'}</span>
-                  <span className="pb-1 font-display text-lg font-medium text-muted-foreground">units</span>
+                  <span className="font-mono text-5xl font-semibold leading-none tracking-[-0.07em] tabular text-foreground sm:text-6xl" data-testid="overview-unfinished-count">{requestsReady ? requestCounts.unfinished : '—'}</span>
+                  <span className="pb-1 font-display text-lg font-medium text-muted-foreground">requests</span>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-card-border pt-3">
-                  <span className="text-xs text-muted-foreground">{ready ? `${inventory.length} van inventory lines` : 'Inventory lines not available'}</span>
-                  <Link href="/stock" className="inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-overview-stock">
-                    View van stock <ArrowRight size={13} />
+                  <span className="text-xs text-muted-foreground">{requestCounts.awaitingDispatch} awaiting dispatch · {requestCounts.inProgress} in progress</span>
+                  <Link href="/intake" className="inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-overview-requests">
+                    View service requests <ArrowRight size={13} />
                   </Link>
                 </div>
+                {requestCounts.unknown > 0 && <p className="mt-2 text-xs text-muted-foreground">{requestCounts.unknown} older request(s) have unconfirmed completion and are not included above.</p>}
               </div>
             )}
           </Card>
 
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
             <SummaryLink
-              href="/today"
-              title="Dispatches today"
-              value={ready ? dispatchedToday : null}
-              caption="Approved allocations"
-              icon={<PackageCheck size={16} />}
-              testId="overview-dispatch-count"
-              linkTestId="link-overview-today"
-              loading={hubQ.isLoading && !ready}
-              error={!ready && hubQ.isError}
-              cached={ready && hubQ.isError}
+              href="/workshop-analysis"
+              title="Salary · YTD"
+              value={`RM ${salaryYtd.toLocaleString('en-MY')}`}
+              caption={`Jan–${MONTHS[salaryMonth - 1]} ${salaryYear} · Sample`}
+              icon={<Wallet size={16} />}
+              testId="overview-salary-ytd"
+              linkTestId="link-overview-salary"
+              loading={false}
+              error={false}
+              cached={false}
+              badge="Mock data"
               retry={() => void hubQ.refetch()}
               retrying={hubQ.isFetching}
-              errorMessage="Today's dispatch count is unavailable until the hub reconnects."
+              errorMessage="Salary sample unavailable."
             />
             <SummaryLink
               href="/stock/low"
@@ -220,11 +240,11 @@ export default function OverviewPage({ hub }: Hub) {
 }
 
 function SummaryLink({
-  href, title, value, caption, icon, testId, linkTestId, loading, error, cached, retry, retrying, errorMessage, alert = false,
+  href, title, value, caption, icon, testId, linkTestId, loading, error, cached, retry, retrying, errorMessage, alert = false, badge,
 }: {
   href: string;
   title: string;
-  value: number | null;
+  value: number | string | null;
   caption: string;
   icon: ReactNode;
   testId: string;
@@ -236,12 +256,13 @@ function SummaryLink({
   retrying: boolean;
   errorMessage: string;
   alert?: boolean;
+  badge?: string;
 }) {
   return (
     <section aria-label={title} data-testid={testId} className="min-w-0 rounded-xl border border-card-border bg-card shadow-sm">
       <div className="flex items-center justify-between gap-2 px-3.5 pt-3.5">
         <h2 className="flex items-center gap-2 text-xs font-semibold"><span className="text-primary">{icon}</span>{title}</h2>
-        <span className={`font-mono text-[9px] uppercase tracking-[0.12em] ${cached ? 'text-pending' : 'text-muted-foreground'}`}>{cached ? 'Cached' : 'Overview'}</span>
+        <span className={`font-mono text-[9px] uppercase tracking-[0.12em] ${cached ? 'text-pending' : 'text-muted-foreground'}`}>{badge ?? (cached ? 'Cached' : 'Overview')}</span>
       </div>
       {loading ? (
         <div role="status" aria-label={`Loading ${title.toLowerCase()}`} className="px-3.5 py-3"><Skeleton className="h-8 w-12" /><Skeleton className="mt-2 h-3 w-32" /></div>
@@ -249,7 +270,7 @@ function SummaryLink({
         <div className="px-3.5 py-3"><InlineError onRetry={retry} retrying={retrying}>{errorMessage}</InlineError></div>
       ) : (
         <Link href={href} aria-label={`Open ${title}: ${value} ${caption}`} data-testid={linkTestId} className="group flex min-h-[4.75rem] items-end justify-between gap-2 px-3.5 pb-3.5 pt-2 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-          <span className="flex min-w-0 items-baseline gap-2">
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className={`font-mono text-3xl font-semibold leading-none tabular ${alert ? 'text-pending' : ''}`} data-testid={`${testId}-value`}>{value ?? '—'}</span>
             <span className="truncate text-[11px] text-muted-foreground">{caption}</span>
           </span>

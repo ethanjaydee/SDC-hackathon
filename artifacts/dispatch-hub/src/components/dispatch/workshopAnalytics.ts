@@ -31,6 +31,10 @@ export function getSalaryMonthly(year: number) {
 export function getSalaryYearly() {
   return ANALYTICS_YEARS.map((year) => ({ year, salaryMyr: salary[year].reduce((sum, value) => sum + value, 0) }));
 }
+export function getSalaryYtd(year: number, throughMonth: number) {
+  if (!Number.isInteger(throughMonth) || throughMonth < 1 || throughMonth > 12) throw new RangeError('Choose month 1–12.');
+  return getSalaryMonthly(year).slice(0, throughMonth).reduce((sum, row) => sum + row.salaryMyr, 0);
+}
 export function getPartsMonthlyUsage(year: number, partName: UsagePart) {
   checkYear(year);
   if (!usage[partName]) throw new RangeError('Choose a supported sample part.');
