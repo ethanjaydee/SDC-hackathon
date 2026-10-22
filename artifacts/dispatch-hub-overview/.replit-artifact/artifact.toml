@@ -1,0 +1,28 @@
+kind = "slides"
+previewPath = "/dispatch-hub-overview/"
+title = "Dispatch Hub Overview"
+description = "An editable 8-slide overview of the Dispatch Hub workflow, Telegram customer conversations, technician readiness, audit history, and current demo boundaries."
+version = "1.0.0"
+id = "artifacts/dispatch-hub-overview"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/dispatch-hub-overview/" ]
+localPort = 20969
+
+[services.development]
+run = "pnpm --filter @workspace/dispatch-hub-overview run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/dispatch-hub-overview", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/dispatch-hub-overview/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20969"
+BASE_PATH = "/dispatch-hub-overview/"
