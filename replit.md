@@ -14,7 +14,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- No external credentials are required for this demo. RunPod analysis is intentionally mocked.
+- Clerk sign-in is provisioned through Replit with managed environment secrets. RunPod analysis is intentionally mocked and requires no external credentials.
 
 ## Stack
 
@@ -51,6 +51,8 @@ Clerk sign-in is required for all dispatch API routes except the health check. A
 ## User preferences
 
 Use synthetic data only (no real personal info). Preserve the existing dispatch workflow and Lucide icons. The requested visual reference is the user's AutoFlow app: a dark sidebar, warm off-white content area, orange accents, and rounded neutral cards.
+
+Keep map tiles light in both app themes. Theme switching should reveal the new theme as a growing circle originating from the theme-toggle icon, respecting reduced-motion preferences.
 
 For the main overview, the user approved the Xiaomi-inspired design with circular progress/status indicators instead of the existing summary-card layout. Keep the fixed sidebar and separate workflow screens.
 

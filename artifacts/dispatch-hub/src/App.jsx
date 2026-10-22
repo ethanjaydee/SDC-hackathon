@@ -95,7 +95,7 @@ function PublicHome() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Button asChild variant="ghost"><Link href="/sign-in">Sign in</Link></Button>
-          <Button asChild><Link href="/sign-up">Create account</Link></Button>
+          <Button asChild className="hidden sm:inline-flex"><Link href="/sign-up">Create account</Link></Button>
         </div>
       </header>
       <main className="mx-auto grid min-h-[calc(100dvh-88px)] max-w-7xl items-center gap-12 px-5 py-14 sm:px-8 lg:grid-cols-[1.1fr_.9fr]">

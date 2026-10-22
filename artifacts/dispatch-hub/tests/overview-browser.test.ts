@@ -8,6 +8,9 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 const port = 5179;
 const baseUrl = `http://127.0.0.1:${port}`;
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
+// Supply an authenticated state for this test-server origin; never bypass auth
+// in the application or commit session state to the repository.
+const authStorageState = process.env.DISPATCH_TEST_AUTH_STATE;
 
 const hubData = {
   technicians: [
@@ -58,7 +61,7 @@ async function mockOverviewApi(page: Page) {
 }
 
 async function openOverview(browser: Browser, width: number, height: number) {
-  const context = await browser.newContext({ viewport: { width, height } });
+  const context = await browser.newContext({ viewport: { width, height }, storageState: authStorageState });
   const page = await context.newPage();
   await mockOverviewApi(page);
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
@@ -118,7 +121,10 @@ async function assertRingMeasureKeyboardFlow(
   await assertReadinessGroupCentered(page, `collapsed after ${label}`);
 }
 
-test('overview readiness layout, keyboard details, reduced motion, and independent shortcuts', { timeout: 120_000 }, async () => {
+test('overview readiness layout, keyboard details, reduced motion, and independent shortcuts', {
+  timeout: 120_000,
+  skip: authStorageState ? false : 'Requires DISPATCH_TEST_AUTH_STATE with a Clerk-authenticated Playwright storage state for the test-server origin.',
+}, async () => {
   assert.ok(existsSync(chromiumPath), `Chromium executable not found at ${chromiumPath}; set CHROMIUM_PATH to a local Chromium binary.`);
   const vite = await startVite();
   let browser: Browser | undefined;
