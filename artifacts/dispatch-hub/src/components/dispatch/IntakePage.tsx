@@ -10,6 +10,7 @@ import {
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
 import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, dateTime, errorText } from './shared';
 import { useToast } from '@/hooks/use-toast';
+import { MessagingConnectionNotice } from './MessagingConnectionNotice';
 
 export default function IntakePage() {
   const [, navigate] = useLocation();
@@ -48,6 +49,8 @@ export default function IntakePage() {
       <PageHead kicker="Step 1 · Customer conversations" title="Repair intake" sub="Review what the customer and technician said. Open one conversation to analyze it and prepare a dispatch.">
         <StatusBadge tone="pending"><FlaskConical size={10} /> Mock summaries</StatusBadge>
       </PageHead>
+
+      <MessagingConnectionNotice />
 
       {analyze.error && (
         <InlineError onRetry={() => openingId != null && void openConversation(openingId)} retrying={analyze.isPending} retryLabel="Retry analysis">

@@ -5,6 +5,7 @@ import type { Activity, InventoryItem, Technician } from '@workspace/api-client-
 import { Button } from '@/components/ui/button';
 import { Card, ConfirmAction, EmptyState, InlineError, Mono, PageHead, StatusBadge, TechRow, dateTime, fieldClass, initials, techTone, type Hub } from './shared';
 import { CompletionControl } from './CompletionControl';
+import { CompletionProofSamples } from './CompletionProofSamples';
 import { DataTable, FilterChips, type Column } from './DataTable';
 const TechnicianFilters = FilterChips<'all' | 'Available' | 'Busy'>;
 const EventFilters = FilterChips<'all' | 'Approved' | 'Completed' | 'Reset'>;
@@ -158,6 +159,7 @@ export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: stri
         <Button asChild variant="outline"><Link href={todayOnly ? '/log' : '/today'}>{todayOnly ? 'Full log' : 'Today only'}</Link></Button>
       </PageHead>
       {notice && <div className="dh-rise flex items-center gap-2 rounded-lg border border-ok/30 bg-ok/[0.08] px-4 py-2.5 text-sm" role="status" data-testid="status-dispatch-success"><CheckCircle2 size={15} className="text-ok" /> {notice}</div>}
+      {!todayOnly && (kind === 'all' || kind === 'Completed') && <CompletionProofSamples />}
       <Card title={<><History size={15} /> Dispatch audit log</>} aside={<span className="inline-flex items-center gap-1"><LockKeyhole size={11} /> Immutable record</span>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Dispatch history unavailable until the hub reconnects.</InlineError> : (
           <DataTable caption="Dispatch log" rows={rows} columns={columns} rowKey={(e) => e.id} loading={hubQ.isLoading}

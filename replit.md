@@ -48,6 +48,8 @@ Separate screens for overview, repair intake, post-intake analysis, technician m
 
 Clerk sign-in is required for all dispatch API routes except the health check. Authenticated accounts share the same synthetic demo workspace; there is no per-technician data isolation or role-based authorization.
 
+Completion-proof examples may use illustrative stock photos and synthetic customer signatures, but must remain separate from actual audit records. Never imply that example evidence proves an existing or legacy dispatch was completed. Customer conversations no longer expose a manual customer/technician message simulator. External messaging is not connected; do not present a WhatsApp/Telegram link as working ingestion without a connected account and verified inbound delivery.
+
 ## User preferences
 
 Use synthetic data only (no real personal info). Preserve the existing dispatch workflow and Lucide icons. The requested visual reference is the user's AutoFlow app: a dark sidebar, warm off-white content area, orange accents, and rounded neutral cards.

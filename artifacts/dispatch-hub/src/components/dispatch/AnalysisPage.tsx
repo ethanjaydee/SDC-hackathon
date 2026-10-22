@@ -1,18 +1,19 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowLeft, CheckCircle2, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Send, Truck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getGetConversationThreadQueryKey, getListConversationsQueryKey,
-  useAnalyzeConversation, useGetConversationThread, useSendConversationMessage,
+  useAnalyzeConversation, useGetConversationThread,
   type Technician,
 } from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES, distanceKm, getTechnicianLocation } from './demoLocations';
 import { rankQualifiedTechnicians } from './matching';
 import { APPROVER, type DispatchState } from './useDispatchHub';
-import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, fieldClass, initials } from './shared';
+import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, initials } from './shared';
+import { MessagingConnectionNotice } from './MessagingConnectionNotice';
 
 const urgencyTone = { High: 'err', Med: 'pending', Low: 'idle' } as const;
 type Props = { hub: DispatchState; conversationId: number; onApprove: (tech: Technician) => void };
@@ -29,11 +30,6 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     },
   });
   const analyze = useAnalyzeConversation();
-  const sendMessage = useSendConversationMessage();
-  const [senderRole, setSenderRole] = useState<'Customer' | 'Technician'>('Customer');
-  const [technicianId, setTechnicianId] = useState<number | null>(null);
-  const [draft, setDraft] = useState('');
-  const [messageError, setMessageError] = useState('');
   const [newMessagesSinceOpen, setNewMessagesSinceOpen] = useState(0);
   const lastObservedMessage = useRef<{ conversationId: number; messageId: number } | null>(null);
   const autoAnalyzeAttempted = useRef(new Set<number>());
@@ -84,7 +80,6 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     [hub.hubQ.data, analysis, site],
   );
   const match = matches[0] ?? null;
-  const suggestedTechId = technicianId ?? thread?.technician_id ?? hub.technicians[0]?.id ?? null;
   const dispatchSaved = thread?.dispatch_activity_id != null;
 
   const runAnalysis = () => {
@@ -98,35 +93,6 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
         }
       },
     });
-  };
-
-  const submitMessage = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const text = draft.trim();
-    if (!thread || !text || text.length > 2000 || sendMessage.isPending) {
-      setMessageError(text.length > 2000 ? 'Keep messages under 2,000 characters.' : !text ? 'Enter a message before sending.' : '');
-      return;
-    }
-    if (senderRole === 'Technician' && suggestedTechId == null) {
-      setMessageError('Choose a technician for the simulated reply.');
-      return;
-    }
-    setMessageError('');
-    try {
-      const updated = await sendMessage.mutateAsync({
-        id: conversationId,
-        data: {
-          sender_role: senderRole,
-          text,
-          ...(senderRole === 'Technician' && suggestedTechId != null ? { technician_id: suggestedTechId } : {}),
-        },
-      });
-      qc.setQueryData(getGetConversationThreadQueryKey(conversationId), updated);
-      void qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-      setDraft('');
-    } catch (error) {
-      setMessageError(errorText(error, 'The message could not be saved.'));
-    }
   };
 
   const approve = async () => {
@@ -159,7 +125,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.12fr)_minmax(340px,.88fr)]">
         <div className="min-w-0 space-y-4">
-          <Card title={<><MessageSquareText size={15} /> Customer and technician chat</>} aside={
+          <Card title={<><MessageSquareText size={15} /> Customer conversation</>} aside={
             <span className="flex flex-wrap items-center justify-end gap-2">
               <Mono>#{thread.id} · {thread.message_count} messages</Mono>
               <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -198,48 +164,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                 );
               })}
             </ol>
-            <form className="mt-4 space-y-3 border-t border-card-border pt-4" onSubmit={(event) => void submitMessage(event)}>
-              <div className="grid gap-3 sm:grid-cols-[150px_minmax(0,1fr)]">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium" htmlFor="sender-role">Reply as</label>
-                  <select id="sender-role" className={fieldClass} value={senderRole} disabled={sendMessage.isPending}
-                    onChange={(event) => { setSenderRole(event.target.value as 'Customer' | 'Technician'); setMessageError(''); }}
-                    data-testid="select-sender-role">
-                    <option value="Customer">Customer</option>
-                    <option value="Technician">Technician</option>
-                  </select>
-                </div>
-                {senderRole === 'Technician' && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium" htmlFor="reply-technician">Demo technician</label>
-                    <select id="reply-technician" className={fieldClass} value={suggestedTechId ?? ''} disabled={sendMessage.isPending}
-                      onChange={(event) => setTechnicianId(event.target.value ? Number(event.target.value) : null)}
-                      data-testid="select-reply-technician">
-                      {hub.technicians.map((technician) => <option key={technician.id} value={technician.id}>{technician.name} · Van {technician.van_id}</option>)}
-                    </select>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium" htmlFor="message-draft">Demo message</label>
-                <textarea id="message-draft" className={`${fieldClass} min-h-20 resize-y leading-relaxed`}
-                  value={draft} maxLength={2000} disabled={sendMessage.isPending}
-                  onChange={(event) => { setDraft(event.target.value); setMessageError(''); }}
-                  placeholder={`Add a simulated ${senderRole.toLowerCase()} message…`}
-                  aria-describedby="message-count message-error" data-testid="input-conversation-message" />
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <span id="message-error" role={messageError ? 'alert' : undefined} className={messageError ? 'text-err' : 'text-muted-foreground'}>{messageError}</span>
-                  <span id="message-count" className="shrink-0 font-mono tabular text-muted-foreground">{draft.length}/2000</span>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] text-muted-foreground">Saved to this demo thread; new messages require a fresh analysis.</span>
-                <Button type="submit" size="sm" disabled={!draft.trim() || sendMessage.isPending} data-testid="button-send-message">
-                  {sendMessage.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                  {sendMessage.isPending ? 'Saving…' : 'Add message'}
-                </Button>
-              </div>
-            </form>
+            <div className="mt-4 border-t border-card-border pt-4"><MessagingConnectionNotice /></div>
           </Card>
         </div>
 
