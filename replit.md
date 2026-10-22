@@ -4,6 +4,9 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 
 ## Run & Operate
 
+- Replit runtime: Node.js 24 (configured in `.replit`). After importing or pulling dependencies, run `pnpm install --frozen-lockfile` from the workspace root.
+- Start both managed workflows: `artifacts/api-server: API Server` and `artifacts/dispatch-preview: web`. Open the **Dispatch Hub** preview at `/`; the API is routed separately under `/api`.
+- Health check through the shared proxy: `curl -fsS http://localhost:80/api/healthz`.
 - `pnpm --filter @workspace/api-server run dev` — run the API server (use its managed workflow)
 - Dashboard preview: use managed workflow `artifacts/dispatch-preview: web`, which runs the existing `@workspace/dispatch-hub` source.
 - `pnpm run typecheck` — full typecheck across all packages
