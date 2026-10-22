@@ -3,3 +3,4 @@
 - [Preview manifest recovery](preview-manifest-recovery.md) — invalid existing TOML can block the validated replacement tool before it reads a corrected candidate.
 - [Preview JSX compatibility](preview-jsx-compatibility.md) — avoid explicit generic arguments in JSX tags; editor annotations can break dev parsing even when production builds pass.
 - [Clerk test forwarding](clerk-browser-test-forwarding.md) — forwarded test requests can miss programmatic auth; confirm 401s with native browser fetch before changing app auth.
+- [Dispatch demo scope](dispatch-demo-scope.md) — keep demo locations in KL/Klang Valley; use easy jobs for intern experience and hard jobs for experts.
