@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
-import { Activity, Boxes, ClipboardList, FlaskConical, History, Inbox, Loader2, Map as MapIcon, Menu, Radio, ShoppingBag, Users } from 'lucide-react';
+import { Activity, Boxes, ClipboardList, FlaskConical, History, Inbox, Loader2, Map as MapIcon, Menu, Radio, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -9,7 +9,6 @@ import OverviewPage from './OverviewPage';
 import IntakePage from './IntakePage';
 import AnalysisPage from './AnalysisPage';
 import MapPage from './MapPage';
-import SupplierComparePage from './SupplierComparePage';
 import ReordersPage from './ReordersPage';
 import { LogPage, StockPage, TechniciansPage } from './ListPages';
 import { InlineError, StatusBadge } from './shared';
@@ -49,7 +48,6 @@ export default function Dashboard() {
     { to: '/map', label: 'Technician map', Icon: MapIcon },
     { to: '/technicians', label: 'Technicians', Icon: Users },
     { to: '/stock', label: 'Van stock', Icon: Boxes, count: lowStockCount || undefined },
-    { to: '/suppliers', label: 'Store comparison', Icon: ShoppingBag },
     { to: '/reorders', label: 'Reorder requests', Icon: ClipboardList, count: openReorderCount || undefined },
     { to: '/log', label: 'Dispatch log', Icon: History },
   ] as { to: string; label: string; Icon: typeof Activity; badge?: string; count?: number }[];
@@ -144,7 +142,7 @@ export default function Dashboard() {
                 <Route path="/technicians"><TechniciansPage hub={hub} /></Route>
                 <Route path="/stock/low"><StockPage hub={hub} lowOnly /></Route>
                 <Route path="/stock"><StockPage hub={hub} /></Route>
-                <Route path="/suppliers"><SupplierComparePage hub={hub} /></Route>
+                <Route path="/suppliers"><Redirect to="/stock" replace /></Route>
                 <Route path="/reorders"><ReordersPage hub={hub} /></Route>
                 <Route path="/today"><LogPage hub={hub} notice={notice} todayOnly /></Route>
                 <Route path="/log"><LogPage hub={hub} notice={notice} /></Route>

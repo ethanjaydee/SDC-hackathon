@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowRight, ClipboardList, ExternalLink, PackageCheck } from 'lucide-react';
-import { Link } from 'wouter';
+import { AlertTriangle, ClipboardList, ExternalLink, PackageCheck } from 'lucide-react';
 import { getListReorderDraftsQueryKey, useApproveReorderDraft, type ReorderDraft } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { isOfferStale } from '@/lib/reliability';
@@ -104,9 +103,7 @@ export default function ReordersPage({ hub }: Hub) {
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Purchasing" title="Reorder requests" sub="Review the stock line, supplier offer, quantity and price snapshot before approval. These records never change van inventory.">
-        <Button asChild variant="outline"><Link href="/stock/low">Review low stock <ArrowRight size={13} /></Link></Button>
-      </PageHead>
+      <PageHead kicker="Purchasing" title="Reorder requests" sub="Review existing stock requests and approvals. These records never change van inventory." />
       {approveError && <InlineError>{approveError}</InlineError>}
       <Card title={<><ClipboardList size={15} /> {view === 'Draft' ? 'Drafts awaiting review' : 'Approved requests'}</>} aside={<Mono>{open.length} open · {approved.length} approved</Mono>}>
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -120,7 +117,7 @@ export default function ReordersPage({ hub }: Hub) {
           : reordersQ.isError && !reordersQ.data ? <InlineError onRetry={() => void reordersQ.refetch()} retrying={reordersQ.isFetching}>Reorder requests could not be loaded.</InlineError>
           : shown.length ? <div className="grid gap-3 xl:grid-cols-2">{shown.map(render)}</div>
           : <EmptyState icon={<ClipboardList size={16} />} title={view === 'Draft' ? 'No reorder drafts need review' : 'No approved requests yet'}>
-              {view === 'Draft' ? 'Start from the low-stock lines to compare suppliers and save a draft.' : 'Approval does not receive parts into van stock.'}
+              {view === 'Draft' ? 'No new reorder drafts can be created from the technician dashboard.' : 'Approval does not receive parts into van stock.'}
             </EmptyState>}
         {list.length > PAGE && (
           <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">

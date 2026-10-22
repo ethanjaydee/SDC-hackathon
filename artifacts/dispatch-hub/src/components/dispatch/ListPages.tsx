@@ -84,20 +84,16 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
   const qty = (i: InventoryItem) => (
     <span data-testid={`text-qty-${i.id}`} className={`inline-flex min-w-8 justify-center rounded-md px-1.5 py-0.5 font-mono font-semibold tabular ${i.quantity <= 2 ? 'bg-pending/12 text-pending' : ''}`}>{i.quantity}</span>
   );
-  const compare = (i: InventoryItem) => (
-    <Button asChild size="sm" variant="outline"><Link href={`/suppliers?inventory_id=${i.id}&part=${encodeURIComponent(i.part_name)}`}>Compare offers <ArrowRight size={12} /></Link></Button>
-  );
   const columns: Column<InventoryItem>[] = [
     { key: 'van', header: 'Van', sort: (i) => i.van_id, cell: (i) => <Mono>V-{i.van_id}</Mono> },
     { key: 'part', header: 'Part', sort: (i) => i.part_name, cell: (i) => <span className="flex items-center gap-2">{i.part_name}{required(i) && <StatusBadge tone="ok">Match part</StatusBadge>}</span> },
     { key: 'qty', header: 'On hand', sort: (i) => i.quantity, cell: qty, className: 'text-right' },
-    ...(lowOnly ? [{ key: 'next', header: 'Next step', cell: compare }] : []),
   ];
   return (
     <div className="space-y-5">
-      <PageHead kicker="Inventory" title={lowOnly ? 'Low-stock lines' : 'Van stock'} sub={lowOnly ? 'Items at two units or fewer, ready for a reorder review.' : 'On-hand parts per van.'}>
+      <PageHead kicker="Inventory" title={lowOnly ? 'Low-stock lines' : 'Van stock'} sub={lowOnly ? 'Items at two units or fewer.' : 'On-hand parts per van.'}>
         {lowOnly ? <Button asChild variant="outline"><Link href="/stock">All stock</Link></Button>
-          : <><Button asChild variant="outline"><Link href="/stock/low">Low stock only</Link></Button><Button asChild><Link href="/suppliers">Compare supplier offers <ArrowRight size={13} /></Link></Button></>}
+          : <Button asChild variant="outline"><Link href="/stock/low">Low stock only</Link></Button>}
       </PageHead>
       <Card title={<><Boxes size={15} /> {lowOnly ? 'Reorder review' : 'Stock lines'}</>} aside={<Mono>{rows.length} SKU lines</Mono>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Inventory data unavailable.</InlineError> : (
@@ -113,9 +109,9 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
               </label>
             )}
             empty={<EmptyState icon={<Boxes size={16} />} title={lowOnly ? 'No low-stock lines right now' : 'No stock items found'}>{lowOnly ? 'Every line is above two units.' : 'Adjust the filters.'}</EmptyState>}
-            mobile={(i) => (
-              <div className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${required(i) ? 'bg-ok/[0.06]' : ''}`} data-testid={lowOnly ? `low-stock-${i.id}` : undefined}>
-                <div className="min-w-0"><div className="truncate font-medium">{i.part_name}</div><Mono className="text-xs text-muted-foreground">V-{i.van_id}</Mono>{lowOnly && <div className="mt-2">{compare(i)}</div>}</div>
+             mobile={(i) => (
+               <div className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${required(i) ? 'bg-ok/[0.06]' : ''}`} data-testid={lowOnly ? `low-stock-${i.id}` : undefined}>
+                 <div className="min-w-0"><div className="truncate font-medium">{i.part_name}</div><Mono className="text-xs text-muted-foreground">V-{i.van_id}</Mono></div>
                 {qty(i)}
               </div>
             )}
