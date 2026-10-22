@@ -16,6 +16,7 @@ test('conversation inbox persists mock analysis, invalidates stale messages, and
     const { default: router } = await import(`${new URL('../src/hub.js', import.meta.url).href}?conversations`);
     process.chdir(cwd);
     db = new Database(resolve(dir, 'data/dispatch-hub.sqlite'));
+    db.prepare('UPDATE technician_profiles SET level = 3 WHERE technician_id = 2').run();
     const app = express();
     app.use(express.json());
     app.use('/api', router);
@@ -34,8 +35,9 @@ test('conversation inbox persists mock analysis, invalidates stale messages, and
     const listResponse = await fetch(`${base}/conversations`);
     assert.equal(listResponse.status, 200);
     const listed = await listResponse.json();
-    assert.equal(listed.conversations.length, 3);
-    assert.ok(listed.conversations.every((thread) => thread.mock_summary.includes('Customer:')));
+    assert.equal(listed.conversations.length, 12);
+    assert.ok(listed.conversations.every((thread) => thread.mock_summary.trim().length > 0));
+    assert.ok(listed.conversations.filter((thread) => thread.id <= 3).every((thread) => thread.mock_summary.includes('Customer:')));
     const originalThread = await (await fetch(`${base}/conversations/2`)).json();
     assert.deepEqual(originalThread.messages.map((message) => message.sender_role), ['Customer', 'Technician', 'Customer']);
     assert.equal(originalThread.analysis, null);

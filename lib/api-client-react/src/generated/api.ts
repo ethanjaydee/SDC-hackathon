@@ -42,6 +42,7 @@ import type {
   SupplierOffer,
   SupplierQuoteInput,
   SupplierQuoteList,
+  TechnicianRecommendations,
   TechnicianResetInput,
   TelegramReplyInput,
   TelegramStatus
@@ -73,6 +74,80 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getRecommendTechniciansUrl = (id: number,) => {
+
+
+
+
+  return `/api/conversations/${id}/recommendations`
+}
+
+/**
+ * @summary Suggest eligible technicians using experience, stock, and Google driving routes when configured
+ */
+export const recommendTechnicians = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<TechnicianRecommendations> => {
+
+  return customFetch<TechnicianRecommendations>(getRecommendTechniciansUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRecommendTechniciansMutationKey = () => ['recommendTechnicians'] as const;
+
+export const getRecommendTechniciansMutationOptions = <TError = ErrorType<InvalidRequestResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recommendTechnicians>>, TError,RecommendTechniciansMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recommendTechnicians>>, TError,RecommendTechniciansMutationVariables, TContext> => {
+
+const mutationKey = getRecommendTechniciansMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recommendTechnicians>>, RecommendTechniciansMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  recommendTechnicians(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecommendTechniciansMutationResult = NonNullable<Awaited<ReturnType<typeof recommendTechnicians>>>
+
+    export type RecommendTechniciansMutationError = ErrorType<InvalidRequestResponse | void>
+    export type RecommendTechniciansMutationVariables = {id: number}
+
+    /**
+ * @summary Suggest eligible technicians using experience, stock, and Google driving routes when configured
+ */
+export const useRecommendTechnicians = <TError = ErrorType<InvalidRequestResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recommendTechnicians>>, TError,RecommendTechniciansMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recommendTechnicians>>,
+        TError,
+        RecommendTechniciansMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecommendTechniciansMutationOptions(options));
+    }
 
 export const getGetTelegramStatusUrl = () => {
 

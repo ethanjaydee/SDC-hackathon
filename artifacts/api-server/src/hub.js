@@ -3,12 +3,15 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { demoSites } from "./demoSites.js";
+import { candidateEligibility, classifyRepair, seedWorkshopDemo } from "./workshopDemo.js";
+import { analyzeRepair, recommendWorkshopTechnicians } from "./dispatchIntelligence.js";
 import { isOfferStale } from "./offerFreshness.js";
 import { prepareTelegramStorage, createTelegramStorage } from "./telegramStore.js";
 import { sendTelegramMessage, TelegramDeliveryError } from "./telegramTransport.js";
 import {
   AnalyzeRequestBody,
   AnalyzeRequestResponse,
+  RecommendTechniciansResponse,
   ApproveDispatchBody,
   ApproveDispatchResponse,
   CompleteDispatchBody,
@@ -263,10 +266,17 @@ const seedDemoConversations = db.transaction(() => {
   }
 });
 seedDemoConversations.immediate();
+seedWorkshopDemo(db);
 
 function getHubData() {
   return {
-    technicians: db.prepare("SELECT * FROM technicians ORDER BY id").all(),
+    technicians: db.prepare(`
+      SELECT t.id, t.name, t.status, t.zone, COALESCE(p.shared_van_id,t.van_id) AS van_id,
+        p.level, p.experience_label, p.rating, p.demo_completed_jobs, p.specialty, p.lat, p.lng
+      FROM technicians t LEFT JOIN technician_profiles p ON p.technician_id = t.id ORDER BY t.id
+    `).all().map((tech) => tech.level == null
+      ? { id: tech.id, name: tech.name, status: tech.status, zone: tech.zone, van_id: tech.van_id }
+      : tech),
     inventory: db.prepare("SELECT * FROM inventory ORDER BY van_id, id").all(),
     activity_log: db.prepare(`
       SELECT a.*, d.tech_id, d.technician_name, d.van_id, d.parts_json, d.customer_site_json, d.conversation_id,
@@ -316,6 +326,7 @@ function listConversationSummaries() {
     ORDER BY c.updated_at DESC, c.id DESC
   `).all().map((thread) => ({
     ...thread,
+    complexity: classifyRepair(`${thread.subject} ${db.prepare("SELECT text FROM conversation_messages WHERE conversation_id = ? AND sender_role = 'Customer' ORDER BY id").all(thread.id).map((item) => item.text).join(" ")}`),
     latest_message: db.prepare(`
       SELECT id, conversation_id, sender_role, sender_name, text, created_at
       FROM conversation_messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1
@@ -429,44 +440,14 @@ export async function analyzeConversation(id) {
 }
 
 export async function callRunPodModel(text) {
-  // MOCK ONLY: replace the return below with a fetch to your RunPod vLLM
-  // OpenAI-compatible endpoint, for example:
-  // const response = await fetch(`${endpoint}/v1/chat/completions`, {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json",
-  //     Authorization: `Bearer ${process.env.RUNPOD_API_KEY}` },
-  //   body: JSON.stringify({ model: modelName,
-  //     messages: [{ role: "user", content: text }],
-  //     response_format: { type: "json_object" } }),
-  //   signal: AbortSignal.timeout(30000),
-  // });
-  // Check response.ok, parse choices[0].message.content, and validate the
-  // parsed result with AnalyzeRequestResponse before returning it.
-  const notes = text.toLowerCase();
-  if (/\b(wix|oil filter|filter housing|filter seal)\b/.test(notes)) {
-    return {
-      issue: "Oil Filter Housing Seep",
-      parts: ["Wix 57356 Filter"],
-      urgency: "Med",
-    };
-  }
-  if (/\b(12v relay|relay clicks|relay)\b/.test(notes)) {
-    return {
-      issue: "Accessory Power Relay Fault",
-      parts: ["12V Relay"],
-      urgency: "Med",
-    };
-  }
-  return {
-    issue: "Instrument Cluster Power Failure",
-    parts: ["100uF Capacitor", "NPN Transistor"],
-    urgency: "High",
-  };
+  const catalog = db.prepare("SELECT DISTINCT part_name FROM inventory").all().map((row) => row.part_name);
+  return analyzeRepair(text, catalog);
 }
 
 class DispatchConflict extends Error {}
 
 const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer_site_id, conversation_id }) => {
+  let complexity = classifyRepair(parts.join(" "));
   if (conversation_id != null) {
     const source = db.prepare("SELECT * FROM conversation_threads WHERE id = ?").get(conversation_id);
     if (!source) throw new DispatchConflict("The selected conversation no longer exists. Refresh and review another request.");
@@ -474,6 +455,7 @@ const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer
       SELECT id FROM conversation_messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1
     `).get(conversation_id);
     const analyzed = source.analysis_json ? JSON.parse(source.analysis_json) : null;
+    complexity = analyzed?.complexity ?? classifyRepair(source.subject);
     const sameParts = analyzed && Array.isArray(analyzed.parts) &&
       [...analyzed.parts].map((part) => part.trim().toLowerCase()).sort().join("\n") ===
       [...parts].map((part) => part.trim().toLowerCase()).sort().join("\n");
@@ -487,13 +469,14 @@ const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer
       throw new DispatchConflict("This conversation already has a saved dispatch.");
     }
   }
-  const technician = db.prepare(
-    "SELECT * FROM technicians WHERE id = ? AND van_id = ?",
-  ).get(tech_id, van_id);
+  const currentHub = getHubData();
+  const technician = currentHub.technicians.find((tech) => tech.id === tech_id && tech.van_id === van_id);
   if (!technician || technician.status !== "Available" ||
     db.prepare("SELECT 1 FROM dispatches WHERE tech_id = ? AND status = 'Active'").get(tech_id)) {
     throw new DispatchConflict("This technician is no longer available for this van. Refresh and choose another match.");
   }
+  const ineligible = candidateEligibility(currentHub, technician, parts, complexity);
+  if (ineligible) throw new DispatchConflict(ineligible);
   // Repeated part names represent multiple units; validate aggregated demand.
   const required = new Map();
   for (const part of parts) required.set(part, (required.get(part) ?? 0) + 1);
@@ -535,7 +518,7 @@ const completeDispatch = db.transaction(({ dispatch_id, completed_by }) => {
       ? "This dispatch has already been completed. Refresh to see the current state."
       : "This legacy dispatch has no verified active assignment and cannot safely be completed.");
   }
-  const technician = db.prepare("SELECT * FROM technicians WHERE id = ?").get(job.tech_id);
+  const technician = getHubData().technicians.find((tech) => tech.id === job.tech_id);
   if (!technician || technician.status !== "Busy" || technician.van_id !== job.van_id ||
     db.prepare("SELECT 1 FROM dispatches WHERE tech_id = ? AND status = 'Active' AND activity_id != ?").get(job.tech_id, dispatch_id)) {
     throw new DispatchConflict("The technician assignment has changed. Refresh before completing this job.");
@@ -580,6 +563,42 @@ const resetTechnicianAvailability = db.transaction(({ technician_id, reset_by })
 });
 
 const router = Router();
+const recommendationCache = new Map();
+
+router.post("/conversations/:id/recommendations", async (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) { res.status(400).json({ error: "Choose a valid conversation." }); return; }
+  const thread = getConversationThread(id);
+  if (!thread) { res.status(404).json({ error: "Conversation not found." }); return; }
+  const site = demoSites[thread.customer_site_id];
+  if (!thread.analysis || thread.analyzed_through_message_id !== thread.latest_message_id || !site || thread.dispatch_activity_id != null) {
+    res.status(409).json({ error: "Analyze the latest messages and choose a customer site before requesting a recommendation." }); return;
+  }
+  const hub = getHubData();
+  const fingerprint = JSON.stringify(hub);
+  const key = `${id}:${thread.latest_message_id}:${thread.customer_site_id}:${JSON.stringify(thread.analysis)}:${fingerprint}`;
+  try {
+    for (const [cacheKey, item] of recommendationCache) if (item.expires < Date.now()) recommendationCache.delete(cacheKey);
+    if (recommendationCache.size >= 100) recommendationCache.delete(recommendationCache.keys().next().value);
+    let item = recommendationCache.get(key);
+    if (!item) {
+      item = { expires: Date.now() + 60_000, result: recommendWorkshopTechnicians(hub, thread, site) };
+      recommendationCache.set(key, item);
+    }
+    const result = await item.result;
+    const latest = getConversationThread(id);
+    if (!latest || latest.latest_message_id !== thread.latest_message_id || latest.customer_site_id !== thread.customer_site_id ||
+      latest.dispatch_activity_id != null || JSON.stringify(latest.analysis) !== JSON.stringify(thread.analysis) || JSON.stringify(getHubData()) !== fingerprint) {
+      recommendationCache.delete(key);
+      res.status(409).json({ error: "The request or team state changed. Refresh the recommendation." }); return;
+    }
+    res.json(RecommendTechniciansResponse.parse(result));
+  } catch (error) {
+    recommendationCache.delete(key);
+    next(error);
+  }
+});
 
 function listReorderDrafts() {
   return {

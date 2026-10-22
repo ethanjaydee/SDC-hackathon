@@ -40,17 +40,17 @@ export default function Dashboard() {
   useEffect(() => { setMenuOpen(false); window.scrollTo(0, 0); }, [location]);
 
   const afterApproval = (tech: { name: string; van_id: number }) => {
-    setNotice(`Job dispatched. ${tech.name} · Van ${tech.van_id} assigned and parts reserved.`);
+    setNotice(`Dispatch recorded for ${tech.name} · Van ${tech.van_id}. Parts were reserved at approval.`);
     navigate('/log');
   };
 
   const items = [
     { to: '/', label: 'Overview', Icon: Activity },
-    { to: '/intake', label: 'Customer conversations', Icon: Inbox },
+    { to: '/intake', label: 'Service Requests', Icon: Inbox },
     { to: '/map', label: 'Technician map', Icon: MapIcon },
-    { to: '/technicians', label: 'Technicians', Icon: Users },
-    { to: '/stock', label: 'Van stock', Icon: Boxes, count: lowStockCount || undefined },
-    { to: '/log', label: 'Dispatch log', Icon: History },
+    { to: '/technicians', label: 'Manpower', Icon: Users },
+    { to: '/stock', label: 'Inventory', Icon: Boxes, count: lowStockCount || undefined },
+    { to: '/log', label: 'Service History', Icon: History },
   ] as { to: string; label: string; Icon: typeof Activity; badge?: string; count?: number }[];
 
   const nav = (id: string) => (
@@ -125,7 +125,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2 border-t bg-muted/40 px-3 py-1.5 text-[11px] text-muted-foreground sm:px-6" role="note">
             <FlaskConical size={12} className="shrink-0" />
-            <span className="truncate"><strong className="text-foreground">Demo workspace.</strong> Synthetic dispatch data and mock AI. Approvals update demo inventory and history.</span>
+            <span className="truncate"><strong className="text-foreground">Demo workspace.</strong> Synthetic job data. AI suggestions need your review; approvals update demo inventory and history.</span>
           </div>
         </header>
 
@@ -159,7 +159,7 @@ export default function Dashboard() {
               </Switch>
             </RouteBoundary>
           </div>
-          <footer className="pt-6 font-mono text-[11px] text-muted-foreground">Dispatch Hub · API-backed synthetic demo · Mock AI analysis</footer>
+          <footer className="pt-6 font-mono text-[11px] text-muted-foreground">Dispatch Hub · Synthetic demo data · AI or rule-based source shown per result</footer>
         </main>
       </div>
     </div>

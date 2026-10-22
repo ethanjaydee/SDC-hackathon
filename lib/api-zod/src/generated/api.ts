@@ -9,6 +9,35 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Suggest eligible technicians using experience, stock, and Google driving routes when configured
+ */
+
+
+
+export const RecommendTechniciansParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const RecommendTechniciansResponse = zod.object({
+  "analysis_message_id": zod.number().int(),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']),
+  "recommended_technician_id": zod.number().int().nullable(),
+  "summary": zod.string(),
+  "source": zod.enum(['AI', 'Rules']),
+  "routing_status": zod.enum(['ready', 'partial', 'not_configured', 'unavailable']),
+  "routing_message": zod.string(),
+  "candidates": zod.array(zod.object({
+  "technician_id": zod.number().int(),
+  "eligible": zod.boolean(),
+  "reason": zod.string(),
+  "distance_meters": zod.number().nullable(),
+  "duration_seconds": zod.number().nullable(),
+  "polyline": zod.string().nullable()
+}))
+})
+
+
+/**
  * @summary Authenticated Telegram receiver status and verified bot link
  */
 export const GetTelegramStatusResponse = zod.object({
@@ -59,6 +88,7 @@ export const SetConversationSiteResponse = zod.object({
   "id": zod.number().int().min(1),
   "customer_name": zod.string(),
   "subject": zod.string(),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
   "technician_id": zod.number().int().min(1).nullable(),
@@ -90,7 +120,10 @@ export const SetConversationSiteResponse = zod.object({
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low'])
+  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
+  "rationale": zod.string().optional(),
+  "analysis_source": zod.enum(['AI', 'Rules']).optional()
 }),zod.null()])
 }))
 
@@ -107,6 +140,13 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary Current synthetic dispatch hub state
  */
+export const getHubDataResponseTechniciansItemLevelMax = 3;
+
+export const getHubDataResponseTechniciansItemRatingMin = 0;
+export const getHubDataResponseTechniciansItemRatingMax = 5;
+
+export const getHubDataResponseTechniciansItemDemoCompletedJobsMin = 0;
+
 export const getHubDataResponseInventoryItemQuantityMin = 0;
 
 export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
@@ -124,7 +164,14 @@ export const GetHubDataResponse = zod.object({
   "name": zod.string(),
   "status": zod.enum(['Available', 'Busy']),
   "zone": zod.string(),
-  "van_id": zod.number().int()
+  "van_id": zod.number().int(),
+  "level": zod.number().int().min(1).max(getHubDataResponseTechniciansItemLevelMax).optional(),
+  "experience_label": zod.string().optional(),
+  "rating": zod.number().min(getHubDataResponseTechniciansItemRatingMin).max(getHubDataResponseTechniciansItemRatingMax).optional(),
+  "demo_completed_jobs": zod.number().int().min(getHubDataResponseTechniciansItemDemoCompletedJobsMin).optional(),
+  "specialty": zod.string().optional(),
+  "lat": zod.number().optional(),
+  "lng": zod.number().optional()
 })),
   "inventory": zod.array(zod.object({
   "id": zod.number().int(),
@@ -169,7 +216,10 @@ export const AnalyzeRequestBody = zod.object({
 export const AnalyzeRequestResponse = zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low'])
+  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
+  "rationale": zod.string().optional(),
+  "analysis_source": zod.enum(['AI', 'Rules']).optional()
 })
 
 
@@ -193,6 +243,7 @@ export const ListConversationsResponse = zod.object({
   "id": zod.number().int().min(1),
   "customer_name": zod.string(),
   "subject": zod.string(),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
   "technician_id": zod.number().int().min(1).nullable(),
@@ -247,6 +298,7 @@ export const GetConversationThreadResponse = zod.object({
   "id": zod.number().int().min(1),
   "customer_name": zod.string(),
   "subject": zod.string(),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
   "technician_id": zod.number().int().min(1).nullable(),
@@ -278,7 +330,10 @@ export const GetConversationThreadResponse = zod.object({
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low'])
+  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
+  "rationale": zod.string().optional(),
+  "analysis_source": zod.enum(['AI', 'Rules']).optional()
 }),zod.null()])
 }))
 
@@ -328,6 +383,7 @@ export const SendConversationMessageResponse = zod.object({
   "id": zod.number().int().min(1),
   "customer_name": zod.string(),
   "subject": zod.string(),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
   "technician_id": zod.number().int().min(1).nullable(),
@@ -359,7 +415,10 @@ export const SendConversationMessageResponse = zod.object({
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low'])
+  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
+  "rationale": zod.string().optional(),
+  "analysis_source": zod.enum(['AI', 'Rules']).optional()
 }),zod.null()])
 }))
 
@@ -406,6 +465,7 @@ export const SendTelegramReplyResponse = zod.object({
   "id": zod.number().int().min(1),
   "customer_name": zod.string(),
   "subject": zod.string(),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
   "technician_id": zod.number().int().min(1).nullable(),
@@ -437,7 +497,10 @@ export const SendTelegramReplyResponse = zod.object({
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low'])
+  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
+  "rationale": zod.string().optional(),
+  "analysis_source": zod.enum(['AI', 'Rules']).optional()
 }),zod.null()])
 }))
 
@@ -476,6 +539,7 @@ export const AnalyzeConversationResponse = zod.object({
   "id": zod.number().int().min(1),
   "customer_name": zod.string(),
   "subject": zod.string(),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
   "technician_id": zod.number().int().min(1).nullable(),
@@ -507,7 +571,10 @@ export const AnalyzeConversationResponse = zod.object({
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low'])
+  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
+  "rationale": zod.string().optional(),
+  "analysis_source": zod.enum(['AI', 'Rules']).optional()
 }),zod.null()])
 }))
 
@@ -532,6 +599,13 @@ export const ApproveDispatchBody = zod.object({
   "approved_by": zod.string().min(1).max(approveDispatchBodyApprovedByMax)
 })
 
+export const approveDispatchResponseTechniciansItemLevelMax = 3;
+
+export const approveDispatchResponseTechniciansItemRatingMin = 0;
+export const approveDispatchResponseTechniciansItemRatingMax = 5;
+
+export const approveDispatchResponseTechniciansItemDemoCompletedJobsMin = 0;
+
 export const approveDispatchResponseInventoryItemQuantityMin = 0;
 
 export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
@@ -549,7 +623,14 @@ export const ApproveDispatchResponse = zod.object({
   "name": zod.string(),
   "status": zod.enum(['Available', 'Busy']),
   "zone": zod.string(),
-  "van_id": zod.number().int()
+  "van_id": zod.number().int(),
+  "level": zod.number().int().min(1).max(approveDispatchResponseTechniciansItemLevelMax).optional(),
+  "experience_label": zod.string().optional(),
+  "rating": zod.number().min(approveDispatchResponseTechniciansItemRatingMin).max(approveDispatchResponseTechniciansItemRatingMax).optional(),
+  "demo_completed_jobs": zod.number().int().min(approveDispatchResponseTechniciansItemDemoCompletedJobsMin).optional(),
+  "specialty": zod.string().optional(),
+  "lat": zod.number().optional(),
+  "lng": zod.number().optional()
 })),
   "inventory": zod.array(zod.object({
   "id": zod.number().int(),
@@ -596,6 +677,13 @@ export const CompleteDispatchBody = zod.object({
   "completed_by": zod.string().min(1).max(completeDispatchBodyCompletedByMax)
 })
 
+export const completeDispatchResponseTechniciansItemLevelMax = 3;
+
+export const completeDispatchResponseTechniciansItemRatingMin = 0;
+export const completeDispatchResponseTechniciansItemRatingMax = 5;
+
+export const completeDispatchResponseTechniciansItemDemoCompletedJobsMin = 0;
+
 export const completeDispatchResponseInventoryItemQuantityMin = 0;
 
 export const completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
@@ -613,7 +701,14 @@ export const CompleteDispatchResponse = zod.object({
   "name": zod.string(),
   "status": zod.enum(['Available', 'Busy']),
   "zone": zod.string(),
-  "van_id": zod.number().int()
+  "van_id": zod.number().int(),
+  "level": zod.number().int().min(1).max(completeDispatchResponseTechniciansItemLevelMax).optional(),
+  "experience_label": zod.string().optional(),
+  "rating": zod.number().min(completeDispatchResponseTechniciansItemRatingMin).max(completeDispatchResponseTechniciansItemRatingMax).optional(),
+  "demo_completed_jobs": zod.number().int().min(completeDispatchResponseTechniciansItemDemoCompletedJobsMin).optional(),
+  "specialty": zod.string().optional(),
+  "lat": zod.number().optional(),
+  "lng": zod.number().optional()
 })),
   "inventory": zod.array(zod.object({
   "id": zod.number().int(),
@@ -661,6 +756,13 @@ export const ResetTechnicianAvailabilityBody = zod.object({
   "reset_by": zod.string().min(1).max(resetTechnicianAvailabilityBodyResetByMax)
 })
 
+export const resetTechnicianAvailabilityResponseTechniciansItemLevelMax = 3;
+
+export const resetTechnicianAvailabilityResponseTechniciansItemRatingMin = 0;
+export const resetTechnicianAvailabilityResponseTechniciansItemRatingMax = 5;
+
+export const resetTechnicianAvailabilityResponseTechniciansItemDemoCompletedJobsMin = 0;
+
 export const resetTechnicianAvailabilityResponseInventoryItemQuantityMin = 0;
 
 export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustomerSiteLatMin = -90;
@@ -678,7 +780,14 @@ export const ResetTechnicianAvailabilityResponse = zod.object({
   "name": zod.string(),
   "status": zod.enum(['Available', 'Busy']),
   "zone": zod.string(),
-  "van_id": zod.number().int()
+  "van_id": zod.number().int(),
+  "level": zod.number().int().min(1).max(resetTechnicianAvailabilityResponseTechniciansItemLevelMax).optional(),
+  "experience_label": zod.string().optional(),
+  "rating": zod.number().min(resetTechnicianAvailabilityResponseTechniciansItemRatingMin).max(resetTechnicianAvailabilityResponseTechniciansItemRatingMax).optional(),
+  "demo_completed_jobs": zod.number().int().min(resetTechnicianAvailabilityResponseTechniciansItemDemoCompletedJobsMin).optional(),
+  "specialty": zod.string().optional(),
+  "lat": zod.number().optional(),
+  "lng": zod.number().optional()
 })),
   "inventory": zod.array(zod.object({
   "id": zod.number().int(),

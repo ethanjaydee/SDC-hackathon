@@ -213,7 +213,7 @@ export function useDispatchHub() {
   ) => {
     const site = DEMO_CUSTOMER_SITES.find((item) => item.id === siteId);
     if (!site || !positiveIdSchema.safeParse(conversationId).success ||
-        !hubQ.data || !rankQualifiedTechnicians(hubQ.data, result.parts, site).some((item) => item.id === technician.id) ||
+        !hubQ.data || !rankQualifiedTechnicians(hubQ.data, result.parts, site, result.complexity).some((item) => item.id === technician.id) ||
         gate.current.busy || connectionLost) return false;
     const snapshot = { conversationId, site, technician, parts: result.parts };
     setApproveError('');

@@ -61,6 +61,7 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
     const receiver = await import('../src/telegramReceiver.js');
     process.chdir(cwd);
     db = new Database(resolve(dir, 'data/dispatch-hub.sqlite'));
+    db.prepare('UPDATE technician_profiles SET level = 3 WHERE technician_id = 2').run();
     const app = express();
     app.use(express.json());
     app.use('/api', hub.default);

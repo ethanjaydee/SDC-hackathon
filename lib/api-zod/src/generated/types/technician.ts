@@ -13,4 +13,20 @@ export interface Technician {
   status: TechnicianStatus;
   zone: string;
   van_id: number;
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  level?: number;
+  experience_label?: string;
+  /**
+     * @minimum 0
+     * @maximum 5
+     */
+  rating?: number;
+  /** @minimum 0 */
+  demo_completed_jobs?: number;
+  specialty?: string;
+  lat?: number;
+  lng?: number;
 }

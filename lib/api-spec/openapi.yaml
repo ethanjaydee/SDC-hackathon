@@ -11,6 +11,28 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /conversations/{id}/recommendations:
+    post:
+      operationId: recommendTechnicians
+      tags: [hub]
+      summary: Suggest eligible technicians using experience, stock, and Google driving routes when configured
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Advisory recommendations; never dispatches automatically
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TechnicianRecommendations" }
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "404":
+          description: Conversation not found
+        "409":
+          description: Analyze the latest messages and choose a customer site first
   /messaging/telegram:
     get:
       operationId: getTelegramStatus
@@ -466,6 +488,13 @@ components:
         status: { type: string, enum: [Available, Busy] }
         zone: { type: string }
         van_id: { type: integer }
+        level: { type: integer, minimum: 1, maximum: 3 }
+        experience_label: { type: string }
+        rating: { type: number, minimum: 0, maximum: 5 }
+        demo_completed_jobs: { type: integer, minimum: 0 }
+        specialty: { type: string }
+        lat: { type: number }
+        lng: { type: number }
     InventoryItem:
       type: object
       required: [id, van_id, part_name, quantity]
@@ -546,6 +575,36 @@ components:
           type: array
           items: { type: string }
         urgency: { type: string, enum: [High, Med, Low] }
+        complexity: { $ref: "#/components/schemas/JobComplexity" }
+        rationale: { type: string }
+        analysis_source: { type: string, enum: [AI, Rules] }
+    JobComplexity:
+      type: string
+      enum: [Easy, Normal, Hard]
+    TechnicianRecommendations:
+      type: object
+      required: [analysis_message_id, complexity, recommended_technician_id, summary, source, routing_status, routing_message, candidates]
+      properties:
+        analysis_message_id: { type: integer }
+        complexity: { $ref: "#/components/schemas/JobComplexity" }
+        recommended_technician_id: { type: [integer, "null"] }
+        summary: { type: string }
+        source: { type: string, enum: [AI, Rules] }
+        routing_status: { type: string, enum: [ready, partial, not_configured, unavailable] }
+        routing_message: { type: string }
+        candidates:
+          type: array
+          items: { $ref: "#/components/schemas/TechnicianCandidate" }
+    TechnicianCandidate:
+      type: object
+      required: [technician_id, eligible, reason, distance_meters, duration_seconds, polyline]
+      properties:
+        technician_id: { type: integer }
+        eligible: { type: boolean }
+        reason: { type: string }
+        distance_meters: { type: [number, "null"] }
+        duration_seconds: { type: [number, "null"] }
+        polyline: { type: [string, "null"] }
     ConversationMessage:
       type: object
       required: [id, conversation_id, sender_role, sender_name, text, created_at]
@@ -575,6 +634,7 @@ components:
         id: { type: integer, minimum: 1 }
         customer_name: { type: string }
         subject: { type: string }
+        complexity: { $ref: "#/components/schemas/JobComplexity" }
         customer_site_id: { type: ["string", "null"], enum: [north, central, south, null] }
         source: { type: string, enum: [Demo, Telegram] }
         technician_id: { type: ["integer", "null"], minimum: 1 }

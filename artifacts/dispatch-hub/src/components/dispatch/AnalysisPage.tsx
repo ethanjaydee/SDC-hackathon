@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowLeft, CheckCircle2, ChevronDown, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Send, Truck } from 'lucide-react';
+import { ArrowLeft, Bot, CheckCircle2, ChevronDown, ExternalLink, FlaskConical, ListChecks, Loader2, MapPin, MessageSquareText, RefreshCw, Route as RouteIcon, Send, Sparkles, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getGetConversationThreadQueryKey, getListConversationsQueryKey,
-  useAnalyzeConversation, useGetConversationThread, useSendTelegramReply, useSetConversationSite,
+  recommendTechnicians, useAnalyzeConversation, useGetConversationThread, useSendTelegramReply, useSetConversationSite,
   type Technician, type DemoSiteId,
 } from '@workspace/api-client-react';
-import { DEMO_CUSTOMER_SITES, distanceKm, getTechnicianLocation } from './demoLocations';
+import { DEMO_CUSTOMER_SITES, getTechnicianLocation } from './demoLocations';
+import { LevelBadge, levelOf, ratingText } from './techMeta';
+import { MiniRouteMap } from './MiniRouteMap';
+import { SlideToApprove } from './SlideToApprove';
 import { rankQualifiedTechnicians } from './matching';
 import { APPROVER, type DispatchState } from './useDispatchHub';
 import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, initials, fieldClass } from './shared';
@@ -101,16 +104,56 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
 
   const thread = threadQ.data;
   const orderedMessages = [...(thread?.messages ?? [])].sort((a, b) => a.id - b.id);
-  const site = DEMO_CUSTOMER_SITES.find((item) => item.id === thread?.customer_site_id);
+  // Saved assignments retain their historical site; never reinterpret an old ID
+  // using today's relocated demo-site catalog.
+  const site = thread?.dispatch_activity_id != null
+    ? hub.hubQ.data?.activity_log.find((entry) => entry.id === thread.dispatch_activity_id)?.dispatch?.customer_site ?? undefined
+    : DEMO_CUSTOMER_SITES.find((item) => item.id === thread?.customer_site_id);
   const analysis = thread?.analysis ?? null;
   const analysisIsCurrent = !!thread && !!analysis &&
     thread.analyzed_through_message_id === thread.latest_message_id;
+  const complexity = analysis?.complexity ?? thread?.complexity ?? 'Normal';
   const matches = useMemo(
-    () => site ? rankQualifiedTechnicians(hub.hubQ.data, analysis?.parts ?? [], site) : [],
-    [hub.hubQ.data, analysis, site],
+    () => site ? rankQualifiedTechnicians(hub.hubQ.data, analysis?.parts ?? [], site, complexity) : [],
+    [hub.hubQ.data, analysis, site, complexity],
   );
-  const match = matches[0] ?? null;
   const dispatchSaved = thread?.dispatch_activity_id != null;
+  const analyzedId = thread?.analyzed_through_message_id ?? null;
+  const siteId = thread?.customer_site_id ?? null;
+  const analysisSignature = JSON.stringify([analysis?.issue, analysis?.parts, complexity, analysis?.analysis_source]);
+  const recKey = ['technician-recommendations', conversationId, analyzedId, siteId, analysisSignature] as const;
+  const recQ = useQuery({
+    queryKey: recKey,
+    queryFn: ({ signal }) => recommendTechnicians(conversationId, { signal }),
+    enabled: validId && analysisIsCurrent && !dispatchSaved && !!siteId,
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: false,
+    retry: false,
+  });
+  const recs = recQ.data && recQ.data.analysis_message_id === analyzedId ? recQ.data : null;
+  const eligibleIds = useMemo(() => new Set(matches.map((m) => m.id)), [matches]);
+  const nearestByRoadId = recs?.candidates
+    .filter((c) => eligibleIds.has(c.technician_id) && c.distance_meters != null)
+    .sort((a, b) => a.distance_meters! - b.distance_meters!)[0]?.technician_id;
+  const keyStr = recKey.join('|');
+  const [picked, setPicked] = useState<{ key: string; id: number } | null>(null);
+  const recommendedId = recs?.recommended_technician_id != null && eligibleIds.has(recs.recommended_technician_id) ? recs.recommended_technician_id : null;
+  const pickedId = picked && picked.key === keyStr && eligibleIds.has(picked.id) ? picked.id : null;
+  const selectedId = pickedId ?? recommendedId ?? matches[0]?.id ?? null;
+  const match = matches.find((m) => m.id === selectedId) ?? null;
+  const minLevel = complexity === 'Hard' ? 3 : complexity === 'Normal' ? 2 : 1;
+  const candidateOf = (id: number) => recs?.candidates.find((c) => c.technician_id === id);
+  const selectedCandidate = match ? candidateOf(match.id) : undefined;
+  const need = useMemo(() => new Set((analysis?.parts ?? []).map((p) => p.toLowerCase())), [analysis]);
+  const whyNot = (t: Technician) => {
+    if (t.status !== 'Available') return 'Busy on another job';
+    if (levelOf(t) < minLevel) return `${complexity} jobs need Level ${minLevel}+`;
+    const stock = hub.hubQ.data?.inventory ?? [];
+    if ([...need].some((p) => !stock.some((i) => i.van_id === t.van_id && i.part_name.toLowerCase() === p && i.quantity > 0))) return 'Van is missing required parts';
+    return 'Not eligible';
+  };
 
   const runAnalysis = () => {
     if (!validId || analyze.isPending) return;
@@ -126,9 +169,10 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   };
 
   const approve = async () => {
-    if (!thread || !thread.customer_site_id || !analysis || !analysisIsCurrent || !match || dispatchSaved) return;
+    if (!thread || !thread.customer_site_id || !analysis || !analysisIsCurrent || !match || dispatchSaved || !eligibleIds.has(match.id)) return false;
     const ok = await hub.approveConversationDispatch(conversationId, analysis, thread.customer_site_id, match);
     if (ok) onApprove(match);
+    return ok;
   };
 
   if (!validId) {
@@ -144,7 +188,16 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     );
   }
 
-  const loc = match ? getTechnicianLocation(match.id) : undefined;
+  const posOf = (t: Technician) => (t.lat != null && t.lng != null ? { lat: t.lat, lng: t.lng } : getTechnicianLocation(t.id));
+  const mapPoints = (hub.hubQ.data?.technicians ?? []).flatMap((t) => {
+    const p = posOf(t);
+    return p ? [{ id: t.id, name: t.name, lat: p.lat, lng: p.lng, selected: t.id === match?.id, eligible: eligibleIds.has(t.id) }] : [];
+  });
+  const matchPos = match ? posOf(match) : undefined;
+  const directionsUrl = matchPos && site
+    ? `https://www.google.com/maps/dir/?api=1&origin=${matchPos.lat},${matchPos.lng}&destination=${site.lat},${site.lng}&travelmode=driving` : null;
+  const fmtKm = (m: number) => `${(m / 1000).toFixed(1)} km`;
+  const fmtMin = (s: number) => `${Math.max(1, Math.round(s / 60))} min`;
   const earlierMessages = orderedMessages.slice(0, -2);
   const recentMessages = orderedMessages.slice(-2);
   return (
@@ -217,7 +270,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
             )}
             <details className="group mt-3 rounded-lg border border-card-border bg-card">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
-                <span className="inline-flex items-center gap-2"><FlaskConical size={13} className="text-primary" /> AI summary</span>
+                <span className="inline-flex items-center gap-2"><FlaskConical size={13} className="text-primary" /> Conversation summary</span>
                 <ChevronDown size={15} className="text-muted-foreground transition-transform group-open:rotate-180" />
               </summary>
               <p className="border-t border-card-border px-3 py-3 text-sm leading-relaxed">{thread.mock_summary}</p>
@@ -290,7 +343,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
               <div className="space-y-4">
                 {!analysisIsCurrent && <p role="status" className="rounded-md border border-pending/30 bg-pending/[0.07] p-3 text-xs">The chat changed after this result. Re-analyze it before dispatching.</p>}
                 <div>
-                  <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Diagnosed issue</p>
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Suggested issue · {analysis.analysis_source === 'AI' ? 'AI analysis' : 'Rule-based analysis'}</p>
                   <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
                     <h2 className="text-lg font-semibold">{analysis.issue}</h2>
                     <StatusBadge tone={urgencyTone[analysis.urgency]}>{analysis.urgency} urgency</StatusBadge>
@@ -320,50 +373,130 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
             )}
           </Card>
 
-          {analysis && analysisIsCurrent && (
-            <Card title={<><Truck size={15} /> Dispatch match</>} aside={<Mono>{matches.length} qualified</Mono>}>
+          {dispatchSaved && <Card title="Dispatch already recorded"><p className="text-sm text-muted-foreground">This request has a saved assignment and cannot be approved again. Open Service History to see its current completion status.</p></Card>}
+          {analysis && analysisIsCurrent && !dispatchSaved && (
+            <>
+            <Card title={<><Sparkles size={15} /> Recommendations</>} aside={<span className="flex items-center gap-2"><StatusBadge tone={complexity === 'Hard' ? 'err' : complexity === 'Normal' ? 'pending' : 'ok'}>{complexity}</StatusBadge><Mono>{matches.length} eligible</Mono></span>}>
               {hub.hubQ.isLoading ? <Skeleton className="h-24" />
                 : !hub.hubQ.data ? <InlineError onRetry={() => void hub.hubQ.refetch()} retrying={hub.hubQ.isFetching}>Reconnect to the hub to match a technician.</InlineError>
-                  : match ? (
-                    <div className="space-y-4">
-                      <div className="rounded-lg border border-ok/30 bg-ok/[0.06] p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-card font-mono text-xs font-semibold">{initials(match.name)}</span>
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{match.name}</p>
-                              <p className="flex flex-wrap gap-2 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1"><MapPin size={11} /> {match.zone}</span><Mono>Van {match.van_id}</Mono></p>
+                  : !site ? <div role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-4 text-sm"><b>Customer site is not assigned.</b> Choose a sample site above first.</div>
+                  : (
+                  <div className="space-y-4">
+                    <div className="rounded-lg border bg-secondary/40 p-3" data-testid="recommendation-summary" aria-live="polite">
+                      {recQ.isLoading || (recQ.isFetching && !recs) ? <div className="space-y-2" role="status" aria-label="Loading recommendation"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-1/2" /></div>
+                        : recs ? (
+                          <>
+                            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                              <StatusBadge tone={recs.source === 'AI' ? 'ok' : 'idle'}>{recs.source === 'AI' ? <><Bot size={10} /> AI recommendation</> : 'Rule-based fallback, not AI'}</StatusBadge>
+                              <Button type="button" size="sm" variant="ghost" onClick={() => void recQ.refetch()} disabled={recQ.isFetching} data-testid="button-refresh-recommendations">
+                                <RefreshCw size={12} className={recQ.isFetching ? 'animate-spin' : ''} /> Refresh
+                              </Button>
                             </div>
+                            <p className="text-sm leading-relaxed">{recs.summary}</p>
+                          </>
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="text-sm text-muted-foreground">{recQ.isError ? 'Recommendations could not be loaded. Eligible technicians below use current hub data and a rule-based order, not AI.' : 'Recommendations are not available for this analysis.'}</p>
+                            <Button type="button" size="sm" variant="outline" onClick={() => void recQ.refetch()} disabled={recQ.isFetching} data-testid="button-refresh-recommendations"><RefreshCw size={12} /> Try again</Button>
                           </div>
-                          <StatusBadge tone="idle">Available</StatusBadge>
-                        </div>
-                        <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-                          <li className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-ok" /> Van {match.van_id} has the required stock.</li>
-                          <li>{loc && site ? <>Straight-line <Mono>{distanceKm(loc, site).toFixed(1)} km</Mono> from sample position, not a driving ETA.</> : 'Location unavailable.'}</li>
+                        )}
+                    </div>
+
+                    {matches.length === 0 ? (
+                      <div role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-4 text-sm">
+                        <b>No eligible technician.</b> {complexity} jobs need Level {minLevel}+, an available tech, and a van with every required part.
+                      </div>
+                    ) : (
+                      <div role="radiogroup" aria-label="Eligible technicians" className="space-y-2" data-testid="eligible-technicians">
+                        {matches.map((t) => {
+                          const c = candidateOf(t.id);
+                          const on = t.id === match?.id;
+                          return (
+                            <button key={t.id} type="button" role="radio" aria-checked={on} data-testid={`select-technician-${t.id}`}
+                              onClick={() => setPicked({ key: keyStr, id: t.id })}
+                              className={`w-full rounded-lg border p-3 text-left transition-[border-color,background-color] duration-200 motion-reduce:transition-none ${on ? 'border-ok/50 bg-ok/[0.07]' : 'border-card-border bg-card hover:border-primary/30'}`}>
+                              <span className="flex items-center gap-3">
+                                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary font-mono text-xs font-semibold">{initials(t.name)}</span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span className="truncate text-sm font-medium">{t.name}</span>
+                                    <LevelBadge tech={t} />
+                                    {t.id === nearestByRoadId && <StatusBadge tone="ok">Nearest by road</StatusBadge>}
+                                    {t.id === recommendedId && <StatusBadge tone="ok"><Sparkles size={9} /> Suggested</StatusBadge>}
+                                  </span>
+                                  <span className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                                    <span className="inline-flex items-center gap-1"><Star size={10} /> {ratingText(t)}</span>
+                                    <span>{t.demo_completed_jobs ?? 0} jobs (demo)</span>
+                                    <span className="inline-flex items-center gap-1"><MapPin size={10} /> {t.zone}</span>
+                                    <Mono>Van {t.van_id}</Mono>
+                                  </span>
+                                </span>
+                                <span className="shrink-0 text-right text-xs">
+                                  {c?.distance_meters != null && c.duration_seconds != null
+                                    ? <><b className="font-mono tabular">{fmtMin(c.duration_seconds)}</b><span className="block text-muted-foreground">{fmtKm(c.distance_meters)} · Google</span></>
+                                    : <span className="text-muted-foreground">Drive time unavailable</span>}
+                                </span>
+                              </span>
+                              {c?.reason && <span className="mt-1.5 block text-xs text-muted-foreground">{c.reason}</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {recs && (
+                      <p className={`flex items-start gap-1.5 text-xs ${recs.routing_status === 'ready' ? 'text-muted-foreground' : 'text-pending'}`} data-testid="routing-status">
+                        <RouteIcon size={12} className="mt-0.5 shrink-0" />
+                        <span>{recs.routing_status === 'ready' ? 'Drive times from Google Routes.' : recs.routing_status === 'partial' ? 'Drive times for some technicians only.' : 'Drive time unavailable.'} {recs.routing_message}</span>
+                      </p>
+                    )}
+
+                    {matches.length < (hub.hubQ.data?.technicians.length ?? 0) && (
+                      <details className="group rounded-lg border border-card-border">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
+                          <span className="inline-flex items-center gap-1.5"><ListChecks size={12} /> Not eligible ({(hub.hubQ.data?.technicians.length ?? 0) - matches.length})</span>
+                          <ChevronDown size={13} className="transition-transform group-open:rotate-180" />
+                        </summary>
+                        <ul className="max-h-44 space-y-1 overflow-y-auto border-t border-card-border p-2 text-xs">
+                          {(hub.hubQ.data?.technicians ?? []).filter((t) => !eligibleIds.has(t.id)).map((t) => (
+                            <li key={t.id} className="flex items-center justify-between gap-2 text-muted-foreground"><span className="truncate">{t.name} · L{levelOf(t)}</span><span className="shrink-0">{whyNot(t)}</span></li>
+                          ))}
                         </ul>
-                      </div>
-                      {dispatchSaved && (
-                        <p role="status" className="rounded-md border border-ok/30 bg-ok/[0.06] p-3 text-sm">
-                          This chat is already linked to dispatch <Mono>#{thread.dispatch_activity_id}</Mono>. A second dispatch cannot be created from the same conversation.
-                        </p>
-                      )}
-                      {hub.approveError && <InlineError>{hub.approveError}</InlineError>}
-                      <div className="space-y-2 border-t border-card-border pt-3">
-                        <p className="text-xs text-muted-foreground">Approved by <b className="text-foreground">{APPROVER}</b> · saved in the immutable dispatch log</p>
-                        <Button type="button" variant="success" className="w-full" onClick={() => void approve()}
-                          disabled={dispatchSaved || !analysisIsCurrent || threadQ.isError || hub.writePending || hub.connectionLost || hub.approve.isPending}
-                          data-testid="button-approve-conversation-dispatch">
-                          {hub.approve.isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                          {hub.approve.isPending ? 'Allocating parts…' : dispatchSaved ? 'Already dispatched' : 'Approve & dispatch job'}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-4 text-sm">
-                      {site ? <><b>No qualified technician found.</b> No available van currently has every required part. Review stock before approving.</> : <><b>Customer site is not assigned.</b> Choose a sample site above before matching a technician or approving dispatch.</>}
-                    </div>
-                  )}
+                      </details>
+                    )}
+                  </div>
+                )}
             </Card>
+
+            {site && mapPoints.length > 0 && (
+              <Card title={<><MapPin size={15} /> Map</>} aside={directionsUrl ? (
+                <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary" data-testid="link-google-directions">
+                  Open in Google Maps <ExternalLink size={11} />
+                </a>) : undefined}>
+                <MiniRouteMap customer={site} technicians={mapPoints}
+                  polyline={recs && selectedCandidate && recs.routing_status !== 'unavailable' && recs.routing_status !== 'not_configured' ? selectedCandidate.polyline : null} />
+              </Card>
+            )}
+
+            {match && (
+              <Card title={<><CheckCircle2 size={15} /> Approve dispatch</>} aside={<span className="truncate text-xs">{match.name} · Van {match.van_id}</span>}>
+                <div className="space-y-3">
+                  {dispatchSaved && (
+                    <p role="status" className="rounded-md border border-ok/30 bg-ok/[0.06] p-3 text-sm">
+                      This chat is already linked to dispatch <Mono>#{thread.dispatch_activity_id}</Mono>. A second dispatch cannot be created from the same conversation.
+                    </p>
+                  )}
+                  {hub.approveError && <InlineError>{hub.approveError}</InlineError>}
+                  <p className="text-xs text-muted-foreground">Approved by <b className="text-foreground">{APPROVER}</b> · saved in the immutable dispatch log</p>
+                  <SlideToApprove onConfirm={approve}
+                    resetKey={`${keyStr}|${match.id}`}
+                    disabled={dispatchSaved || !analysisIsCurrent || threadQ.isError || hub.writePending || hub.connectionLost || hub.approve.isPending}
+                    disabledLabel={dispatchSaved ? 'Already dispatched' : hub.connectionLost ? 'Hub offline' : 'Approval unavailable'}
+                    testId="slide-approve" />
+                </div>
+              </Card>
+            )}
+            </>
           )}
           <p className="text-xs text-muted-foreground">Only this saved conversation is analyzed. Dispatch approval is a separate action and rechecks current technician and stock data.</p>
         </div>

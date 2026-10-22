@@ -49,6 +49,22 @@ export interface Technician {
   status: TechnicianStatus;
   zone: string;
   van_id: number;
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  level?: number;
+  experience_label?: string;
+  /**
+     * @minimum 0
+     * @maximum 5
+     */
+  rating?: number;
+  /** @minimum 0 */
+  demo_completed_jobs?: number;
+  specialty?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface InventoryItem {
@@ -143,10 +159,72 @@ export const AnalysisUrgency = {
   Low: 'Low',
 } as const;
 
+export type AnalysisAnalysisSource = typeof AnalysisAnalysisSource[keyof typeof AnalysisAnalysisSource];
+
+
+export const AnalysisAnalysisSource = {
+  AI: 'AI',
+  Rules: 'Rules',
+} as const;
+
+export type JobComplexity = typeof JobComplexity[keyof typeof JobComplexity];
+
+
+export const JobComplexity = {
+  Easy: 'Easy',
+  Normal: 'Normal',
+  Hard: 'Hard',
+} as const;
+
 export interface Analysis {
   issue: string;
   parts: string[];
   urgency: AnalysisUrgency;
+  complexity?: JobComplexity;
+  rationale?: string;
+  analysis_source?: AnalysisAnalysisSource;
+}
+
+export type TechnicianRecommendationsSource = typeof TechnicianRecommendationsSource[keyof typeof TechnicianRecommendationsSource];
+
+
+export const TechnicianRecommendationsSource = {
+  AI: 'AI',
+  Rules: 'Rules',
+} as const;
+
+export type TechnicianRecommendationsRoutingStatus = typeof TechnicianRecommendationsRoutingStatus[keyof typeof TechnicianRecommendationsRoutingStatus];
+
+
+export const TechnicianRecommendationsRoutingStatus = {
+  ready: 'ready',
+  partial: 'partial',
+  not_configured: 'not_configured',
+  unavailable: 'unavailable',
+} as const;
+
+export interface TechnicianCandidate {
+  technician_id: number;
+  eligible: boolean;
+  reason: string;
+  /** @nullable */
+  distance_meters: number | null;
+  /** @nullable */
+  duration_seconds: number | null;
+  /** @nullable */
+  polyline: string | null;
+}
+
+export interface TechnicianRecommendations {
+  analysis_message_id: number;
+  complexity: JobComplexity;
+  /** @nullable */
+  recommended_technician_id: number | null;
+  summary: string;
+  source: TechnicianRecommendationsSource;
+  routing_status: TechnicianRecommendationsRoutingStatus;
+  routing_message: string;
+  candidates: TechnicianCandidate[];
 }
 
 export type ConversationMessageSenderRole = typeof ConversationMessageSenderRole[keyof typeof ConversationMessageSenderRole];
@@ -229,6 +307,7 @@ export interface ConversationSummary {
   id: number;
   customer_name: string;
   subject: string;
+  complexity?: JobComplexity;
   /** @nullable */
   customer_site_id: ConversationSummaryCustomerSiteId;
   source: ConversationSummarySource;

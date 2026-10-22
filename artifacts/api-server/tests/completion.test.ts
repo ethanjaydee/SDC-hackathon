@@ -17,6 +17,8 @@ test('completion validates assignment, persists atomically, never restores parts
     const { default: router } = await import(new URL('../src/hub.js', import.meta.url).href);
     process.chdir(cwd);
     db = new Database(resolve(dir, 'data/dispatch-hub.sqlite'));
+    // This suite tests completion, not demo skill assignment; use an expert fixture.
+    db.prepare('UPDATE technician_profiles SET level = 3 WHERE technician_id = 1').run();
     const app = express();
     app.use(express.json());
     app.use('/api', router);
@@ -39,7 +41,7 @@ test('completion validates assignment, persists atomically, never restores parts
     });
     const initial = await read();
     assert.equal(initial.technicians[2].status, 'Busy'); // seed Busy has no invented job
-    const analyzed = await post('analyze-request', { text: 'Synthetic power issue' });
+    const analyzed = await post('analyze-request', { text: 'Instrument cluster power failure' });
     assert.equal((await analyzed.json()).issue, 'Instrument Cluster Power Failure');
     const first = await approve();
     assert.equal(first.status, 200);
@@ -126,7 +128,7 @@ test('completion validates assignment, persists atomically, never restores parts
     assert.deepEqual(afterReset.inventory, activeBeforeReset.inventory);
     assert.equal(afterReset.activity_log.length, activeBeforeReset.activity_log.length + 1);
     const resetEvent = afterReset.activity_log[0];
-    assert.match(resetEvent.action_details, /^Technician availability reset: Tech C/);
+    assert.match(resetEvent.action_details, /^Technician availability reset: Ravi Kumar/);
     assert.equal(resetEvent.approved_by, 'Demo Dispatcher');
     assert.equal(resetEvent.dispatch, null);
     assert.equal(resetEvent.completion_dispatch_id, null);
@@ -207,7 +209,7 @@ test('migration activates only unambiguous Busy assignments and preserves unknow
     assert.equal(afterReset.technicians.find((tech) => tech.id === 2).status, 'Available');
     assert.deepEqual(afterReset.activity_log.filter((e) => [1, 2, 3, 4].includes(e.id)).map((e) => e.dispatch.status),
       ['Unknown', 'Unknown', 'Unknown', 'Active']);
-    assert.match(afterReset.activity_log[0].action_details, /^Technician availability reset: Tech B/);
+    assert.match(afterReset.activity_log[0].action_details, /^Technician availability reset: Mei Tan/);
     assert.equal((await complete(2)).status, 409);
     assert.equal((await complete(1)).status, 200);
     assert.equal(db.prepare('SELECT count(*) AS n FROM activity_log').get().n, 6);

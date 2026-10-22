@@ -3,10 +3,11 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Maximize2, MapPinned } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DEMO_CUSTOMER_SITES, distanceKm, getTechnicianLocation } from './demoLocations';
+import { DEMO_CUSTOMER_SITES, getTechnicianLocation } from './demoLocations';
 import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, fieldClass, techTone, type Hub, type Tone } from './shared';
 import { CompletionControl } from './CompletionControl';
 import { cn } from '@/lib/utils';
+import { LevelBadge, levelText } from './techMeta';
 
 type Readiness = 'Parts not checked' | 'Stock ready' | 'Missing parts';
 const readinessTone: Record<Readiness, Tone> = { 'Parts not checked': 'idle', 'Stock ready': 'ok', 'Missing parts': 'err' };
@@ -49,7 +50,7 @@ export default function MapPage({ hub }: Hub) {
       const ok = [...need].every(([p, q]) => inventory.some((i) => i.van_id === t.van_id && i.part_name.toLowerCase() === p && i.quantity >= q));
       readiness = ok ? 'Stock ready' : 'Missing parts';
     }
-    return { t, loc, km: loc ? distanceKm(loc, customerSite) : null, readiness, nearest: match?.id === t.id };
+    return { t, loc, readiness, nearest: match?.id === t.id };
   }), [technicians, inventory, analysis, customerSite, match]);
 
   useEffect(() => {
@@ -103,7 +104,7 @@ export default function MapPage({ hub }: Hub) {
       const busy = r.t.status !== 'Available';
       const mk = L.marker([r.loc.lat, r.loc.lng], { icon: pin(busy ? 'busy' : r.nearest ? 'best' : 'ok', r.t.name.split(' ').map((p) => p[0]).join('').slice(0, 2)), title: r.t.name });
       const pop = el('div', 'af-pop');
-      pop.append(el('b', '', r.t.name), el('span', '', `${r.t.zone} · ${r.t.status}`), el('span', '', `Van ${r.t.van_id} · ${r.readiness}`), el('span', '', `${r.km!.toFixed(1)} km straight-line to customer`));
+      pop.append(el('b', '', r.t.name), el('span', '', `${r.t.zone} · ${r.t.status}`), el('span', '', levelText(r.t)), el('span', '', `Van ${r.t.van_id} · ${r.readiness}`), el('span', '', 'Sample position · road distance not calculated'));
       mk.bindPopup(pop).on('click', () => setSelected(r.t.id)).addTo(g);
       markers.current[`t${r.t.id}`] = mk;
     });
@@ -134,7 +135,7 @@ export default function MapPage({ hub }: Hub) {
         </select>
         <Button type="button" variant="outline" onClick={fit}><Maximize2 size={13} /> Fit all</Button>
       </PageHead>
-      <p className="rounded-lg border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">Synthetic demo coordinates, not live GPS. Distances are straight-line, not driving routes or ETAs. Status and stock come from the live hub.</p>
+      <p className="rounded-lg border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">Synthetic demo coordinates, not live GPS. No distances or ETAs are shown here; road distance appears only in the dispatch review when Google routing is configured. Status and stock come from the live hub.</p>
       {hubQ.isError && <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Hub connection lost. Showing last known statuses.</InlineError>}
       {hub.completionError && <InlineError>{hub.completionError}</InlineError>}
       {tileErrors > 0 && <InlineError>Some map tiles could not be loaded. Sample locations and last-known statuses remain available in the list.</InlineError>}
@@ -144,7 +145,7 @@ export default function MapPage({ hub }: Hub) {
           <div ref={box} className="h-[52vh] min-h-[320px] w-full lg:h-[640px]" data-testid="map-canvas" aria-label="Map of technicians and customer" />
           <div className="flex flex-wrap gap-x-4 gap-y-1 border-t px-4 py-2 text-xs text-muted-foreground" aria-label="Legend">
             <span><i className="af-pin-sm customer" />S saved / D draft site</span><span><i className="af-pin-sm ok" />Available</span>
-            <span><i className="af-pin-sm best" />Nearest qualified</span><span><i className="af-pin-sm busy" />Busy</span>
+            <span><i className="af-pin-sm best" />Top qualified</span><span><i className="af-pin-sm busy" />Busy</span>
           </div>
         </div>
         <div className="min-w-0 space-y-4">
@@ -157,9 +158,10 @@ export default function MapPage({ hub }: Hub) {
                     <span className="flex items-center justify-between gap-2"><b className="truncate text-sm font-medium">{r.t.name}</b><StatusBadge tone={techTone(r.t.status)} pulse={r.t.status === 'Busy'}>{r.t.status}</StatusBadge></span>
                     <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                       <span>{r.t.zone}</span><Mono>V-{r.t.van_id}</Mono>
-                      <Mono>{r.loc ? `${r.km!.toFixed(1)} km` : 'No location'}</Mono>
+                      <LevelBadge tech={r.t} />
+                      <Mono>{r.loc ? 'Sample position' : 'No location'}</Mono>
                       <StatusBadge tone={readinessTone[r.readiness]}>{r.readiness}</StatusBadge>
-                      {r.nearest && <StatusBadge tone="ok">Nearest qualified</StatusBadge>}
+                      {r.nearest && <StatusBadge tone="ok">Top qualified</StatusBadge>}
                     </span>
                   </button>
                 ))}

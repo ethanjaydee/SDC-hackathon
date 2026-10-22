@@ -8,6 +8,7 @@
 
 export * from './activity';
 export * from './analysis';
+export * from './analysisAnalysisSource';
 export * from './analysisUrgency';
 export * from './apiFailure';
 export * from './conversationList';
@@ -28,6 +29,7 @@ export * from './healthStatus';
 export * from './hubData';
 export * from './invalidRequestResponse';
 export * from './inventoryItem';
+export * from './jobComplexity';
 export * from './listSupplierQuotesParams';
 export * from './reorderApprovalInput';
 export * from './reorderDraft';
@@ -56,6 +58,10 @@ export * from './supplierQuoteInput';
 export * from './supplierQuoteInputAvailabilityNote';
 export * from './supplierQuoteList';
 export * from './technician';
+export * from './technicianCandidate';
+export * from './technicianRecommendations';
+export * from './technicianRecommendationsRoutingStatus';
+export * from './technicianRecommendationsSource';
 export * from './technicianResetInput';
 export * from './technicianStatus';
 export * from './telegramReplyInput';

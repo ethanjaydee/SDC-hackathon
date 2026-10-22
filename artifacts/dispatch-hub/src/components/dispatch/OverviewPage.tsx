@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, EmptyState, InlineError, Mono, PageHead, StatusBadge, dateTime, type Hub } from './shared';
 import StatusRing from './StatusRing';
 
-type MetricKey = 'available' | 'stock' | 'healthy';
+type MetricKey = 'available' | 'stock';
 type ShortcutKey = 'today' | 'low-stock';
 
 export default function OverviewPage({ hub }: Hub) {
@@ -18,13 +18,11 @@ export default function OverviewPage({ hub }: Hub) {
   const triggers = useRef<Partial<Record<MetricKey, HTMLButtonElement | null>>>({});
   const ready = !!hubQ.data;
   const positiveStock = inventory.filter((l) => l.quantity > 0);
-  const healthyStock = inventory.filter((l) => l.quantity > 2);
   const latest = activity.slice(0, 5);
   const describe = (l: (typeof inventory)[number]) => `Van ${l.van_id} · ${l.part_name} · ${l.quantity} on hand`;
   const metrics = [
     { key: 'available' as const, label: 'Available', criteria: 'Available / all technicians', numerator: availableCount, denominator: technicians.length, colorClass: 'text-idle', title: 'Technician roster', lines: technicians.map((t) => `${t.name} · ${t.status} · ${t.zone}`), to: '/technicians' },
     { key: 'stock' as const, label: 'Stock on hand', criteria: 'Positive lines / all lines', numerator: positiveStock.length, denominator: inventory.length, colorClass: 'text-ok', title: 'Stock-positive inventory lines', lines: positiveStock.map(describe), to: '/stock' },
-    { key: 'healthy' as const, label: 'Above threshold', criteria: 'More than 2 / all lines', numerator: healthyStock.length, denominator: inventory.length, colorClass: 'text-primary', title: 'Above the low-stock threshold', lines: healthyStock.map(describe), to: '/stock' },
   ];
   const todayDispatches = activity.filter((entry) =>
     entry.completion_dispatch_id == null &&
@@ -85,7 +83,7 @@ export default function OverviewPage({ hub }: Hub) {
           className="lg:flex lg:flex-col" bodyClassName="lg:flex lg:flex-1 lg:flex-col lg:justify-center">
           <div
             className={`mx-auto grid w-full gap-2 transition-[max-width,grid-template-columns] duration-500 ease-out motion-reduce:transition-none ${
-              detail ? 'max-w-4xl grid-cols-1 sm:grid-cols-2' : 'max-w-3xl grid-cols-1 sm:grid-cols-3'
+              detail ? 'max-w-4xl grid-cols-1 sm:grid-cols-2' : 'max-w-2xl grid-cols-1 sm:grid-cols-2'
             }`}
             data-testid="overview-status-rings"
             aria-busy={hubQ.isLoading}

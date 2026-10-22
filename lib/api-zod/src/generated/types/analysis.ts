@@ -5,10 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AnalysisAnalysisSource } from './analysisAnalysisSource';
 import type { AnalysisUrgency } from './analysisUrgency';
+import type { JobComplexity } from './jobComplexity';
 
 export interface Analysis {
   issue: string;
   parts: string[];
   urgency: AnalysisUrgency;
+  complexity?: JobComplexity;
+  rationale?: string;
+  analysis_source?: AnalysisAnalysisSource;
 }

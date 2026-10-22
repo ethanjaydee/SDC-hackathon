@@ -22,6 +22,8 @@ test('additive migration preserves legacy history and atomically saves canonical
     process.chdir(dir);
     const { default: router } = await import(moduleUrl);
     process.chdir(cwd);
+    // Migration/atomicity fixtures need verified experts for the electrical parts.
+    db.prepare('UPDATE technician_profiles SET level = 3 WHERE technician_id IN (1, 2)').run();
     const app = express();
     app.use(express.json());
     app.use('/api', router);
@@ -49,7 +51,7 @@ test('additive migration preserves legacy history and atomically saves canonical
     const saved = await result.json();
     const entry = saved.activity_log[0];
     assert.deepEqual(entry.dispatch, {
-      tech_id: 1, technician_name: 'Tech A', van_id: 1,
+      tech_id: 1, technician_name: 'Amir Hakim', van_id: 1,
       parts: input.parts, customer_site: demoSites.central,
       status: 'Active', completed_at: null, conversation_id: null,
     });

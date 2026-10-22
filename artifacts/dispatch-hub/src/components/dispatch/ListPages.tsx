@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowRight, Boxes, CheckCircle2, History, LockKeyhole, RotateCcw, Users } from 'lucide-react';
-import type { Activity, InventoryItem, Technician } from '@workspace/api-client-react';
+import type { Activity, Technician } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { Card, ConfirmAction, EmptyState, InlineError, Mono, PageHead, StatusBadge, TechRow, dateTime, fieldClass, initials, techTone, type Hub } from './shared';
+import { Card, ConfirmAction, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, TechRow, dateTime, initials, techTone, type Hub } from './shared';
 import { CompletionControl } from './CompletionControl';
-import { CompletionProofSamples } from './CompletionProofSamples';
+import { LevelBadge, ratingText } from './techMeta';
+import { WorkBadges } from './ServiceHistory';
 import { DataTable, FilterChips, type Column } from './DataTable';
 const TechnicianFilters = FilterChips<'all' | 'Available' | 'Busy'>;
 const EventFilters = FilterChips<'all' | 'Approved' | 'Completed' | 'Reset'>;
@@ -48,14 +49,16 @@ export function TechniciansPage({ hub }: Hub) {
     { key: 'name', header: 'Technician', sort: (t) => t.name, cell: (t) => (
       <span className="flex items-center gap-2" data-testid={`technician-${t.id}`}><span className="grid h-7 w-7 place-items-center rounded-full bg-secondary font-mono text-[11px]">{initials(t.name)}</span><span className="font-medium">{t.name}</span></span>) },
     { key: 'status', header: 'Status', sort: (t) => t.status, cell: (t) => <StatusBadge tone={techTone(t.status)} pulse={t.status === 'Busy'}>{t.status}</StatusBadge> },
-    { key: 'zone', header: 'Zone', sort: (t) => t.zone, cell: (t) => t.zone },
+    { key: 'level', header: 'Level', sort: (t) => t.level ?? 1, cell: (t) => <LevelBadge tech={t} /> },
+    { key: 'rating', header: 'Rating · jobs', sort: (t) => t.rating ?? 0, cell: (t) => <span className="whitespace-nowrap text-xs">★ <Mono>{ratingText(t)}</Mono> · <Mono>{t.demo_completed_jobs ?? 0}</Mono> <span className="text-muted-foreground">demo</span></span> },
+    { key: 'zone', header: 'Zone', sort: (t) => t.zone, cell: (t) => <span>{t.zone}{t.specialty && <span className="block text-[11px] text-muted-foreground">{t.specialty}</span>}</span> },
     { key: 'van', header: 'Van', sort: (t) => t.van_id, cell: (t) => <Mono>V-{t.van_id}</Mono> },
     { key: 'actions', header: 'Assignment', cell: actions },
   ];
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Team" title="Technicians" sub="Status and van assignment from the hub.">
+      <PageHead kicker="Team" title="Technicians" sub="Level, status and van. Ratings and job counts are demo data; positions are samples.">
         <Button asChild variant="outline"><Link href="/map">Open map <ArrowRight size={13} /></Link></Button>
       </PageHead>
       {hub.completionError && <InlineError>{hub.completionError}</InlineError>}
@@ -67,7 +70,7 @@ export function TechniciansPage({ hub }: Hub) {
             initialSort={{ key: 'name', dir: 'asc' }}
             toolbar={<TechnicianFilters label="Status filter" value={status} onChange={setStatus} options={[{ value: 'all', label: 'All' }, { value: 'Available', label: 'Available' }, { value: 'Busy', label: 'Busy' }]} />}
             empty={<EmptyState icon={<Users size={16} />} title="No technicians match">Try another filter.</EmptyState>}
-            mobile={(t) => <div className="space-y-2 rounded-lg border p-3"><TechRow tech={t} />{actions(t)}</div>}
+            mobile={(t) => <div className="space-y-2 rounded-lg border p-3"><TechRow tech={t} /><LevelBadge tech={t} />{actions(t)}</div>}
           />
         )}
       </Card>
@@ -76,49 +79,55 @@ export function TechniciansPage({ hub }: Hub) {
 }
 
 export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean }) {
-  const { inventory, hubQ, match, analysis } = hub;
-  const [van, setVan] = useState('all');
-  const vans = useMemo(() => [...new Set(inventory.map((i) => i.van_id))].sort((a, b) => a - b), [inventory]);
-  const base = lowOnly ? inventory.filter((i) => i.quantity <= 2) : inventory;
-  const rows = van === 'all' ? base : base.filter((i) => String(i.van_id) === van);
-  const required = (i: InventoryItem) => i.van_id === match?.van_id && !!analysis?.result.parts.some((p) => p.toLowerCase() === i.part_name.toLowerCase());
-  const qty = (i: InventoryItem) => (
-    <span data-testid={`text-qty-${i.id}`} className={`inline-flex min-w-8 justify-center rounded-md px-1.5 py-0.5 font-mono font-semibold tabular ${i.quantity <= 2 ? 'bg-pending/12 text-pending' : ''}`}>{i.quantity}</span>
-  );
-  const columns: Column<InventoryItem>[] = [
-    { key: 'van', header: 'Van', sort: (i) => i.van_id, cell: (i) => <Mono>V-{i.van_id}</Mono> },
-    { key: 'part', header: 'Part', sort: (i) => i.part_name, cell: (i) => <span className="flex items-center gap-2">{i.part_name}{required(i) && <StatusBadge tone="ok">Match part</StatusBadge>}</span> },
-    { key: 'qty', header: 'On hand', sort: (i) => i.quantity, cell: qty, className: 'text-right' },
-  ];
+  const { inventory, technicians, hubQ } = hub;
+  const [van, setVan] = useState<number | null>(null);
+  const vans = useMemo(() => [...new Set(inventory.map((i) => i.van_id))].sort((a, b) => a - b).slice(0, 3), [inventory]);
+  const lines = (v: number) => inventory.filter((i) => i.van_id === v && (!lowOnly || i.quantity <= 2)).sort((a, b) => a.part_name.localeCompare(b.part_name));
+  const active = van != null && vans.includes(van) ? van : null;
+  const owner = (v: number) => technicians.filter((t) => t.van_id === v).map((t) => t.name).join(', ');
   return (
     <div className="space-y-5">
-      <PageHead kicker="Inventory" title={lowOnly ? 'Low-stock lines' : 'Van stock'} sub={lowOnly ? 'Items at two units or fewer.' : 'On-hand parts per van.'}>
+      <PageHead kicker="Inventory" title={lowOnly ? 'Low-stock lines' : 'Van stock'} sub={lowOnly ? 'Items at two units or fewer.' : 'Pick a van to see every part on board.'}>
         {lowOnly ? <Button asChild variant="outline"><Link href="/stock">All stock</Link></Button>
           : <Button asChild variant="outline"><Link href="/stock/low">Low stock only</Link></Button>}
       </PageHead>
-      <Card title={<><Boxes size={15} /> {lowOnly ? 'Low-stock lines' : 'Stock lines'}</>} aside={<Mono>{rows.length} SKU lines</Mono>}>
-        {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Inventory data unavailable.</InlineError> : (
-          <DataTable caption="Stock lines" rows={rows} columns={columns} rowKey={(i) => i.id} loading={hubQ.isLoading}
-            pageSize={12} initialSort={lowOnly ? { key: 'qty', dir: 'asc' } : { key: 'van', dir: 'asc' }}
-            searchText={(i) => i.part_name} searchLabel="Filter parts"
-            rowProps={(i) => ({ className: required(i) ? 'bg-ok/[0.06]' : '', 'data-testid': lowOnly ? `low-stock-${i.id}` : undefined })}
-            toolbar={vans.length > 1 && (
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">Van
-                <select className={`${fieldClass} min-h-9 w-auto py-1`} value={van} onChange={(e) => setVan(e.target.value)} aria-label="Filter by van">
-                  <option value="all">All vans</option>{vans.map((v) => <option key={v} value={v}>Van {v}</option>)}
-                </select>
-              </label>
-            )}
-            empty={<EmptyState icon={<Boxes size={16} />} title={lowOnly ? 'No low-stock lines right now' : 'No stock items found'}>{lowOnly ? 'Every line is above two units.' : 'Adjust the filters.'}</EmptyState>}
-             mobile={(i) => (
-               <div className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${required(i) ? 'bg-ok/[0.06]' : ''}`} data-testid={lowOnly ? `low-stock-${i.id}` : undefined}>
-                 <div className="min-w-0"><div className="truncate font-medium">{i.part_name}</div><Mono className="text-xs text-muted-foreground">V-{i.van_id}</Mono></div>
-                {qty(i)}
+      <Card title={<><Boxes size={15} /> {lowOnly ? 'Low-stock lines' : 'Vans'}</>} aside={<Mono>{vans.length} vans</Mono>}>
+        {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Inventory data unavailable.</InlineError>
+          : hubQ.isLoading ? <SkeletonRows rows={3} label="Loading vans" />
+          : vans.length === 0 ? <EmptyState icon={<Boxes size={16} />} title="No stock items found">Van stock appears when the hub has data.</EmptyState> : (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3" role="group" aria-label="Choose a van">
+              {vans.map((v) => {
+                const all = inventory.filter((i) => i.van_id === v);
+                const low = all.filter((i) => i.quantity <= 2).length;
+                const on = active === v;
+                return (
+                  <button key={v} type="button" aria-pressed={on} onClick={() => setVan(on ? null : v)} data-testid={`van-card-${v}`}
+                    className={`rounded-xl border p-4 text-left transition-[border-color,background-color] duration-200 motion-reduce:transition-none ${on ? 'border-primary/50 bg-accent/60' : 'border-card-border bg-card hover:border-primary/30'}`}>
+                    <span className="flex items-center justify-between"><span className="font-display text-lg font-semibold">Van {v}</span>{low > 0 && <StatusBadge tone="pending">{low} low</StatusBadge>}</span>
+                    <span className="mt-1 block truncate text-xs text-muted-foreground">{owner(v) || 'Unassigned'}</span>
+                    <Mono className="mt-2 block text-xs text-muted-foreground">{all.length} parts · {all.reduce((s, i) => s + i.quantity, 0)} units</Mono>
+                  </button>
+                );
+              })}
+            </div>
+            {active == null ? <p className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">Select a van to list its parts and quantities.</p> : (
+              <div className="dh-rise" data-testid={`van-parts-${active}`}>
+                {lines(active).length === 0 ? <EmptyState icon={<Boxes size={16} />} title={lowOnly ? 'No low-stock lines in this van' : 'No parts in this van'}>{lowOnly ? 'Every line is above two units.' : 'Nothing is recorded for this van.'}</EmptyState> : (
+                  <ul className="divide-y rounded-lg border">
+                    {lines(active).map((i) => (
+                      <li key={i.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm" data-testid={lowOnly ? `low-stock-${i.id}` : undefined}>
+                        <span className="min-w-0 truncate">{i.part_name}</span>
+                        <span data-testid={`text-qty-${i.id}`} className={`inline-flex min-w-8 justify-center rounded-md px-1.5 py-0.5 font-mono font-semibold tabular ${i.quantity <= 2 ? 'bg-pending/12 text-pending' : ''}`}>{i.quantity}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
-          />
+          </div>
         )}
-        <p className="mt-3 text-xs text-muted-foreground">{lowOnly ? 'Low stock is two units or fewer.' : 'Amber quantities are at two units or fewer. Match-part rows belong to the current qualified technician.'}</p>
+        <p className="mt-3 text-xs text-muted-foreground">Amber quantities are two units or fewer.</p>
       </Card>
     </div>
   );
@@ -155,11 +164,16 @@ export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: stri
   ];
   return (
     <div className="space-y-5">
-      <PageHead kicker={todayOnly ? 'Today' : 'Audit'} title={todayOnly ? "Today's dispatches" : 'Dispatch log'} sub={todayOnly ? 'Approved allocations recorded today.' : 'Every approval, completion and reset.'}>
+      <PageHead kicker={todayOnly ? 'Today' : 'Audit'} title={todayOnly ? "Today's dispatches" : 'Service History'} sub={todayOnly ? 'Approved allocations recorded today.' : 'Every approval, completion and reset.'}>
         <Button asChild variant="outline"><Link href={todayOnly ? '/log' : '/today'}>{todayOnly ? 'Full log' : 'Today only'}</Link></Button>
       </PageHead>
       {notice && <div className="dh-rise flex items-center gap-2 rounded-lg border border-ok/30 bg-ok/[0.08] px-4 py-2.5 text-sm" role="status" data-testid="status-dispatch-success"><CheckCircle2 size={15} className="text-ok" /> {notice}</div>}
-      {!todayOnly && (kind === 'all' || kind === 'Completed') && <CompletionProofSamples />}
+      {!todayOnly && <WorkBadges technicians={hub.technicians} activity={activity} />}
+      <details className="group" open={todayOnly || !!notice || undefined} data-testid="audit-section">
+        {!todayOnly && <summary className="mb-3 flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+          <span className="inline-flex items-center gap-2"><LockKeyhole size={14} /> Actual audit history <Mono className="text-muted-foreground">({activity.length})</Mono></span>
+          <span className="text-xs text-muted-foreground">Append-only · legacy entries stay as recorded</span>
+        </summary>}
       <Card title={<><History size={15} /> Dispatch audit log</>} aside={<span className="inline-flex items-center gap-1"><LockKeyhole size={11} /> Immutable record</span>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Dispatch history unavailable until the hub reconnects.</InlineError> : (
           <DataTable caption="Dispatch log" rows={rows} columns={columns} rowKey={(e) => e.id} loading={hubQ.isLoading}
@@ -177,6 +191,7 @@ export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: stri
           />
         )}
       </Card>
+      </details>
     </div>
   );
 }

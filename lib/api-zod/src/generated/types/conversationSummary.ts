@@ -8,12 +8,14 @@
 import type { ConversationMessage } from './conversationMessage';
 import type { ConversationSummaryCustomerSiteId } from './conversationSummaryCustomerSiteId';
 import type { ConversationSummarySource } from './conversationSummarySource';
+import type { JobComplexity } from './jobComplexity';
 
 export interface ConversationSummary {
   /** @minimum 1 */
   id: number;
   customer_name: string;
   subject: string;
+  complexity?: JobComplexity;
   /** @nullable */
   customer_site_id: ConversationSummaryCustomerSiteId;
   source: ConversationSummarySource;

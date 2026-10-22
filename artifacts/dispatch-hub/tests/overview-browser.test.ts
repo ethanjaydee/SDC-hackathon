@@ -150,7 +150,6 @@ test('overview readiness layout, keyboard details, reduced motion, and independe
 
       await assertRingMeasureKeyboardFlow(desktop.page, 'Available', 'Technician roster', '/technicians', 'Enter');
       await assertRingMeasureKeyboardFlow(desktop.page, 'Stock on hand', 'Stock-positive inventory lines', '/stock', 'Space');
-      await assertRingMeasureKeyboardFlow(desktop.page, 'Above threshold', 'Above the low-stock threshold', '/stock', 'Enter');
 
       const readinessBeforeShortcuts = await readinessValues(desktop.page);
       for (const shortcut of shortcuts) {

@@ -16,7 +16,7 @@ export function MessagingConnectionNotice() {
       ? 'The receiver status could not be checked. It refreshes automatically.'
       : status?.configured
         ? 'Verifying the bot and starting its receiver…'
-        : 'No Telegram bot token is configured. Existing saved conversations remain available for mock AI review.');
+        : 'No Telegram bot token is configured. Existing saved conversations remain available for review.');
   return (
     <section aria-label="Customer messaging connection" className="rounded-lg border border-card-border bg-secondary/40 p-3" data-testid="messaging-connection-status">
       <div className="flex flex-wrap items-center gap-2">

@@ -7,7 +7,7 @@ import { rankQualifiedTechnicians } from '../src/components/dispatch/matching';
 function hubData(): HubData {
   return {
     technicians: [1, 2, 3, 99].map((id) => ({
-      id, name: `Tech ${id}`, status: 'Available', zone: 'Sample zone', van_id: id,
+      id, name: `Tech ${id}`, status: 'Available', zone: 'Sample zone', van_id: id, level: 3,
     })),
     inventory: [1, 2, 3, 99].flatMap((van_id) => [
       { id: van_id * 10, van_id, part_name: '100uF Capacitor', quantity: 3 },
@@ -40,12 +40,23 @@ test('only available technicians with all required parts qualify', () => {
   hub.inventory.find((item) => item.van_id === 2 && item.part_name === 'NPN Transistor')!.quantity = 0;
   assert.deepEqual(rankQualifiedTechnicians(hub, parts, customer).map((tech) => tech.id), [3, 99]);
 });
-test('nearest qualified technicians rank first, and unknown locations rank last', () => {
+test('qualification order does not pretend straight-line proximity is Google driving distance', () => {
   const hub = hubData();
+  hub.technicians[1].rating = 4.9;
   const matches = rankQualifiedTechnicians(hub, parts, customer);
-  const ordered = matches.slice(0, -1).map((tech) => distanceKm(getTechnicianLocation(tech.id)!, customer));
-  assert.deepEqual(ordered, [...ordered].sort((a, b) => a - b));
-  assert.equal(matches.at(-1)?.id, 99);
+  assert.equal(matches[0]?.id, 2);
+  assert.deepEqual(matches.slice(1).map((tech) => tech.id), [1, 3, 99]);
+});
+test('easy favors interns, hard excludes juniors, and an active shared van blocks allocation', () => {
+  const hub = hubData();
+  hub.technicians[0].level = 1;
+  hub.technicians[1].level = 2;
+  hub.technicians[2].level = 3;
+  assert.deepEqual(rankQualifiedTechnicians(hub, parts, customer, 'Hard').map((t) => t.id), [3, 99]);
+  assert.equal(rankQualifiedTechnicians(hub, parts, customer, 'Easy')[0]?.id, 1);
+  hub.activity_log.push({ id: 1, timestamp: '', action_details: '', approved_by: '', completion_dispatch_id: null,
+    dispatch: { tech_id: 77, technician_name: '', van_id: 3, parts, customer_site: DEMO_CUSTOMER_SITES[0], status: 'Active', completed_at: null, conversation_id: null } });
+  assert.equal(rankQualifiedTechnicians(hub, parts, customer, 'Hard').some((t) => t.id === 3), false);
 });
 test('repeated required parts need enough stock and match case-insensitively', () => {
   const hub = hubData();

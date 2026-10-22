@@ -9,15 +9,24 @@ export interface DemoLocation {
 }
 
 export const DEMO_CUSTOMER_SITES: DemoCustomerSite[] = [
-  { id: 'north', label: 'Demo customer · North service site', area: 'North Zone', lat: 3.1794, lng: 101.6888 },
-  { id: 'central', label: 'Demo customer · Central service site', area: 'Central Zone', lat: 3.1525, lng: 101.7166 },
-  { id: 'south', label: 'Demo customer · South service site', area: 'South Zone', lat: 3.1095, lng: 101.7043 },
+  { id: 'north', label: 'Demo customer · Petaling Jaya', area: 'Petaling Jaya', lat: 3.1073, lng: 101.6067 },
+  { id: 'central', label: 'Demo customer · Puchong', area: 'Puchong', lat: 3.0327, lng: 101.6188 },
+  { id: 'south', label: 'Demo customer · Cheras', area: 'Cheras', lat: 3.0993, lng: 101.7428 },
 ];
 
 const TECHNICIAN_POSITIONS: Record<number, DemoLocation> = {
-  1: { label: 'North Zone sample position', lat: 3.1853, lng: 101.6755 },
-  2: { label: 'Central Zone sample position', lat: 3.1467, lng: 101.6999 },
-  3: { label: 'South Zone sample position', lat: 3.1132, lng: 101.6868 },
+  1: { label: 'Petaling Jaya · sample position', lat: 3.109, lng: 101.633 },
+  2: { label: 'Puchong · sample position', lat: 3.025, lng: 101.617 },
+  3: { label: 'Cheras · sample position', lat: 3.101, lng: 101.738 },
+  4: { label: 'Subang Jaya · sample position', lat: 3.057, lng: 101.585 },
+  5: { label: 'Kepong · sample position', lat: 3.215, lng: 101.638 },
+  6: { label: 'Bukit Jalil · sample position', lat: 3.061, lng: 101.691 },
+  7: { label: 'Setapak · sample position', lat: 3.193, lng: 101.716 },
+  8: { label: 'Sri Petaling · sample position', lat: 3.07, lng: 101.69 },
+  9: { label: 'Bangsar · sample position', lat: 3.13, lng: 101.668 },
+  10: { label: 'Ampang · sample position', lat: 3.148, lng: 101.76 },
+  11: { label: 'Damansara · sample position', lat: 3.157, lng: 101.611 },
+  12: { label: 'Sentul · sample position', lat: 3.184, lng: 101.689 },
 };
 
 export function getTechnicianLocation(technicianId: number): DemoLocation | undefined {
