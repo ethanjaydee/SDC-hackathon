@@ -8,6 +8,8 @@ import { CompletionControl } from './CompletionControl';
 import { LevelBadge, ratingText } from './techMeta';
 import { WorkBadges } from './ServiceHistory';
 import { DataTable, FilterChips, type Column } from './DataTable';
+import { ANALYTICS_YEARS, MONTHS } from './workshopAnalytics';
+import { RestockSuggestion } from './RestockSuggestion';
 const TechnicianFilters = FilterChips<'all' | 'Available' | 'Busy'>;
 const EventFilters = FilterChips<'all' | 'Approved' | 'Completed' | 'Reset'>;
 
@@ -81,6 +83,8 @@ export function TechniciansPage({ hub }: Hub) {
 export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean }) {
   const { inventory, technicians, hubQ } = hub;
   const [van, setVan] = useState<number | null>(null);
+  const [planYear, setPlanYear] = useState<number>(ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1]);
+  const [planMonth, setPlanMonth] = useState(1);
   const vans = useMemo(() => [...new Set(inventory.map((i) => i.van_id))].sort((a, b) => a - b).slice(0, 3), [inventory]);
   const lines = (v: number) => inventory.filter((i) => i.van_id === v && (!lowOnly || i.quantity < 5)).sort((a, b) => a.part_name.localeCompare(b.part_name));
   const active = van != null && vans.includes(van) ? van : null;
@@ -91,6 +95,12 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
         {lowOnly ? <Button asChild variant="outline"><Link href="/stock">All stock</Link></Button>
           : <Button asChild variant="outline"><Link href="/stock/low">Low stock only</Link></Button>}
       </PageHead>
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+        <span className="text-sm font-medium">Restock planning period</span>
+        <label className="text-xs">Year <select aria-label="Restock sample year" className="ml-1 rounded-md border bg-background p-2" value={planYear} onChange={(e) => setPlanYear(Number(e.target.value))}>{ANALYTICS_YEARS.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+        <label className="text-xs">Month <select aria-label="Restock sample month" className="ml-1 rounded-md border bg-background p-2" value={planMonth} onChange={(e) => setPlanMonth(Number(e.target.value))}>{MONTHS.map((month, i) => <option key={month} value={i + 1}>{month}</option>)}</select></label>
+        <p className="w-full text-xs text-muted-foreground">Sample month usage + 5 spare − fleet stock = suggested purchase. The amount is shared across vans, not per van.</p>
+      </div>
       <Card title={<><Boxes size={15} /> {lowOnly ? 'Low-stock lines' : 'Vans'}</>} aside={<Mono>{vans.length} vans</Mono>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Inventory data unavailable.</InlineError>
           : hubQ.isLoading ? <SkeletonRows rows={3} label="Loading vans" />
@@ -116,9 +126,10 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
                 {lines(active).length === 0 ? <EmptyState icon={<Boxes size={16} />} title={lowOnly ? 'No low-stock lines in this van' : 'No parts in this van'}>{lowOnly ? 'Every line has five units or more.' : 'Nothing is recorded for this van.'}</EmptyState> : (
                   <ul className="divide-y rounded-lg border">
                     {lines(active).map((i) => (
-                      <li key={i.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm" data-testid={lowOnly ? `low-stock-${i.id}` : undefined}>
-                        <span className="min-w-0 truncate">{i.part_name}</span>
+                      <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 text-sm" data-testid={lowOnly ? `low-stock-${i.id}` : undefined}>
+                        <span className="min-w-0 flex-1">{i.part_name}</span>
                         <span data-testid={`text-qty-${i.id}`} className={`inline-flex min-w-8 justify-center rounded-md px-1.5 py-0.5 font-mono font-semibold tabular ${i.quantity < 5 ? 'bg-pending/12 text-pending' : ''}`}>{i.quantity}</span>
+                        {i.quantity < 5 && <RestockSuggestion item={i} inventory={inventory} year={planYear} month={planMonth} stale={hubQ.isError} />}
                       </li>
                     ))}
                   </ul>

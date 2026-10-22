@@ -58,3 +58,23 @@ export function getStockPlan(partName: UsagePart, year: number, month: number, i
     }),
   };
 }
+
+/** A purchase is planned once for the whole fleet, never multiplied by van count. */
+export function getInventoryRestockSuggestion(partName: string, year: number, month: number, vanId: number, inventory?: readonly StockLine[]) {
+  checkYear(year);
+  if (!Number.isInteger(month) || month < 1 || month > 12) throw new RangeError('Choose month 1–12.');
+  const supported = USAGE_PARTS.find((part) => part.toLowerCase() === partName.toLowerCase());
+  const matching = inventory?.filter((line) => line.part_name.toLowerCase() === partName.toLowerCase());
+  const fleetStock = matching?.reduce((sum, line) => sum + line.quantity, 0) ?? null;
+  const vanStock = matching?.filter((line) => line.van_id === vanId).reduce((sum, line) => sum + line.quantity, 0) ?? null;
+  const plan = supported ? getStockPlan(supported, year, month, inventory) : null;
+  const targetStock = plan?.targetStock ?? SAFETY_STOCK;
+  return {
+    partName, monthlyUsage: plan?.monthlyUsage ?? null,
+    averageMonthlyUsage: plan?.averageMonthlyUsage ?? null,
+    targetStock, fleetStock, vanStock,
+    vanTopUp: vanStock == null ? null : Math.max(0, LOW_STOCK_THRESHOLD - vanStock),
+    suggestedBuy: fleetStock == null ? null : Math.max(0, targetStock - fleetStock),
+    hasUsageData: supported != null,
+  };
+}
