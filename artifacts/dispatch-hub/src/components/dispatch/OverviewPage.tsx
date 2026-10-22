@@ -1,217 +1,261 @@
-import { useRef, useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
-import { ArrowRight, Boxes, ChevronDown, History, Inbox, PackageCheck, X } from 'lucide-react';
+import { ArrowRight, Boxes, History, Inbox, PackageCheck, UserRound } from 'lucide-react';
 import { useUser } from '@clerk/react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, EmptyState, InlineError, Mono, PageHead, StatusBadge, dateTime, type Hub } from './shared';
-import StatusRing from './StatusRing';
-
-type MetricKey = 'available' | 'stock';
-type ShortcutKey = 'today' | 'low-stock';
 
 export default function OverviewPage({ hub }: Hub) {
-  const { hubQ, technicians, inventory, availableCount, lowStockCount, dispatchedToday, activity } = hub;
+  const { hubQ, technicians, inventory, dispatchedToday, activity } = hub;
   const { user } = useUser();
-  const [detail, setDetail] = useState<MetricKey | null>(null);
-  const [shortcutDetail, setShortcutDetail] = useState<ShortcutKey | null>(null);
-  const triggers = useRef<Partial<Record<MetricKey, HTMLButtonElement | null>>>({});
+  const [rosterOpen, setRosterOpen] = useState(false);
   const ready = !!hubQ.data;
-  const positiveStock = inventory.filter((l) => l.quantity > 0);
-  const latest = activity.slice(0, 5);
-  const describe = (l: (typeof inventory)[number]) => `Van ${l.van_id} · ${l.part_name} · ${l.quantity} on hand`;
-  const metrics = [
-    { key: 'available' as const, label: 'Available', criteria: 'Available / all technicians', numerator: availableCount, denominator: technicians.length, colorClass: 'text-idle', title: 'Technician roster', lines: technicians.map((t) => `${t.name} · ${t.status} · ${t.zone}`), to: '/technicians' },
-    { key: 'stock' as const, label: 'Stock on hand', criteria: 'Positive lines / all lines', numerator: positiveStock.length, denominator: inventory.length, colorClass: 'text-ok', title: 'Stock-positive inventory lines', lines: positiveStock.map(describe), to: '/stock' },
-  ];
-  const todayDispatches = activity.filter((entry) =>
-    entry.completion_dispatch_id == null &&
-    entry.action_details.startsWith('Dispatch approved:') &&
-    new Date(entry.timestamp).toDateString() === new Date().toDateString(),
-  );
-  const lowStockItems = inventory.filter((item) => item.quantity < 5);
-  const counts = [
-    { key: 'today' as const, to: '/today', label: 'Dispatches today', value: ready ? dispatchedToday : null, foot: 'Approved allocations', Icon: PackageCheck, aria: ready ? `Open today's ${dispatchedToday} dispatches` : 'Open today’s dispatch log', tone: '' },
-    { key: 'low-stock' as const, to: '/stock/low', label: 'Low-stock lines', value: ready ? lowStockCount : null, foot: 'Fewer than 5 units', Icon: Boxes, aria: ready ? `Open ${lowStockCount} low-stock lines` : 'Open low-stock inventory', tone: lowStockCount ? 'text-pending' : '' },
-  ];
+  const availableCount = technicians.filter((tech) => tech.status === 'Available').length;
+  const totalUnits = inventory.reduce((sum, line) => sum + line.quantity, 0);
+  const lowStockItems = inventory.filter((line) => line.quantity < 5);
+  const latest = activity.slice(0, 4);
   const displayName = user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'Technician';
-
-  const shortcutDetails = (key: ShortcutKey) => {
-    if (key === 'today') {
-      if (hubQ.isLoading && !hubQ.data) return <div className="space-y-2" role="status" aria-label="Loading today's dispatches"><Skeleton className="h-10" /><Skeleton className="h-10" /></div>;
-      if (!ready && hubQ.isError) return <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Today's dispatches are unavailable until the hub reconnects.</InlineError>;
-      if (!todayDispatches.length) return <p className="text-sm text-muted-foreground">No dispatches recorded today.</p>;
-      return (
-        <ol className="max-h-56 space-y-2 overflow-y-auto pr-1">
-          {todayDispatches.map((entry) => (
-            <li key={entry.id} data-testid={`overview-today-dispatch-${entry.id}`} className="flex min-w-0 items-start justify-between gap-3 rounded-md border bg-background/60 px-3 py-2">
-              <span className="min-w-0 text-xs leading-relaxed">{entry.action_details}</span>
-              <Mono className="shrink-0 text-[10px] text-muted-foreground"><time dateTime={entry.timestamp}>{dateTime(entry.timestamp)}</time></Mono>
-            </li>
-          ))}
-        </ol>
-      );
-    }
-    if (key === 'low-stock') {
-      if (hubQ.isLoading && !hubQ.data) return <div className="space-y-2" role="status" aria-label="Loading low-stock items"><Skeleton className="h-10" /><Skeleton className="h-10" /></div>;
-      if (!ready && hubQ.isError) return <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Low-stock inventory is unavailable until the hub reconnects.</InlineError>;
-      if (!lowStockItems.length) return <p className="text-sm text-muted-foreground">No inventory lines are below 5 units.</p>;
-      return (
-        <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
-          {lowStockItems.map((item) => (
-            <li key={item.id} data-testid={`overview-low-stock-${item.id}`} className="flex min-w-0 items-center justify-between gap-3 rounded-md border bg-background/60 px-3 py-2">
-              <span className="min-w-0 truncate text-xs">Van {item.van_id} · {item.part_name}</span>
-              <span className={`shrink-0 rounded-md px-2 py-1 font-mono text-xs font-semibold tabular ${item.quantity === 0 ? 'bg-err/10 text-err' : 'bg-pending/10 text-pending'}`}>
-                {item.quantity} on hand
-              </span>
-            </li>
-          ))}
-        </ul>
-      );
-    }
-    return null;
-  };
+  const readinessTone = !ready ? 'pending' : hubQ.isError ? 'err' : 'ok';
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Workshop · dispatch overview" title={`Welcome ${displayName}.`} sub="Technician availability and van readiness before a repair leaves the desk.">
-      <Button asChild><Link href="/intake"><Inbox size={15} /> Open customer conversations <ArrowRight size={14} /></Link></Button>
+      <PageHead
+        kicker="Workshop · dispatch overview"
+        title={`Welcome ${displayName}.`}
+        sub="A quick read on who can roll and what the vans can carry."
+      >
+        <Button asChild>
+          <Link href="/intake"><Inbox size={15} /> Open customer conversations <ArrowRight size={14} /></Link>
+        </Button>
       </PageHead>
 
-      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <Card title="Readiness at a glance" aside={<StatusBadge tone={!ready ? 'pending' : hubQ.isError ? 'err' : 'ok'}>{!ready ? 'Awaiting data' : hubQ.isError ? 'Last received data' : 'Current'}</StatusBadge>}
-          className="lg:flex lg:flex-col" bodyClassName="lg:flex lg:flex-1 lg:flex-col lg:justify-center">
-          <div
-            className={`mx-auto grid w-full gap-2 transition-[max-width,grid-template-columns] duration-500 ease-out motion-reduce:transition-none ${
-              detail ? 'max-w-4xl grid-cols-1 sm:grid-cols-2' : 'max-w-2xl grid-cols-1 sm:grid-cols-2'
-            }`}
-            data-testid="overview-status-rings"
-            aria-busy={hubQ.isLoading}
-          >
-            {metrics.map(({ key, ...metric }) => {
-              const expanded = detail === key;
-              const compact = detail !== null && !expanded;
-              return (
-                <div key={key} data-testid={`overview-metric-card-${key}`}
-                  className={`min-w-0 transition-[padding,border-color,box-shadow] duration-500 ease-out motion-reduce:transition-none ${
-                    expanded ? 'order-first rounded-xl border border-primary/30 bg-muted/30 p-2.5 shadow-sm sm:col-span-2 sm:p-4' : compact ? 'order-last' : ''
-                  }`}>
-                  <div className={expanded ? 'grid gap-3 sm:grid-cols-[minmax(9rem,0.7fr)_minmax(0,1.3fr)] sm:items-center' : ''}>
-                    <StatusRing {...metric} ready={ready} expanded={expanded} compact={compact}
-                      onClick={() => setDetail(expanded ? null : key)}
-                      buttonRef={(n) => { triggers.current[key] = n; }} />
-                    {expanded && (
-                      <div id="hub-readiness-detail" role="region" aria-labelledby="hub-readiness-detail-title" aria-live="polite"
-                        className="dh-rise min-w-0 rounded-lg border bg-card p-3 sm:p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h3 id="hub-readiness-detail-title" className="text-sm font-semibold">{metric.title}</h3>
-                            <p className="mt-0.5 text-xs text-muted-foreground">{metric.criteria}</p>
-                          </div>
-                          <Button type="button" size="icon" variant="ghost" aria-label={`Close ${metric.label} details`}
-                            onClick={() => { triggers.current[key]?.focus(); setDetail(null); }}>
-                            <X size={15} />
-                          </Button>
-                        </div>
-                        <div className="mt-3 flex max-h-48 flex-wrap gap-1.5 overflow-y-auto">
-                          {metric.lines.map((line) => <span key={line} className="rounded-md border bg-muted/40 px-2 py-1 font-mono text-xs">{line}</span>)}
-                          {!metric.lines.length && <span className="text-xs text-muted-foreground">No records match this measure.</span>}
-                        </div>
-                        <Link href={metric.to} className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
-                          Open {key === 'available' ? 'technicians' : 'van stock'} <ArrowRight size={13} />
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-
-        <div className={`grid gap-3 ${shortcutDetail ? 'sm:grid-cols-1' : 'sm:grid-cols-2'} lg:grid-cols-1`}>
-          {counts.map(({ key, to, label, value, foot, Icon, aria, tone }) => {
-            const expanded = shortcutDetail === key;
-            const compact = shortcutDetail !== null && !expanded;
-            const detailId = `overview-shortcut-detail-${key}`;
-            return (
-              <section key={key} aria-label={label}
-                data-testid={`overview-shortcut-${key}`}
-                className={`min-w-0 overflow-hidden rounded-xl border bg-card shadow-sm transition-[padding,border-color,box-shadow] duration-500 ease-out motion-reduce:transition-none ${
-                  expanded ? 'border-primary/30 p-4 shadow-md sm:p-5' : compact ? 'border-card-border p-2.5' : 'border-card-border p-3 sm:p-4'
-                }`}>
-                <button type="button" aria-expanded={expanded} aria-controls={detailId}
-                  aria-label={`${expanded ? 'Hide' : 'View'} details for ${label}`}
-                  data-testid={`button-view-details-${key}`}
-                  onClick={() => setShortcutDetail(expanded ? null : key)}
-                  className="group flex min-h-11 w-full min-w-0 items-center justify-between gap-3 rounded-md text-left transition-colors hover:text-primary focus-visible:outline-none">
-                  <span className={`min-w-0 transition-all duration-500 ease-out motion-reduce:transition-none ${compact ? 'flex items-center gap-3' : 'flex flex-col gap-1'}`}>
-                    <span className={`flex min-w-0 items-center gap-1.5 font-medium transition-[font-size,line-height] duration-500 ease-out motion-reduce:transition-none ${
-                      expanded ? 'text-base' : compact ? 'text-xs' : 'text-xs sm:text-[11px] lg:text-sm'
-                    }`}>
-                      <Icon size={expanded ? 18 : 15} className="shrink-0 transition-all duration-500 ease-out motion-reduce:transition-none" />
-                      <span className="truncate">{label}</span>
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.75fr)_minmax(18rem,0.9fr)]">
+        <Card
+          title="Technician readiness"
+          aside={<StatusBadge tone={readinessTone}>{!ready ? 'Awaiting data' : hubQ.isError ? 'Cached data' : 'Live from hub'}</StatusBadge>}
+          className="min-w-0"
+        >
+          {hubQ.isLoading && !ready ? (
+            <div className="grid gap-6 sm:grid-cols-[minmax(14rem,0.9fr)_minmax(0,1fr)] sm:items-center" role="status" aria-label="Loading technician readiness" data-testid="overview-readiness-loading">
+              <Skeleton className="mx-auto aspect-square w-full max-w-[17rem] rounded-full" />
+              <div className="space-y-3"><Skeleton className="h-5 w-36" /><Skeleton className="h-12" /><Skeleton className="h-12" /></div>
+            </div>
+          ) : !ready && hubQ.isError ? (
+            <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching} testId="overview-readiness-error">
+              Technician readiness is unavailable until the hub reconnects.
+            </InlineError>
+          ) : (
+            <div className="grid min-w-0 gap-5 sm:grid-cols-[minmax(14rem,0.9fr)_minmax(0,1fr)] sm:items-center" data-testid="overview-readiness" aria-busy={hubQ.isFetching}>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  aria-label={`${ready ? `Technician availability: ${availableCount} of ${technicians.length} available.` : 'Technician availability data unavailable.'} ${rosterOpen ? 'Hide' : 'Show'} roster details.`}
+                  aria-expanded={rosterOpen}
+                  aria-controls="overview-technician-details"
+                  data-testid="overview-availability-circle"
+                  onClick={() => setRosterOpen((open) => !open)}
+                  className="group relative grid aspect-square w-full max-w-[17.5rem] place-items-center rounded-full border border-card-border bg-[radial-gradient(circle_at_50%_42%,hsl(var(--card)),hsl(var(--muted))_105%)] text-center shadow-[0_16px_44px_-30px_hsl(var(--foreground)/.4)] transition-transform duration-300 hover:scale-[1.015] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-card motion-reduce:transition-none"
+                >
+                  <svg viewBox="0 0 220 220" aria-hidden="true" className="absolute inset-0 h-full w-full -rotate-90 p-3">
+                    <circle cx="110" cy="110" r="99" fill="none" stroke="hsl(var(--border))" strokeWidth="2" />
+                    <circle
+                      cx="110" cy="110" r="99" fill="none" stroke="hsl(var(--primary))" strokeWidth="5" strokeLinecap="round"
+                      strokeDasharray={2 * Math.PI * 99}
+                      strokeDashoffset={ready && technicians.length ? 2 * Math.PI * 99 * (1 - availableCount / technicians.length) : 2 * Math.PI * 99}
+                      className="transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none"
+                    />
+                    <circle cx="110" cy="110" r="91" fill="none" stroke="hsl(var(--foreground) / .055)" strokeWidth="1" strokeDasharray="2 7" />
+                  </svg>
+                  <span className="relative z-10 flex flex-col items-center px-4">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Ready to roll</span>
+                    <span className="mt-2 font-display text-[4.5rem] font-semibold leading-[0.9] tracking-[-0.07em] tabular sm:text-[5rem]" data-testid="overview-availability-value">
+                      {ready ? availableCount : '—'}
+                      <span className="ml-1 text-2xl font-medium tracking-normal text-muted-foreground sm:text-3xl">{ready ? `/ ${technicians.length}` : ''}</span>
                     </span>
-                    <span className={`flex flex-wrap items-baseline gap-x-2 transition-all duration-500 ease-out motion-reduce:transition-none ${compact ? 'gap-y-0' : 'gap-y-0.5'}`}>
-                      {value == null
-                        ? <Skeleton className={`w-9 ${expanded ? 'h-10' : 'h-7'}`} />
-                        : <span className={`font-mono font-semibold tabular transition-[font-size,line-height] duration-500 ease-out motion-reduce:transition-none ${
-                          expanded ? 'text-4xl leading-none' : compact ? 'text-xl leading-none' : 'text-2xl leading-none'
-                        } ${tone}`}>{value}</span>}
-                      <span className={`text-muted-foreground transition-[font-size,line-height] duration-500 ease-out motion-reduce:transition-none ${
-                        expanded ? 'text-sm' : compact ? 'text-[10px]' : 'text-[11px] sm:text-[10px] lg:text-xs'
-                      }`}>{foot}</span>
+                    <span className="mt-3 text-sm font-medium text-foreground">technicians available</span>
+                    <span className="mt-2 inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-primary">
+                      {rosterOpen ? 'Hide details' : 'View readiness'}
+                      <ArrowRight size={12} className={`transition-transform duration-300 motion-reduce:transition-none ${rosterOpen ? 'rotate-90' : ''}`} />
                     </span>
-                  </span>
-                  <span className={`flex shrink-0 items-center justify-center gap-1 rounded-lg bg-secondary text-muted-foreground transition-all duration-500 ease-out motion-reduce:transition-none ${
-                    expanded ? 'h-10 min-w-10 px-2 text-primary' : compact ? 'h-8 min-w-8 px-1' : 'h-9 min-w-9 px-1 group-hover:translate-x-0.5'
-                  }`}>
-                    <span className="hidden text-[10px] font-medium max-sm:inline lg:inline">{expanded ? 'Hide' : 'View details'}</span>
-                    <ChevronDown size={expanded ? 17 : 14} className={`transition-transform duration-300 ease-out motion-reduce:transition-none ${expanded ? 'rotate-180' : ''}`} />
                   </span>
                 </button>
-                <div id={detailId} aria-hidden={!expanded} aria-live={expanded ? 'polite' : 'off'}
-                  className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-500 ease-out motion-reduce:transition-none ${
-                    expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                  }`}>
-                  <div className="min-h-0 overflow-hidden">
-                    <div role="region" aria-label={`${label} details`} className="mt-3 space-y-3 border-t border-card-border pt-3">
-                      {shortcutDetails(key)}
-                    </div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">On the roster</p>
+                    <h3 className="mt-1 font-display text-lg font-semibold">Technicians</h3>
                   </div>
-                </div>
-                <div className={`transition-[padding,margin] duration-300 ease-out motion-reduce:transition-none ${expanded ? 'mt-3 border-t border-card-border pt-2' : 'mt-1'}`}>
-                  <Link href={to} aria-label={aria}
-                    data-testid={`link-open-overview-${key}`}
-                    className={`inline-flex min-h-8 items-center gap-1 rounded-sm font-medium text-primary transition-[font-size] duration-300 hover:underline focus-visible:outline-none motion-reduce:transition-none ${
-                      expanded ? 'text-xs' : compact ? 'text-[10px]' : 'text-[11px]'
-                    }`}>
-                    Open full page <ArrowRight size={12} />
+                  <Link href="/technicians" className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-sm text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-overview-technicians">
+                    Full roster <ArrowRight size={13} />
                   </Link>
                 </div>
-              </section>
-            );
-          })}
+                {technicians.length ? (
+                  <ul className="grid grid-cols-2 gap-2" data-testid="overview-technician-list">
+                    {technicians.map((tech) => {
+                      const available = tech.status === 'Available';
+                      return (
+                        <li key={tech.id} aria-label={`${tech.name}, ${tech.status}, ${tech.zone}`} className={`flex min-w-0 items-start gap-2 rounded-lg border px-2 py-2 ${available ? 'border-ok/20 bg-ok/[0.045]' : 'border-border/70 bg-muted/45'}`} data-testid={`overview-technician-${tech.id}`}>
+                          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${available ? 'border-ok/25 bg-ok/10 text-ok' : 'border-border bg-muted text-muted-foreground'}`}>
+                            <UserRound size={16} strokeWidth={1.8} aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block break-words text-xs font-semibold leading-tight">{tech.name}</span>
+                            <span className={`mt-1 block w-fit rounded-full border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] ${available ? 'border-ok/25 bg-ok/10 text-ok' : 'border-border bg-muted text-muted-foreground'}`}>
+                              {tech.status}
+                            </span>
+                            <span className={`mt-1 block text-[10px] leading-tight ${available ? 'text-ok' : 'text-muted-foreground'}`}>
+                              {available ? 'Ready' : 'Unavailable'}
+                            </span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <EmptyState icon={<UserRound size={17} />} title="No technicians on roster">Availability will appear here when the workshop roster is connected.</EmptyState>
+                )}
+                {rosterOpen && (
+                  <div id="overview-technician-details" role="region" aria-label="Technician readiness details" className="dh-rise mt-3 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2.5">
+                    <p className="text-xs leading-relaxed text-muted-foreground">Only technicians marked <strong className="font-semibold text-foreground">Available</strong> can be assigned a new dispatch. Busy and other statuses remain visible in muted rows.</p>
+                    <Link href="/technicians" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">Review technician roster <ArrowRight size={12} /></Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </Card>
+
+        <div className="grid min-w-0 content-start gap-3">
+          <Card
+            title="Stock on hand"
+            aside={<StatusBadge tone={!ready ? 'pending' : hubQ.isError ? 'err' : 'ok'}>{!ready ? 'Awaiting data' : hubQ.isError ? 'Cached data' : 'All vans'}</StatusBadge>}
+            className="min-w-0"
+          >
+            {hubQ.isLoading && !ready ? (
+              <div role="status" aria-label="Loading stock on hand" data-testid="overview-stock-loading"><Skeleton className="h-14 w-40" /><Skeleton className="mt-3 h-4 w-52" /></div>
+            ) : !ready && hubQ.isError ? (
+              <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching} testId="overview-stock-error">Stock quantities are unavailable until the hub reconnects.</InlineError>
+            ) : (
+              <div data-testid="overview-stock-total">
+                <div className="flex items-end gap-3">
+                  <span className="font-mono text-5xl font-semibold leading-none tracking-[-0.07em] tabular text-foreground sm:text-6xl" data-testid="overview-stock-units">{ready ? totalUnits : '—'}</span>
+                  <span className="pb-1 font-display text-lg font-medium text-muted-foreground">units</span>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-card-border pt-3">
+                  <span className="text-xs text-muted-foreground">{ready ? `${inventory.length} van inventory lines` : 'Inventory lines not available'}</span>
+                  <Link href="/stock" className="inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-overview-stock">
+                    View van stock <ArrowRight size={13} />
+                  </Link>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <SummaryLink
+              href="/today"
+              title="Dispatches today"
+              value={ready ? dispatchedToday : null}
+              caption="Approved allocations"
+              icon={<PackageCheck size={16} />}
+              testId="overview-dispatch-count"
+              linkTestId="link-overview-today"
+              loading={hubQ.isLoading && !ready}
+              error={!ready && hubQ.isError}
+              cached={ready && hubQ.isError}
+              retry={() => void hubQ.refetch()}
+              retrying={hubQ.isFetching}
+              errorMessage="Today's dispatch count is unavailable until the hub reconnects."
+            />
+            <SummaryLink
+              href="/stock/low"
+              title="Low stock"
+              value={ready ? lowStockItems.length : null}
+              caption="Lines below 5 units"
+              icon={<Boxes size={16} />}
+              testId="overview-low-stock-count"
+              linkTestId="link-overview-low-stock"
+              loading={hubQ.isLoading && !ready}
+              error={!ready && hubQ.isError}
+              cached={ready && hubQ.isError}
+              retry={() => void hubQ.refetch()}
+              retrying={hubQ.isFetching}
+              errorMessage="Low-stock count is unavailable until the hub reconnects."
+              alert={lowStockItems.length > 0}
+            />
+          </div>
         </div>
       </div>
 
-      <Card title={<><History size={15} /> Recent dispatch activity</>} aside={<Link href="/log" className="inline-flex items-center gap-1 font-medium text-primary">Open dispatch log <ArrowRight size={12} /></Link>}>
-        {hubQ.isLoading ? <div className="space-y-2" role="status" aria-label="Loading activity">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-10" />)}</div>
-          : !ready && hubQ.isError ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Dispatch history unavailable until the hub reconnects.</InlineError>
-          : latest.length ? (
-            <ol className="divide-y">
-              {latest.map((e) => (
-                <li key={e.id} className="flex flex-col gap-1 py-2.5 sm:flex-row sm:items-center sm:gap-3">
-                  <StatusBadge tone={e.completion_dispatch_id != null ? 'ok' : e.action_details.startsWith('Technician availability reset:') ? 'idle' : 'busy'}>
-                    {e.completion_dispatch_id != null ? 'Completed' : e.action_details.startsWith('Technician availability reset:') ? 'Reset' : 'Approved'}
-                  </StatusBadge>
-                  <span className="min-w-0 flex-1 truncate text-sm" title={e.action_details}>{e.action_details}</span>
-                  <Mono className="text-xs text-muted-foreground"><time dateTime={e.timestamp}>{dateTime(e.timestamp)}</time></Mono>
-                </li>
-              ))}
-            </ol>
-          ) : <EmptyState icon={<History size={17} />} title="No dispatches recorded yet">Approved allocations will appear here after a dispatch.</EmptyState>}
+      <Card
+        title={<><History size={15} /> Recent dispatch activity</>}
+        aside={<Link href="/log" className="inline-flex min-h-8 items-center gap-1 font-medium text-primary hover:underline" data-testid="link-overview-log">Open dispatch log <ArrowRight size={12} /></Link>}
+      >
+        {hubQ.isLoading && !ready ? (
+          <div className="space-y-2" role="status" aria-label="Loading recent activity" data-testid="overview-activity-loading">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-10" />)}</div>
+        ) : !ready && hubQ.isError ? (
+          <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching} testId="overview-activity-error">Dispatch history is unavailable until the hub reconnects.</InlineError>
+        ) : latest.length ? (
+          <ol className="divide-y" data-testid="overview-activity-list">
+            {latest.map((entry) => (
+              <li key={entry.id} className="flex flex-col gap-1 py-2.5 sm:flex-row sm:items-center sm:gap-3">
+                <StatusBadge tone={entry.completion_dispatch_id != null ? 'ok' : entry.action_details.startsWith('Technician availability reset:') ? 'idle' : 'busy'}>
+                  {entry.completion_dispatch_id != null ? 'Completed' : entry.action_details.startsWith('Technician availability reset:') ? 'Reset' : 'Approved'}
+                </StatusBadge>
+                <span className="min-w-0 flex-1 truncate text-sm" title={entry.action_details}>{entry.action_details}</span>
+                <Mono className="text-xs text-muted-foreground"><time dateTime={entry.timestamp}>{dateTime(entry.timestamp)}</time></Mono>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <EmptyState icon={<History size={17} />} title="No dispatches recorded yet">Approved allocations will appear here after a dispatch.</EmptyState>
+        )}
+        {ready && hubQ.isError && <p className="mt-3 text-xs text-err" role="status">Showing cached hub data. Reconnect to refresh readiness and inventory.</p>}
       </Card>
     </div>
+  );
+}
+
+function SummaryLink({
+  href, title, value, caption, icon, testId, linkTestId, loading, error, cached, retry, retrying, errorMessage, alert = false,
+}: {
+  href: string;
+  title: string;
+  value: number | null;
+  caption: string;
+  icon: ReactNode;
+  testId: string;
+  linkTestId: string;
+  loading: boolean;
+  error: boolean;
+  cached: boolean;
+  retry: () => void;
+  retrying: boolean;
+  errorMessage: string;
+  alert?: boolean;
+}) {
+  return (
+    <section aria-label={title} data-testid={testId} className="min-w-0 rounded-xl border border-card-border bg-card shadow-sm">
+      <div className="flex items-center justify-between gap-2 px-3.5 pt-3.5">
+        <h2 className="flex items-center gap-2 text-xs font-semibold"><span className="text-primary">{icon}</span>{title}</h2>
+        <span className={`font-mono text-[9px] uppercase tracking-[0.12em] ${cached ? 'text-pending' : 'text-muted-foreground'}`}>{cached ? 'Cached' : 'Overview'}</span>
+      </div>
+      {loading ? (
+        <div role="status" aria-label={`Loading ${title.toLowerCase()}`} className="px-3.5 py-3"><Skeleton className="h-8 w-12" /><Skeleton className="mt-2 h-3 w-32" /></div>
+      ) : error ? (
+        <div className="px-3.5 py-3"><InlineError onRetry={retry} retrying={retrying}>{errorMessage}</InlineError></div>
+      ) : (
+        <Link href={href} aria-label={`Open ${title}: ${value} ${caption}`} data-testid={linkTestId} className="group flex min-h-[4.75rem] items-end justify-between gap-2 px-3.5 pb-3.5 pt-2 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className={`font-mono text-3xl font-semibold leading-none tabular ${alert ? 'text-pending' : ''}`} data-testid={`${testId}-value`}>{value ?? '—'}</span>
+            <span className="truncate text-[11px] text-muted-foreground">{caption}</span>
+          </span>
+          <ArrowRight size={15} className="mb-0.5 shrink-0 text-primary transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+        </Link>
+      )}
+    </section>
   );
 }
