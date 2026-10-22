@@ -9,6 +9,92 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Authenticated Telegram receiver status and verified bot link
+ */
+export const GetTelegramStatusResponse = zod.object({
+  "configured": zod.boolean(),
+  "connected": zod.boolean(),
+  "bot_username": zod.string().nullable(),
+  "bot_url": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "last_received_at": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Explicitly choose a sample site before dispatching a Telegram request
+ */
+
+
+
+export const SetConversationSiteParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const SetConversationSiteBody = zod.object({
+  "customer_site_id": zod.enum(['north', 'central', 'south'])
+})
+
+
+
+
+
+export const setConversationSiteResponseOneLatestMessageSenderNameMax = 120;
+
+export const setConversationSiteResponseOneLatestMessageTextMax = 4096;
+
+
+
+
+
+export const setConversationSiteResponseTwoMessagesItemSenderNameMax = 120;
+
+export const setConversationSiteResponseTwoMessagesItemTextMax = 4096;
+
+
+
+
+
+export const SetConversationSiteResponse = zod.object({
+  "id": zod.number().int().min(1),
+  "customer_name": zod.string(),
+  "subject": zod.string(),
+  "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
+  "source": zod.enum(['Demo', 'Telegram']),
+  "technician_id": zod.number().int().min(1).nullable(),
+  "technician_name": zod.string().nullable(),
+  "mock_summary": zod.string(),
+  "latest_message": zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_name": zod.string().min(1).max(setConversationSiteResponseOneLatestMessageSenderNameMax),
+  "text": zod.string().min(1).max(setConversationSiteResponseOneLatestMessageTextMax),
+  "created_at": zod.coerce.date()
+}),
+  "message_count": zod.number().int().min(1),
+  "dispatch_activity_id": zod.number().int().min(1).nullable(),
+  "updated_at": zod.coerce.date()
+}).and(zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.number().int().min(1),
+  "conversation_id": zod.number().int().min(1),
+  "sender_role": zod.enum(['Customer', 'Technician']),
+  "sender_name": zod.string().min(1).max(setConversationSiteResponseTwoMessagesItemSenderNameMax),
+  "text": zod.string().min(1).max(setConversationSiteResponseTwoMessagesItemTextMax),
+  "created_at": zod.coerce.date()
+})),
+  "latest_message_id": zod.number().int().min(1),
+  "analyzed_through_message_id": zod.number().int().min(1).nullable(),
+  "analysis": zod.union([zod.object({
+  "issue": zod.string(),
+  "parts": zod.array(zod.string()),
+  "urgency": zod.enum(['High', 'Med', 'Low'])
+}),zod.null()])
+}))
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -95,7 +181,7 @@ export const AnalyzeRequestResponse = zod.object({
 
 export const listConversationsResponseConversationsItemLatestMessageSenderNameMax = 120;
 
-export const listConversationsResponseConversationsItemLatestMessageTextMax = 2000;
+export const listConversationsResponseConversationsItemLatestMessageTextMax = 4096;
 
 
 
@@ -106,7 +192,8 @@ export const ListConversationsResponse = zod.object({
   "id": zod.number().int().min(1),
   "customer_name": zod.string(),
   "subject": zod.string(),
-  "customer_site_id": zod.enum(['north', 'central', 'south']),
+  "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
+  "source": zod.enum(['Demo', 'Telegram']),
   "technician_id": zod.number().int().min(1).nullable(),
   "technician_name": zod.string().nullable(),
   "mock_summary": zod.string(),
@@ -141,7 +228,7 @@ export const GetConversationThreadParams = zod.object({
 
 export const getConversationThreadResponseOneLatestMessageSenderNameMax = 120;
 
-export const getConversationThreadResponseOneLatestMessageTextMax = 2000;
+export const getConversationThreadResponseOneLatestMessageTextMax = 4096;
 
 
 
@@ -149,7 +236,7 @@ export const getConversationThreadResponseOneLatestMessageTextMax = 2000;
 
 export const getConversationThreadResponseTwoMessagesItemSenderNameMax = 120;
 
-export const getConversationThreadResponseTwoMessagesItemTextMax = 2000;
+export const getConversationThreadResponseTwoMessagesItemTextMax = 4096;
 
 
 
@@ -159,7 +246,8 @@ export const GetConversationThreadResponse = zod.object({
   "id": zod.number().int().min(1),
   "customer_name": zod.string(),
   "subject": zod.string(),
-  "customer_site_id": zod.enum(['north', 'central', 'south']),
+  "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
+  "source": zod.enum(['Demo', 'Telegram']),
   "technician_id": zod.number().int().min(1).nullable(),
   "technician_name": zod.string().nullable(),
   "mock_summary": zod.string(),
@@ -220,7 +308,7 @@ export const SendConversationMessageBody = zod.object({
 
 export const sendConversationMessageResponseOneLatestMessageSenderNameMax = 120;
 
-export const sendConversationMessageResponseOneLatestMessageTextMax = 2000;
+export const sendConversationMessageResponseOneLatestMessageTextMax = 4096;
 
 
 
@@ -228,7 +316,7 @@ export const sendConversationMessageResponseOneLatestMessageTextMax = 2000;
 
 export const sendConversationMessageResponseTwoMessagesItemSenderNameMax = 120;
 
-export const sendConversationMessageResponseTwoMessagesItemTextMax = 2000;
+export const sendConversationMessageResponseTwoMessagesItemTextMax = 4096;
 
 
 
@@ -238,7 +326,8 @@ export const SendConversationMessageResponse = zod.object({
   "id": zod.number().int().min(1),
   "customer_name": zod.string(),
   "subject": zod.string(),
-  "customer_site_id": zod.enum(['north', 'central', 'south']),
+  "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
+  "source": zod.enum(['Demo', 'Telegram']),
   "technician_id": zod.number().int().min(1).nullable(),
   "technician_name": zod.string().nullable(),
   "mock_summary": zod.string(),
@@ -288,7 +377,7 @@ export const AnalyzeConversationParams = zod.object({
 
 export const analyzeConversationResponseOneLatestMessageSenderNameMax = 120;
 
-export const analyzeConversationResponseOneLatestMessageTextMax = 2000;
+export const analyzeConversationResponseOneLatestMessageTextMax = 4096;
 
 
 
@@ -296,7 +385,7 @@ export const analyzeConversationResponseOneLatestMessageTextMax = 2000;
 
 export const analyzeConversationResponseTwoMessagesItemSenderNameMax = 120;
 
-export const analyzeConversationResponseTwoMessagesItemTextMax = 2000;
+export const analyzeConversationResponseTwoMessagesItemTextMax = 4096;
 
 
 
@@ -306,7 +395,8 @@ export const AnalyzeConversationResponse = zod.object({
   "id": zod.number().int().min(1),
   "customer_name": zod.string(),
   "subject": zod.string(),
-  "customer_site_id": zod.enum(['north', 'central', 'south']),
+  "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
+  "source": zod.enum(['Demo', 'Telegram']),
   "technician_id": zod.number().int().min(1).nullable(),
   "technician_name": zod.string().nullable(),
   "mock_summary": zod.string(),

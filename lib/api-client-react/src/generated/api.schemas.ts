@@ -5,6 +5,32 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface TelegramStatus {
+  configured: boolean;
+  connected: boolean;
+  /** @nullable */
+  bot_username: string | null;
+  /** @nullable */
+  bot_url: string | null;
+  /** @nullable */
+  error: string | null;
+  /** @nullable */
+  last_received_at: string | null;
+}
+
+export type DemoSiteId = typeof DemoSiteId[keyof typeof DemoSiteId];
+
+
+export const DemoSiteId = {
+  north: 'north',
+  central: 'central',
+  south: 'south',
+} as const;
+
+export interface ConversationSiteInput {
+  customer_site_id: DemoSiteId;
+}
+
 export interface ApiFailure {
   error: string;
 }
@@ -43,15 +69,6 @@ export const SavedDispatchStatus = {
   Active: 'Active',
   Completed: 'Completed',
   Unknown: 'Unknown',
-} as const;
-
-export type DemoSiteId = typeof DemoSiteId[keyof typeof DemoSiteId];
-
-
-export const DemoSiteId = {
-  north: 'north',
-  central: 'central',
-  south: 'south',
 } as const;
 
 /**
@@ -153,7 +170,7 @@ export interface ConversationMessage {
   sender_name: string;
   /**
      * @minLength 1
-     * @maxLength 2000
+     * @maxLength 4096
      */
   text: string;
   created_at: string;
@@ -178,12 +195,34 @@ export interface ConversationMessageInput {
   text: string;
 }
 
+/**
+ * @nullable
+ */
+export type ConversationSummaryCustomerSiteId = typeof ConversationSummaryCustomerSiteId[keyof typeof ConversationSummaryCustomerSiteId] | null;
+
+
+export const ConversationSummaryCustomerSiteId = {
+  north: 'north',
+  central: 'central',
+  south: 'south',
+} as const;
+
+export type ConversationSummarySource = typeof ConversationSummarySource[keyof typeof ConversationSummarySource];
+
+
+export const ConversationSummarySource = {
+  Demo: 'Demo',
+  Telegram: 'Telegram',
+} as const;
+
 export interface ConversationSummary {
   /** @minimum 1 */
   id: number;
   customer_name: string;
   subject: string;
-  customer_site_id: DemoSiteId;
+  /** @nullable */
+  customer_site_id: ConversationSummaryCustomerSiteId;
+  source: ConversationSummarySource;
   /**
      * @minimum 1
      * @nullable

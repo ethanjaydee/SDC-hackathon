@@ -20,7 +20,7 @@ export interface ConversationMessage {
   sender_name: string;
   /**
      * @minLength 1
-     * @maxLength 2000
+     * @maxLength 4096
      */
   text: string;
   created_at: Date;

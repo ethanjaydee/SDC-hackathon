@@ -48,7 +48,11 @@ Separate screens for overview, repair intake, post-intake analysis, technician m
 
 Clerk sign-in is required for all dispatch API routes except the health check. Authenticated accounts share the same synthetic demo workspace; there is no per-technician data isolation or role-based authorization.
 
-Completion-proof examples may use illustrative stock photos and synthetic customer signatures, but must remain separate from actual audit records. Never imply that example evidence proves an existing or legacy dispatch was completed. Customer conversations no longer expose a manual customer/technician message simulator. External messaging is not connected; do not present a WhatsApp/Telegram link as working ingestion without a connected account and verified inbound delivery.
+Completion-proof examples may use illustrative stock photos and synthetic customer signatures, but must remain separate from actual audit records. Never imply that example evidence proves an existing or legacy dispatch was completed. Customer conversations no longer expose a manual customer/technician message simulator.
+
+Telegram uses a server-only BotFather token and outbound long polling. The bot identity/link is verified before exposure, and any existing webhook is left untouched. Run only one receiver per bot; set `TELEGRAM_RECEIVER_ENABLED=false` in environments that should not receive updates. Before publishing, choose the single active receiver environment and address local SQLite durability; do not run preview and production receivers on the same bot concurrently.
+
+Telegram imports private text only, uses pseudonymous customer labels, and does not store Telegram profile names or raw chat identifiers. Use test repair messages only: all signed-in demo accounts share the inbox. Incoming messages generate deterministic mock analysis but never approve dispatch automatically. `/new` starts a separate request on the next text message. New Telegram threads have no customer site until a dispatcher explicitly chooses a synthetic sample site; never infer a site from the sender or current selection. WhatsApp remains unconnected.
 
 ## User preferences
 

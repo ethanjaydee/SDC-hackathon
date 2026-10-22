@@ -11,6 +11,45 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /messaging/telegram:
+    get:
+      operationId: getTelegramStatus
+      tags: [hub]
+      summary: Authenticated Telegram receiver status and verified bot link
+      responses:
+        "200":
+          description: Receiver status without credentials or customer identifiers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramStatus"
+  /conversations/{id}/site:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    patch:
+      operationId: setConversationSite
+      tags: [hub]
+      summary: Explicitly choose a sample site before dispatching a Telegram request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationSiteInput"
+      responses:
+        "200":
+          description: Updated conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationThread"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "409":
+          description: Conversation is already dispatched
   /healthz:
     get:
       operationId: healthCheck
@@ -363,6 +402,21 @@ components:
           schema:
             $ref: "#/components/schemas/ApiFailure"
   schemas:
+    TelegramStatus:
+      type: object
+      required: [configured, connected, bot_username, bot_url, error, last_received_at]
+      properties:
+        configured: { type: boolean }
+        connected: { type: boolean }
+        bot_username: { type: ["string", "null"] }
+        bot_url: { type: ["string", "null"] }
+        error: { type: ["string", "null"] }
+        last_received_at: { type: ["string", "null"], format: date-time }
+    ConversationSiteInput:
+      type: object
+      required: [customer_site_id]
+      properties:
+        customer_site_id: { $ref: "#/components/schemas/DemoSiteId" }
     ApiFailure:
       type: object
       required: [error]
@@ -465,7 +519,7 @@ components:
         conversation_id: { type: integer, minimum: 1 }
         sender_role: { type: string, enum: [Customer, Technician] }
         sender_name: { type: string, minLength: 1, maxLength: 120 }
-        text: { type: string, minLength: 1, maxLength: 2000 }
+        text: { type: string, minLength: 1, maxLength: 4096 }
         created_at: { type: string, format: date-time }
     ConversationMessageInput:
       type: object
@@ -476,12 +530,13 @@ components:
         text: { type: string, minLength: 1, maxLength: 2000 }
     ConversationSummary:
       type: object
-      required: [id, customer_name, subject, customer_site_id, technician_id, technician_name, mock_summary, latest_message, message_count, dispatch_activity_id, updated_at]
+      required: [id, customer_name, subject, customer_site_id, technician_id, technician_name, mock_summary, latest_message, message_count, dispatch_activity_id, updated_at, source]
       properties:
         id: { type: integer, minimum: 1 }
         customer_name: { type: string }
         subject: { type: string }
-        customer_site_id: { $ref: "#/components/schemas/DemoSiteId" }
+        customer_site_id: { type: ["string", "null"], enum: [north, central, south, null] }
+        source: { type: string, enum: [Demo, Telegram] }
         technician_id: { type: ["integer", "null"], minimum: 1 }
         technician_name: { type: ["string", "null"] }
         mock_summary: { type: string }

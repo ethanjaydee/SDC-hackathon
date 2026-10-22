@@ -2,3 +2,4 @@
 - [Legacy completion](dispatch-completion-legacy.md) — never guess legacy completion; explicit demo availability resets must protect tracked active jobs and preserve unknown history.
 - [Preview manifest recovery](preview-manifest-recovery.md) — invalid existing TOML can block the validated replacement tool before it reads a corrected candidate.
 - [Preview JSX compatibility](preview-jsx-compatibility.md) — avoid explicit generic arguments in JSX tags; editor annotations can break dev parsing even when production builds pass.
+- [Clerk test forwarding](clerk-browser-test-forwarding.md) — forwarded test requests can miss programmatic auth; confirm 401s with native browser fetch before changing app auth.

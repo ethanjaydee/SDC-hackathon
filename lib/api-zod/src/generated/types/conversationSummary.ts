@@ -6,14 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ConversationMessage } from './conversationMessage';
-import type { DemoSiteId } from './demoSiteId';
+import type { ConversationSummaryCustomerSiteId } from './conversationSummaryCustomerSiteId';
+import type { ConversationSummarySource } from './conversationSummarySource';
 
 export interface ConversationSummary {
   /** @minimum 1 */
   id: number;
   customer_name: string;
   subject: string;
-  customer_site_id: DemoSiteId;
+  /** @nullable */
+  customer_site_id: ConversationSummaryCustomerSiteId;
+  source: ConversationSummarySource;
   /**
      * @minimum 1
      * @nullable

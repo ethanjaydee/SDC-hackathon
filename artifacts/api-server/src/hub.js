@@ -4,6 +4,7 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { demoSites } from "./demoSites.js";
 import { isOfferStale } from "./offerFreshness.js";
+import { prepareTelegramStorage, createTelegramStorage } from "./telegramStore.js";
 import {
   AnalyzeRequestBody,
   AnalyzeRequestResponse,
@@ -32,6 +33,7 @@ import {
   SendConversationMessageBody,
   SendConversationMessageResponse,
   AnalyzeConversationResponse,
+  SetConversationSiteBody,
 } from "@workspace/api-zod";
 
 // The managed Express service mounts this router at /api.
@@ -76,7 +78,7 @@ db.exec(`
     id INTEGER PRIMARY KEY,
     customer_name TEXT NOT NULL,
     subject TEXT NOT NULL,
-    customer_site_id TEXT NOT NULL CHECK(customer_site_id IN ('north', 'central', 'south')),
+    customer_site_id TEXT CHECK(customer_site_id IN ('north', 'central', 'south')),
     technician_id INTEGER REFERENCES technicians(id),
     mock_summary TEXT NOT NULL DEFAULT '',
     analysis_json TEXT,
@@ -151,6 +153,8 @@ db.exec(`
       SELECT RAISE(ABORT, 'Activity log is immutable');
     END;
 `);
+
+prepareTelegramStorage(db);
 
 // Add lifecycle metadata without rewriting any historical audit entries.
 db.transaction(() => {
@@ -298,7 +302,7 @@ function buildMockSummary(messages) {
 
 function listConversationSummaries() {
   return db.prepare(`
-    SELECT c.id, c.customer_name, c.subject, c.customer_site_id, c.technician_id,
+    SELECT c.id, c.customer_name, c.subject, c.customer_site_id, c.source, c.technician_id,
       t.name AS technician_name, c.mock_summary, c.updated_at,
       COUNT(m.id) AS message_count, d.activity_id AS dispatch_activity_id
     FROM conversation_threads c
@@ -369,7 +373,11 @@ const appendConversationMessage = db.transaction(({ id, sender_role, technician_
   return getConversationThread(id);
 });
 
-async function analyzeConversation(id) {
+const telegramStorage = createTelegramStorage(db, (message) => appendConversationMessage(message));
+export const ingestTelegramUpdate = (botId, update) => telegramStorage.ingest(botId, update);
+export const getTelegramCheckpoint = (botId) => telegramStorage.checkpoint(botId);
+
+export async function analyzeConversation(id) {
   const thread = db.prepare("SELECT id FROM conversation_threads WHERE id = ?").get(id);
   if (!thread) throw new ConversationNotFound("Conversation not found.");
   const messages = db.prepare(`
@@ -834,6 +842,23 @@ router.get("/conversations", (_req, res) => {
   res.json(ListConversationsResponse.parse({
     conversations: listConversationSummaries(),
   }));
+});
+router.patch("/conversations/:id/site", (req, res) => {
+  const id = Number(req.params.id);
+  const parsed = SetConversationSiteBody.safeParse(req.body);
+  if (!Number.isSafeInteger(id) || id < 1 || !parsed.success) {
+    res.status(400).json({ error: "Choose a valid sample customer site." });
+    return;
+  }
+  const thread = getConversationThread(id);
+  if (!thread) { res.status(404).json({ error: "Conversation not found." }); return; }
+  if (thread.dispatch_activity_id != null || thread.source !== "Telegram") {
+    res.status(409).json({ error: "Only an undispatched Telegram request can change its sample site." });
+    return;
+  }
+  db.prepare("UPDATE conversation_threads SET customer_site_id = ?, updated_at = ? WHERE id = ?")
+    .run(parsed.data.customer_site_id, new Date().toISOString(), id);
+  res.json(getConversationThread(id));
 });
 router.get("/conversations/:id", (req, res) => {
   const parsed = GetConversationThreadParams.safeParse({ id: req.params.id });

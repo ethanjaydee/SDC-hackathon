@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getGetConversationThreadQueryKey, getListConversationsQueryKey,
-  useAnalyzeConversation, useGetConversationThread,
-  type Technician,
+  useAnalyzeConversation, useGetConversationThread, useSetConversationSite,
+  type Technician, type DemoSiteId,
 } from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES, distanceKm, getTechnicianLocation } from './demoLocations';
 import { rankQualifiedTechnicians } from './matching';
 import { APPROVER, type DispatchState } from './useDispatchHub';
-import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, initials } from './shared';
+import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, initials, fieldClass } from './shared';
 import { MessagingConnectionNotice } from './MessagingConnectionNotice';
 
 const urgencyTone = { High: 'err', Med: 'pending', Low: 'idle' } as const;
@@ -30,6 +30,15 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     },
   });
   const analyze = useAnalyzeConversation();
+  const setSite = useSetConversationSite({
+    mutation: {
+      onSuccess: async (updated) => {
+        await qc.cancelQueries({ queryKey: getGetConversationThreadQueryKey(conversationId) });
+        qc.setQueryData(getGetConversationThreadQueryKey(conversationId), updated);
+        void qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      },
+    },
+  });
   const [newMessagesSinceOpen, setNewMessagesSinceOpen] = useState(0);
   const lastObservedMessage = useRef<{ conversationId: number; messageId: number } | null>(null);
   const autoAnalyzeAttempted = useRef(new Set<number>());
@@ -71,12 +80,12 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   }, [analyze, conversationId, qc, threadQ.data]);
 
   const thread = threadQ.data;
-  const site = DEMO_CUSTOMER_SITES.find((item) => item.id === thread?.customer_site_id) ?? DEMO_CUSTOMER_SITES[0];
+  const site = DEMO_CUSTOMER_SITES.find((item) => item.id === thread?.customer_site_id);
   const analysis = thread?.analysis ?? null;
   const analysisIsCurrent = !!thread && !!analysis &&
     thread.analyzed_through_message_id === thread.latest_message_id;
   const matches = useMemo(
-    () => rankQualifiedTechnicians(hub.hubQ.data, analysis?.parts ?? [], site),
+    () => site ? rankQualifiedTechnicians(hub.hubQ.data, analysis?.parts ?? [], site) : [],
     [hub.hubQ.data, analysis, site],
   );
   const match = matches[0] ?? null;
@@ -96,7 +105,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   };
 
   const approve = async () => {
-    if (!thread || !analysis || !analysisIsCurrent || !match || dispatchSaved) return;
+    if (!thread || !thread.customer_site_id || !analysis || !analysisIsCurrent || !match || dispatchSaved) return;
     const ok = await hub.approveConversationDispatch(conversationId, analysis, thread.customer_site_id, match);
     if (ok) onApprove(match);
   };
@@ -118,7 +127,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHead kicker={`Selected conversation · #${thread.id}`} title="Analysis & dispatch review"
-        sub={`${thread.customer_name} · ${thread.subject} · ${site.label}`}>
+        sub={`${thread.customer_name} · ${thread.subject} · ${site?.label ?? 'Customer site not assigned'}`}>
         <Button asChild variant="outline"><Link href="/intake"><ArrowLeft size={14} /> Back to inbox</Link></Button>
         {dispatchSaved && <Button asChild variant="outline"><Link href="/log">View dispatch log</Link></Button>}
       </PageHead>
@@ -169,6 +178,18 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
         </div>
 
         <div className="min-w-0 space-y-4">
+          {thread.source === 'Telegram' && (
+            <Card title={<><MapPin size={15} /> Customer sample site</>}>
+              <label htmlFor="conversation-site" className="mb-2 block text-xs text-muted-foreground">No location is inferred from Telegram. Choose a synthetic site before dispatching.</label>
+              <select id="conversation-site" data-testid="select-conversation-site" className={fieldClass} value={thread.customer_site_id ?? ''}
+                disabled={setSite.isPending || dispatchSaved}
+                onChange={(event) => setSite.mutate({ id: conversationId, data: { customer_site_id: event.target.value as DemoSiteId } })}>
+                <option value="" disabled>Choose a sample site…</option>
+                {DEMO_CUSTOMER_SITES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+              {setSite.error && <p role="alert" className="mt-2 text-xs text-err">{errorText(setSite.error)}</p>}
+            </Card>
+          )}
           <Card title="AI analysis" aside={
             analysisIsCurrent ? <StatusBadge tone="ok"><CheckCircle2 size={10} /> Current</StatusBadge>
               : <StatusBadge tone="pending">{analyze.isPending ? 'Analyzing' : 'Re-analysis needed'}</StatusBadge>
@@ -227,7 +248,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                         </div>
                         <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
                           <li className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-ok" /> Van {match.van_id} has the required stock.</li>
-                          <li>{loc ? <>Straight-line <Mono>{distanceKm(loc, site).toFixed(1)} km</Mono> from sample position, not a driving ETA.</> : 'Location unavailable.'}</li>
+                          <li>{loc && site ? <>Straight-line <Mono>{distanceKm(loc, site).toFixed(1)} km</Mono> from sample position, not a driving ETA.</> : 'Location unavailable.'}</li>
                         </ul>
                       </div>
                       {dispatchSaved && (
@@ -248,7 +269,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                     </div>
                   ) : (
                     <div role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-4 text-sm">
-                      <b>No qualified technician found.</b> No available van currently has every required part. Review stock before approving.
+                      {site ? <><b>No qualified technician found.</b> No available van currently has every required part. Review stock before approving.</> : <><b>Customer site is not assigned.</b> Choose a sample site above before matching a technician or approving dispatch.</>}
                     </div>
                   )}
             </Card>
