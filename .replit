@@ -21,3 +21,8 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+TLG_API = "8849894105:AAFI5OXUOwAMZvOmZqZjsDP_Xv2Xc-kCFio"
