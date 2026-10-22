@@ -73,6 +73,7 @@ export default function Dashboard() {
 
   const displayName = user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || 'Technician';
   const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  const isAnalysisRoute = location.startsWith('/analysis/');
   const sideFooter = (
     <div className="rounded-lg border border-sidebar-border bg-card/60 p-3">
       <div className="flex items-center gap-3">
@@ -128,7 +129,10 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[1320px] flex-1 space-y-4 px-3 py-6 sm:px-6 md:py-8">
+        <main className={cn(
+          'mx-auto w-full flex-1 space-y-4 px-3 py-6 sm:px-6 md:py-8',
+          isAnalysisRoute ? 'max-w-[1920px]' : 'max-w-[1320px]',
+        )}>
           {hub.connectionLost && (
             <InlineError onRetry={connection.retryIn && connection.retryIn > 0 ? undefined : () => void hubQ.refetch()} retrying={hubQ.isFetching} retryLabel="Retry connection">
               {connection.status === 429

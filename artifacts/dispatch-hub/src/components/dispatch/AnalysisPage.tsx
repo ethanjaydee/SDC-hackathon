@@ -134,7 +134,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   if (!validId) {
     return <InlineError><Link href="/intake" className="underline">Choose a saved conversation</Link> to review.</InlineError>;
   }
-  if (threadQ.isLoading) return <div className="mx-auto max-w-5xl space-y-4"><Skeleton className="h-24" /><Skeleton className="h-72" /></div>;
+  if (threadQ.isLoading) return <div className="w-full space-y-4"><Skeleton className="h-24" /><Skeleton className="h-72" /></div>;
   if (!thread) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
@@ -148,14 +148,14 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   const earlierMessages = orderedMessages.slice(0, -2);
   const recentMessages = orderedMessages.slice(-2);
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="w-full space-y-5">
       <PageHead kicker={`Selected conversation · #${thread.id}`} title="Analysis & dispatch review"
         sub={`${thread.customer_name} · ${thread.subject} · ${site?.label ?? 'Customer site not assigned'}`}>
         <Button asChild variant="outline"><Link href="/intake"><ArrowLeft size={14} /> Back to inbox</Link></Button>
         {dispatchSaved && <Button asChild variant="outline"><Link href="/log">View dispatch log</Link></Button>}
       </PageHead>
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.12fr)_minmax(340px,.88fr)]">
+      <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(450px,.92fr)] 2xl:gap-7">
         <div className="min-w-0 space-y-4">
           <Card title={<><MessageSquareText size={15} /> Customer conversation</>} aside={
             <span className="flex flex-wrap items-center justify-end gap-2">
