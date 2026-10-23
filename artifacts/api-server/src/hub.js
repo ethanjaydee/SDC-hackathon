@@ -1025,13 +1025,14 @@ router.post("/workshop-reviews/summary", async (req, res) => {
   }
   const { source, sample_reviews } = parsed.data;
   const recentReviews = source === "sample"
-    ? sample_reviews ?? []
+    ? (sample_reviews ?? []).filter((review) => review.rating <= 2)
     : db.prepare(`
       SELECT rating, comment FROM customer_reviews
+      WHERE rating <= 2
       ORDER BY id DESC
       LIMIT 100
     `).all();
-  if ((source === "sample" && recentReviews.length === 0)
+  if ((source === "sample" && !sample_reviews?.length)
     || (source === "saved" && sample_reviews !== undefined)) {
     res.status(400).json({ error: source === "sample"
       ? "Provide at least one sample review to summarize."
@@ -1039,7 +1040,7 @@ router.post("/workshop-reviews/summary", async (req, res) => {
     return;
   }
   if (recentReviews.length === 0) {
-    res.status(400).json({ error: "Save at least one customer review before requesting a saved-review summary." });
+    res.status(400).json({ error: "No low-rated reviews (1–2 stars) are available to summarize." });
     return;
   }
   try {

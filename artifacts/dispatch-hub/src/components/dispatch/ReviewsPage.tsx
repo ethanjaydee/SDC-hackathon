@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Check, CircleAlert, Lightbulb, RefreshCw, Sparkles, Star } from 'lucide-react';
+import { ArrowRight, CircleAlert, Lightbulb, RefreshCw, Sparkles, Star } from 'lucide-react';
 import {
   getListWorkshopReviewsQueryKey,
   useListWorkshopReviews,
@@ -101,7 +101,7 @@ function SummaryPanel({ summary }: { summary: WorkshopReviewSummary }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary">Overview</p>
           <StatusBadge tone={summary.source === 'sample' ? 'pending' : 'ok'}>
-            {summary.review_count} {summary.source === 'sample' ? 'sample reviews' : 'saved reviews'} considered
+            {summary.review_count} low-rated {summary.source === 'sample' ? 'sample reviews' : 'saved reviews'} · 1–2 stars
           </StatusBadge>
         </div>
         <p className="mt-2 text-sm leading-6">{summary.overview}</p>
@@ -111,21 +111,7 @@ function SummaryPanel({ summary }: { summary: WorkshopReviewSummary }) {
           </p>
         )}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <section className="rounded-lg border border-card-border bg-card p-4" aria-labelledby="review-strengths-title">
-          <h3 id="review-strengths-title" className="flex items-center gap-2 text-sm font-semibold">
-            <Check size={15} className="text-ok" /> Keep doing
-          </h3>
-          {summary.strengths.length ? (
-            <ul className="mt-3 space-y-2">
-              {summary.strengths.map((item, index) => (
-                <li key={`${index}-${item}`} className="flex gap-2 text-sm leading-5 text-muted-foreground">
-                  <span className="mt-[0.55rem] h-1 w-1 shrink-0 rounded-full bg-ok" />{item}
-                </li>
-              ))}
-            </ul>
-          ) : <p className="mt-3 text-sm text-muted-foreground">No recurring strengths identified yet.</p>}
-        </section>
+      <div>
         <section className="rounded-lg border border-card-border bg-card p-4" aria-labelledby="review-improvements-title">
           <h3 id="review-improvements-title" className="flex items-center gap-2 text-sm font-semibold">
             <ArrowRight size={15} className="text-primary" /> Improvement opportunities
@@ -158,9 +144,12 @@ export default function ReviewsPage({ hub }: Hub) {
   const data = reviewsQuery.data;
   const summary = summarizeReviews.data;
   const sampleGroups = getDemoReviewGroups(technicians);
-  const sampleReviews = getDemoReviewSamples(technicians).slice(0, 100)
+  const sampleReviews = getDemoReviewSamples(technicians).filter(({ rating }) => rating <= 2).slice(0, 100)
     .map(({ rating, comment }) => ({ rating, comment }));
   const summarySource = data?.review_count ? 'saved' : 'sample';
+  const noLowRatedReviews = summarySource === 'sample'
+    ? sampleReviews.length === 0
+    : data != null && data.review_count <= 100 && !data.reviews.some(({ rating }) => rating <= 2);
   const generateSummary = () => summarizeReviews.mutate({
     data: summarySource === 'sample'
       ? { source: 'sample', sample_reviews: sampleReviews }
@@ -190,14 +179,14 @@ export default function ReviewsPage({ hub }: Hub) {
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="max-w-lg text-xs leading-5 text-muted-foreground">
                 {summarySource === 'sample'
-                  ? 'No saved reviews yet. Generate an AI summary from the fictional sample reviews below.'
-                  : 'Generate a focused read of saved feedback. Recommendations are starting points for staff review, not automatic changes.'}
+                  ? 'AI summarizes only 1- and 2-star fictional sample reviews, focusing on complaints and improvements.'
+                  : 'AI summarizes only 1- and 2-star saved reviews, focusing on complaints and improvements. Higher ratings are excluded.'}
               </p>
               <Button
                 type="button"
                 variant="secondary"
                 onClick={generateSummary}
-                disabled={summarizeReviews.isPending || reviewsQuery.isLoading || (summarySource === 'sample' && sampleReviews.length === 0)}
+                disabled={summarizeReviews.isPending || reviewsQuery.isLoading || noLowRatedReviews}
                 className="shrink-0"
                 data-testid="button-generate-review-summary"
               >
@@ -231,11 +220,11 @@ export default function ReviewsPage({ hub }: Hub) {
               <div data-testid="review-summary-empty">
                 <EmptyState
                   icon={<Sparkles size={17} />}
-                  title={data?.review_count ? 'Ready when you are' : 'No saved reviews yet'}
+                  title={noLowRatedReviews ? 'No low-rated reviews' : 'Low-rating improvement briefing'}
                 >
-                  {data?.review_count
-                    ? 'Generate a summary when you want recommendations based on saved customer feedback.'
-                    : 'The AI summary button uses the fictional sample reviews below until saved customer reviews are available.'}
+                  {noLowRatedReviews
+                    ? 'No 1- or 2-star reviews are available to summarize.'
+                    : 'Generate a summary of low-rated feedback only. The briefing excludes 3-, 4- and 5-star reviews.'}
                 </EmptyState>
               </div>
             )}
