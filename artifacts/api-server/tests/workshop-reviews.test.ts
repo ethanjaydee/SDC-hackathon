@@ -57,6 +57,46 @@ test('customer reviews validate and persist, aggregate safely, and only summariz
     const requestedSummary = await fetch(`${base}/summary`, { method: 'POST' });
     assert.equal(requestedSummary.status, 503);
     assert.match((await requestedSummary.json()).error, /AI review summary is unavailable/);
+
+    const originalFetch = globalThis.fetch;
+    const originalEnv = {
+      NODE_ENV: process.env.NODE_ENV,
+      RUNPOD_API_KEY: process.env.RUNPOD_API_KEY,
+      RUNPOD_ENDPOINT_URL: process.env.RUNPOD_ENDPOINT_URL,
+    };
+    process.env.NODE_ENV = 'development';
+    process.env.RUNPOD_API_KEY = 'test-runpod-key';
+    process.env.RUNPOD_ENDPOINT_URL = 'https://example.test/runsync';
+    globalThis.fetch = async (input, init) => {
+      if (new URL(String(input)).hostname === '127.0.0.1') return originalFetch(input, init);
+      assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer test-runpod-key');
+      const body = JSON.parse(String(init?.body));
+      assert.match(body.input.prompt, /Quick service and friendly team/);
+      return new Response(JSON.stringify({
+        status: 'COMPLETED',
+        output: {
+          overview: 'Customers value the friendly, quick service.',
+          improvements: ['Reduce arrival delays.'],
+          strengths: ['Friendly team.'],
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+    try {
+      const liveSummary = await fetch(`${base}/summary`, { method: 'POST' });
+      assert.equal(liveSummary.status, 200);
+      const summary = await liveSummary.json();
+      assert.equal(summary.overview, 'Customers value the friendly, quick service.');
+      assert.deepEqual(summary.improvements, ['Reduce arrival delays.']);
+      assert.deepEqual(summary.strengths, ['Friendly team.']);
+      assert.equal(summary.review_count, 2);
+      assert.ok(Number.isFinite(Date.parse(summary.generated_at)));
+    } finally {
+      globalThis.fetch = originalFetch;
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   } finally {
     process.chdir(cwd);
     if (server) await new Promise<void>((resolveClosed, reject) => server!.close((error) => error ? reject(error) : resolveClosed()));
