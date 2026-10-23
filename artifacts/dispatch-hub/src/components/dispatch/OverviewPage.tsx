@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { ArrowRight, Boxes, History, Inbox, Star, Wallet, UserRound } from 'lucide-react';
-import { useUser } from '@clerk/react';
 import {
   getListConversationsQueryKey,
   getListWorkshopReviewsQueryKey,
@@ -33,7 +32,6 @@ export default function OverviewPage({ hub }: Hub) {
       refetchOnWindowFocus: canAutoRefresh,
     },
   });
-  const { user } = useUser();
   const [rosterOpen, setRosterOpen] = useState(false);
   const ready = !!hubQ.data;
   const availableCount = technicians.filter((tech) => tech.status === 'Available').length;
@@ -52,7 +50,7 @@ export default function OverviewPage({ hub }: Hub) {
     : reviewsQ.data?.review_count ? `${reviewsQ.data.review_count} reviews · all time` : 'No reviews yet';
   const lowStockItems = inventory.filter((line) => line.quantity < 5);
   const latest = activity.slice(0, 4);
-  const displayName = user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'Technician';
+  const displayName = 'John Doe';
   const readinessTone = !ready ? 'pending' : hubQ.isError ? 'err' : 'ok';
 
   return (

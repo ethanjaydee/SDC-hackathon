@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
-import { Activity, BarChart3, Boxes, FlaskConical, History, Inbox, Loader2, LogOut, Map as MapIcon, Menu, Radio, Star, Users } from 'lucide-react';
-import { useClerk, useUser } from '@clerk/react';
+import { Activity, BarChart3, Boxes, FlaskConical, History, Inbox, Loader2, Map as MapIcon, Menu, Radio, Star, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -31,8 +30,6 @@ function Brand() {
 export default function Dashboard() {
   const hub = useDispatchHub();
   const { hubQ, lowStockCount, pendingAction } = hub;
-  const { user } = useUser();
-  const { signOut } = useClerk();
   const connection = useConnection(hubQ);
   const [location, navigate] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -75,23 +72,19 @@ export default function Dashboard() {
     </nav>
   );
 
-  const displayName = user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || 'Technician';
-  const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   const isAnalysisRoute = location.startsWith('/analysis/');
   const sideFooter = (
-    <div className="rounded-lg border border-sidebar-border bg-card/60 p-3">
+    <div role="note" aria-label="Demo profile: John Doe, Dispatch manager" className="rounded-lg border border-sidebar-border bg-card/60 p-3">
       <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">{initials}</span>
+        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">JD</span>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center justify-between gap-2">
-            <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
+            <p className="truncate text-sm font-semibold text-foreground">John Doe</p>
+            <span className="shrink-0 rounded border border-sidebar-border px-1.5 py-0.5 font-mono text-[9px] font-medium tracking-wider text-muted-foreground">DEMO</span>
           </div>
-          <p className="truncate text-xs text-muted-foreground">Signed in</p>
+          <p className="truncate text-xs text-muted-foreground">Dispatch manager</p>
         </div>
       </div>
-      <Button type="button" variant="ghost" size="sm" className="mt-2 w-full justify-start text-muted-foreground" onClick={() => void signOut({ redirectUrl: '/' })}>
-        <LogOut size={14} /> Sign out
-      </Button>
     </div>
   );
 

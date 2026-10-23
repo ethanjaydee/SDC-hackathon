@@ -8,7 +8,6 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 const port = 5179;
 const baseUrl = `http://127.0.0.1:${port}`;
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
-const authStorageState = process.env.DISPATCH_TEST_AUTH_STATE;
 
 const hubData = {
   technicians: [
@@ -54,7 +53,7 @@ async function mockOverviewApi(page: Page) {
 }
 
 async function openOverview(browser: Browser, width: number, height: number) {
-  const context = await browser.newContext({ viewport: { width, height }, storageState: authStorageState });
+  const context = await browser.newContext({ viewport: { width, height } });
   const page = await context.newPage();
   await mockOverviewApi(page);
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
@@ -65,7 +64,6 @@ async function openOverview(browser: Browser, width: number, height: number) {
 
 test('overview prioritizes technician readiness with unfinished requests, sales, and sample customer rating', {
   timeout: 120_000,
-  skip: authStorageState ? false : 'Requires DISPATCH_TEST_AUTH_STATE with a Clerk-authenticated Playwright storage state for the test-server origin.',
 }, async () => {
   assert.ok(existsSync(chromiumPath), `Chromium executable not found at ${chromiumPath}; set CHROMIUM_PATH to a local Chromium binary.`);
   const vite = await startVite();
@@ -76,6 +74,8 @@ test('overview prioritizes technician readiness with unfinished requests, sales,
     const desktop = await openOverview(browser, 1440, 960);
     try {
       const page = desktop.page;
+      assert.equal(await page.getByRole('note', { name: 'Demo profile: John Doe, Dispatch manager' }).count(), 1);
+      assert.equal(await page.getByRole('button', { name: /sign out/i }).count(), 0, 'the mock profile is not an interactive login');
       const circle = page.getByTestId('overview-availability-circle');
       assert.equal(await circle.getAttribute('aria-expanded'), 'false');
       assert.match(await circle.getAttribute('aria-label') || '', /1 of 2 available/);
@@ -89,8 +89,9 @@ test('overview prioritizes technician readiness with unfinished requests, sales,
 
       const availableRow = page.getByTestId('overview-technician-1');
       const busyRow = page.getByTestId('overview-technician-2');
-      await assert.equal(await availableRow.innerText().then((text) => text.includes('Available')), true);
-      await assert.equal(await busyRow.innerText().then((text) => text.includes('Busy') && text.includes('Unavailable')), true);
+      assert.match(await availableRow.innerText(), /available/i);
+      assert.match(await busyRow.innerText(), /busy/i);
+      assert.match(await busyRow.innerText(), /unavailable/i);
       assert.equal(await busyRow.locator('svg').count(), 1, 'unavailable technicians retain an icon alongside their status label');
       assert.equal(await page.getByTestId('link-overview-technicians').getAttribute('href'), '/technicians');
       assert.equal(await page.getByTestId('link-overview-requests').getAttribute('href'), '/intake');

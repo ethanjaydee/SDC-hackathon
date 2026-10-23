@@ -14,7 +14,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Clerk sign-in is provisioned through Replit with managed environment secrets. RunPod analysis is intentionally mocked and requires no external credentials.
+- The dashboard uses a static, non-interactive John Doe demo profile rather than real sign-in. Demo API routes are unauthenticated and must expose synthetic data only. RunPod analysis is intentionally mocked and requires no external credentials.
 
 ## Stack
 
@@ -46,7 +46,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 
 Separate screens for overview, repair intake, post-intake analysis, technician map, technicians, van stock, and append-only dispatch history. Keep the desktop sidebar fixed instead of scrolling the entire dashboard between sections. Keep the interface focused on clear information technicians need in the field; omit store comparison and reorder screens.
 
-Clerk sign-in is required for all dispatch API routes except the health check. Authenticated accounts share the same synthetic demo workspace; there is no per-technician data isolation or role-based authorization.
+The dispatch demo has no real authentication or role-based authorization. Keep the John Doe profile non-interactive and do not add real sign-in unless explicitly requested.
 
 Completion-proof examples may use illustrative stock photos and synthetic customer signatures, but must remain separate from actual audit records. Never imply that example evidence proves an existing or legacy dispatch was completed. Customer conversations no longer expose a manual customer/technician message simulator.
 
