@@ -598,6 +598,8 @@ router.post("/conversations/:id/recommendations", async (req, res, next) => {
       recommendationCache.set(key, item);
     }
     const result = await item.result;
+    // Share in-flight requests, but let the next explicit retry recover from AI outages.
+    if (result.source !== "AI") recommendationCache.delete(key);
     const latest = getConversationThread(id);
     if (!latest || latest.latest_message_id !== thread.latest_message_id || latest.customer_site_id !== thread.customer_site_id ||
       latest.dispatch_activity_id != null || JSON.stringify(latest.analysis) !== JSON.stringify(thread.analysis) || JSON.stringify(getHubData()) !== fingerprint) {

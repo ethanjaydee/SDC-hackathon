@@ -127,7 +127,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     queryKey: recKey,
     queryFn: ({ signal }) => recommendTechnicians(conversationId, { signal }),
     enabled: validId && analysisIsCurrent && !dispatchSaved && !!siteId,
-    staleTime: 5 * 60_000,
+    staleTime: (query) => query.state.data?.source === 'AI' ? 5 * 60_000 : 0,
     gcTime: 10 * 60_000,
     refetchOnWindowFocus: false,
     refetchInterval: false,

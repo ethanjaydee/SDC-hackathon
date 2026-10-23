@@ -14,7 +14,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- The dashboard uses a static, non-interactive Boss demo profile rather than real sign-in. Demo API routes are unauthenticated and must expose synthetic data only. RunPod analysis is intentionally mocked and requires no external credentials.
+- The dashboard uses a static, non-interactive Boss demo profile rather than real sign-in. Demo API routes are unauthenticated and must expose synthetic data only. Repair-note analysis and technician recommendations use RunPod when configured, with explicit rule-based fallbacks.
 
 ## Stack
 
@@ -29,7 +29,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 
 - `artifacts/dispatch-hub/` — React/Tailwind dashboard
 - `artifacts/dispatch-preview/` — replacement managed preview registration; delegates to the existing dashboard rather than maintaining a second product.
-- `artifacts/api-server/src/hub.js` — SQLite schema, synthetic seeds, RunPod placeholder and hub API router
+- `artifacts/api-server/src/hub.js` — SQLite schema, synthetic seeds and hub API router
 - `artifacts/api-server/src/server.js` — older router retained for reference; do not mount it ahead of the current lifecycle-aware hub router.
 - `lib/api-spec/openapi.yaml` — API contract; regenerate hooks/schemas after changes
 
@@ -38,7 +38,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 - The replacement preview registration preserves the pulled frontend source and SQLite data. **Why:** the original manifest contained duplicate TOML keys, and validated replacement rejected the malformed original before reading a corrected candidate. Its original metadata is archived unchanged under `.local/preview-recovery/`.
 
 - SQLite was explicitly requested for this MVP; do not silently replace it with PostgreSQL.
-- RunPod is a dummy helper by request, not a live AI integration. Keep mock mode explicit.
+- RunPod uses `RUNPOD_API_KEY` and `RUNPOD_ENDPOINT_URL` (Serverless `/runsync`). Repair-note analysis and technician recommendations share a five-second transport deadline and validate task-specific output. Technician eligibility and junior-first selection remain server-enforced. Conversation triage and review summaries retain their separate AI provider and validators.
 - The approval name is a demo audit label, not verified authentication.
 - SQLite files are local runtime data and excluded from Git/deployment inputs. Before real operational deployment, decide on durable storage, backups and multi-instance behavior.
 

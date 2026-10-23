@@ -12,7 +12,10 @@ test('completion validates assignment, persists atomically, never restores parts
   const dir = mkdtempSync(resolve(tmpdir(), 'complete-dispatch-'));
   let server;
   let db;
+  const endpoint = process.env.RUNPOD_ENDPOINT_URL;
   try {
+    // Completion tests must not call a live model or depend on its wording.
+    delete process.env.RUNPOD_ENDPOINT_URL;
     process.chdir(dir);
     const { default: router } = await import(new URL('../src/hub.js', import.meta.url).href);
     process.chdir(cwd);
@@ -157,6 +160,8 @@ test('completion validates assignment, persists atomically, never restores parts
     assert.equal((await reset(3)).status, 409);
     assert.deepEqual(await read(), redispatched);
   } finally {
+    if (endpoint === undefined) delete process.env.RUNPOD_ENDPOINT_URL;
+    else process.env.RUNPOD_ENDPOINT_URL = endpoint;
     process.chdir(cwd);
     if (server) await new Promise<void>((r, reject) => server.close((e) => e ? reject(e) : r()));
     db?.close();
