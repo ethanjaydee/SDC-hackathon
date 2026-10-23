@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowLeft, Bot, CheckCircle2, ChevronDown, ExternalLink, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Route as RouteIcon, Send, Sparkles, Star } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronDown, ExternalLink, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Route as RouteIcon, Send, Sparkles, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -12,12 +12,11 @@ import {
   type Technician, type DemoSiteId,
 } from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
-import { LevelBadge, ratingText } from './techMeta';
 import { MiniRouteMap } from './MiniRouteMap';
 import { SlideToApprove } from './SlideToApprove';
 import { rankQualifiedTechnicians } from './matching';
 import { APPROVER, type DispatchState } from './useDispatchHub';
-import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, initials, fieldClass } from './shared';
+import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, fieldClass } from './shared';
 import { useDemoSession } from './session';
 import { MessagingConnectionNotice } from './MessagingConnectionNotice';
 import { getDemoReviewsForTechnician } from './demoReviewSamples';
@@ -177,7 +176,6 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   const recommendedId = recs?.recommended_technician_id != null && eligibleIds.has(recs.recommended_technician_id) ? recs.recommended_technician_id : null;
   const selectedId = recommendedId ?? matches[0]?.id ?? null;
   const match = matches.find((m) => m.id === selectedId) ?? null;
-  const minLevel = complexity === 'Hard' ? 3 : complexity === 'Normal' ? 2 : 1;
   const selectedCandidate = match ? recs?.candidates.find((c) => c.technician_id === match.id) : undefined;
   const keyStr = recKey.join('|');
   const myRouteId = technicianId ?? 0;
@@ -504,64 +502,9 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
               </div>
             </Card>
           )}
-          {!dispatchSaved && !(analysis && analysisIsCurrent) && (
-            <Card title={<><Sparkles size={15} /> Recommended technician</>}>
-              <p role="status" className="text-sm text-muted-foreground">A recommendation appears once the analysis is current for the latest messages.</p>
-            </Card>
-          )}
           {analysis && analysisIsCurrent && !dispatchSaved && (
             <>
-              {isTech ? <JobBrief /> : <Card title={<><Sparkles size={15} /> Recommended technician</>} aside={<StatusBadge tone={complexity === 'Hard' ? 'err' : complexity === 'Normal' ? 'pending' : 'ok'}>{complexity}</StatusBadge>}>
-                {hub.hubQ.isLoading ? <Skeleton className="h-24" />
-                  : !hub.hubQ.data ? <InlineError onRetry={() => void hub.hubQ.refetch()} retrying={hub.hubQ.isFetching}>Reconnect to the hub to match a technician.</InlineError>
-                    : !site ? <div role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-4 text-sm"><b>Customer site is not assigned.</b> Choose a sample site first.</div>
-                      : !match ? (
-                        <div role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-4 text-sm">
-                          <b>No qualified technician.</b> {complexity} jobs need Level {minLevel}+, an available tech, and an available shared van with every required part.
-                        </div>
-                      ) : (
-                        <div className="space-y-3" data-testid="recommendation-summary" aria-live="polite">
-                          <div className="flex items-center gap-3 rounded-xl border border-ok/40 bg-ok/[0.07] p-3.5" data-testid="recommended-technician">
-                            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-secondary font-mono text-sm font-semibold">{initials(match.name)}</span>
-                            <span className="min-w-0 flex-1">
-                              <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><span className="truncate text-base font-semibold">{match.name}</span><LevelBadge tech={match} /></span>
-                              <span className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-                                <span>Rating {ratingText(match)}</span><Mono>{hub.hubQ.data?.vans?.find((v) => v.id === match.van_id)?.name ?? 'Shared van'} · provisional</Mono>
-                              </span>
-                            </span>
-                            <span className="shrink-0 text-right text-xs">
-                              {selectedCandidate?.distance_meters != null && selectedCandidate.duration_seconds != null
-                                ? <><b className="font-mono text-lg tabular">{fmtMin(selectedCandidate.duration_seconds)}</b><span className="block text-muted-foreground">{fmtKm(selectedCandidate.distance_meters)} · Google</span></>
-                                : <span className="text-muted-foreground">Distance and ETA unavailable</span>}
-                            </span>
-                          </div>
-                          {recQ.isLoading || (recQ.isFetching && !recs) ? <div className="space-y-2" role="status" aria-label="Loading recommendation"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-1/2" /></div>
-                            : recs ? (
-                              <div>
-                                <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                                  <StatusBadge tone={recs.source === 'AI' ? 'ok' : 'idle'}>{recs.source === 'AI' ? <><Bot size={10} /> AI recommendation</> : 'Rule-based fallback, not AI'}</StatusBadge>
-                                  <Button type="button" size="sm" variant="ghost" onClick={() => void recQ.refetch()} disabled={recQ.isFetching} data-testid="button-refresh-recommendations">
-                                    <RefreshCw size={12} className={recQ.isFetching ? 'animate-spin' : ''} /> Refresh
-                                  </Button>
-                                </div>
-                                <p className="text-sm leading-relaxed">{recs.summary}</p>
-                                {selectedCandidate?.reason && <p className="mt-1.5 text-xs text-muted-foreground">{selectedCandidate.reason}</p>}
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <p className="text-sm text-muted-foreground">{recQ.isError ? 'AI recommendation could not be loaded. This technician is the top rule-based match from current hub data, not AI.' : 'AI recommendation is not available. This is the top rule-based match, not AI.'}</p>
-                                <Button type="button" size="sm" variant="outline" onClick={() => void recQ.refetch()} disabled={recQ.isFetching} data-testid="button-refresh-recommendations"><RefreshCw size={12} /> Try again</Button>
-                              </div>
-                            )}
-                          {recs && (
-                            <p className={`flex items-start gap-1.5 text-xs ${recs.routing_status === 'ready' ? 'text-muted-foreground' : 'text-pending'}`} data-testid="routing-status">
-                              <RouteIcon size={12} className="mt-0.5 shrink-0" />
-                              <span>{recs.routing_status === 'ready' ? 'Drive time from Google Routes.' : recs.routing_status === 'partial' ? 'Drive time may be missing.' : 'Drive time unavailable.'} {recs.routing_message}</span>
-                            </p>
-                          )}
-                        </div>
-                      )}
-              </Card>}
+              {isTech && <JobBrief />}
 
               {!isTech && site && match && (
                 <Card title={<><MapPin size={15} /> Route</>} aside={directionsUrl ? (
@@ -593,7 +536,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                     <SlideToApprove onConfirm={approve}
                       resetKey={`${keyStr}|${match.id}`}
                       disabled={dispatchSaved || !analysisIsCurrent || threadQ.isError || hub.writePending || hub.connectionLost || hub.approve.isPending || recQ.isFetching}
-                      disabledLabel={dispatchSaved ? 'Already dispatched' : hub.connectionLost ? 'Hub offline' : recQ.isFetching ? 'Finding best technician…' : 'Approval unavailable'}
+                      disabledLabel={dispatchSaved ? 'Already dispatched' : hub.connectionLost ? 'Hub offline' : recQ.isFetching ? 'Checking dispatch assignment…' : 'Approval unavailable'}
                       testId="slide-approve" />
                   </div>
                 </Card>
