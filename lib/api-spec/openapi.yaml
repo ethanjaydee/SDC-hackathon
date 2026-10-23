@@ -149,6 +149,29 @@ paths:
           description: Dispatch not found
         "409":
           description: The dispatch is no longer active, belongs to another technician, or already has a different response
+  /dispatches/{id}/acknowledge:
+    post:
+      operationId: acknowledgeDispatch
+      tags: [hub]
+      summary: Hide a dispatched conversation from the Boss work-order list without completing the job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Activity ID of the saved dispatch
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Acknowledgement saved; dispatch, technician, van, and reserved stock remain unchanged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AcknowledgeDispatchResult" }
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "404":
+          description: Dispatch not found
+        "409":
+          description: Dispatch is not linked to a customer conversation
   /workshop-reviews:
     get:
       operationId: listWorkshopReviews
@@ -716,7 +739,7 @@ components:
         lng: { type: number, minimum: -180, maximum: 180 }
     SavedDispatch:
       type: object
-      required: [tech_id, technician_name, van_id, parts, customer_site, status, completed_at, conversation_id, technician_response, technician_response_at]
+      required: [tech_id, technician_name, van_id, parts, customer_site, status, completed_at, conversation_id, technician_response, technician_response_at, boss_acknowledged_at]
       properties:
         status:
           type: string
@@ -727,6 +750,7 @@ components:
           type: [string, "null"]
           enum: [Accepted, Rejected, null]
         technician_response_at: { type: [string, "null"], format: date-time }
+        boss_acknowledged_at: { type: [string, "null"], format: date-time }
         tech_id: { type: integer }
         technician_name: { type: string }
         van_id: { type: integer }
@@ -753,6 +777,12 @@ components:
         technician_id: { type: integer, minimum: 1 }
         response: { type: string, enum: [Accepted, Rejected] }
         responded_at: { type: string, format: date-time }
+    AcknowledgeDispatchResult:
+      type: object
+      required: [dispatch_id, acknowledged_at]
+      properties:
+        dispatch_id: { type: integer, minimum: 1 }
+        acknowledged_at: { type: string, format: date-time }
     ShopLocation:
       type: object
       required: [name, label, area, lat, lng]

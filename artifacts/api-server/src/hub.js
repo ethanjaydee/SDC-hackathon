@@ -13,6 +13,7 @@ import { prepareTelegramStorage, createTelegramStorage } from "./telegramStore.j
 import { sendTelegramMessage, TelegramDeliveryError } from "./telegramTransport.js";
 import { generateSampleEInvoice } from "./sampleEInvoice.js";
 import { createTechnicianResponseRecorder, TechnicianResponseError } from "./dispatchResponse.js";
+import { createDispatchAcknowledger, DispatchAcknowledgementError } from "./dispatchAcknowledgement.js";
 import {
   AnalyzeRequestBody,
   AnalyzeRequestResponse,
@@ -25,6 +26,8 @@ import {
   CompleteDispatchResponse,
   RespondToDispatchBody,
   RespondToDispatchResponse,
+  AcknowledgeDispatchParams,
+  AcknowledgeDispatchResponse,
   ResetTechnicianAvailabilityBody,
   ResetTechnicianAvailabilityResponse,
   GetHubDataResponse,
@@ -95,7 +98,8 @@ db.exec(`
     parts_json TEXT NOT NULL,
     customer_site_json TEXT NOT NULL,
     technician_response TEXT CHECK(technician_response IS NULL OR technician_response IN ('Accepted', 'Rejected')),
-    technician_response_at TEXT
+    technician_response_at TEXT,
+    boss_acknowledged_at TEXT
   );
   CREATE TABLE IF NOT EXISTS conversation_threads (
     id INTEGER PRIMARY KEY,
@@ -212,6 +216,9 @@ db.transaction(() => {
   if (!columns.some((column) => column.name === "technician_response_at")) {
     db.exec("ALTER TABLE dispatches ADD COLUMN technician_response_at TEXT");
   }
+  if (!columns.some((column) => column.name === "boss_acknowledged_at")) {
+    db.exec("ALTER TABLE dispatches ADD COLUMN boss_acknowledged_at TEXT");
+  }
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS one_active_dispatch_per_tech
       ON dispatches(tech_id) WHERE status = 'Active';
@@ -318,14 +325,14 @@ function getHubData() {
     inventory: db.prepare("SELECT * FROM inventory ORDER BY van_id, id").all(),
     activity_log: db.prepare(`
       SELECT a.*, d.tech_id, d.technician_name, d.van_id, d.parts_json, d.customer_site_json, d.shop_location_json, d.conversation_id,
-        d.technician_response, d.technician_response_at,
+        d.technician_response, d.technician_response_at, d.boss_acknowledged_at,
         d.status AS dispatch_status, completed.timestamp AS completed_at,
         original.activity_id AS completion_dispatch_id
       FROM activity_log a LEFT JOIN dispatches d ON d.activity_id = a.id
       LEFT JOIN activity_log completed ON completed.id = d.completion_activity_id
       LEFT JOIN dispatches original ON original.completion_activity_id = a.id
       ORDER BY a.id DESC
-    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, shop_location_json, conversation_id, technician_response, technician_response_at, dispatch_status, completed_at, ...activity }) => ({
+    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, shop_location_json, conversation_id, technician_response, technician_response_at, boss_acknowledged_at, dispatch_status, completed_at, ...activity }) => ({
       ...activity,
       dispatch: tech_id == null ? null : {
         tech_id, technician_name, van_id,
@@ -333,6 +340,7 @@ function getHubData() {
         completed_at,
         technician_response,
         technician_response_at,
+        boss_acknowledged_at,
         parts: JSON.parse(parts_json),
         customer_site: JSON.parse(customer_site_json),
         shop_location: shop_location_json ? JSON.parse(shop_location_json) : null,
@@ -579,6 +587,7 @@ const completeDispatch = db.transaction(({ dispatch_id, completed_by }) => {
 });
 
 const recordTechnicianResponse = createTechnicianResponseRecorder(db);
+const acknowledgeDispatch = createDispatchAcknowledger(db);
 
 const resetTechnicianAvailability = db.transaction(({ technician_id, reset_by }) => {
   const technician = db.prepare(
@@ -1295,6 +1304,24 @@ router.post("/analyze-request", async (req, res) => {
     return;
   }
   res.json(AnalyzeRequestResponse.parse(await callRunPodModel(parsed.data.text)));
+});
+router.post("/dispatches/:id/acknowledge", (req, res, next) => {
+  const parsed = AcknowledgeDispatchParams.safeParse({ id: req.params.id });
+  if (!parsed.success) {
+    res.status(400).json({ error: "Provide a valid dispatch ID." });
+    return;
+  }
+  try {
+    res.json(AcknowledgeDispatchResponse.parse(acknowledgeDispatch.immediate({
+      dispatch_id: parsed.data.id,
+    })));
+  } catch (error) {
+    if (error instanceof DispatchAcknowledgementError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
 });
 router.post("/dispatches/:id/technician-response", (req, res, next) => {
   const dispatch_id = Number(req.params.id);

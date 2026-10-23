@@ -275,6 +275,8 @@ export interface SavedDispatch {
   technician_response: SavedDispatchTechnicianResponse;
   /** @nullable */
   technician_response_at: string | null;
+  /** @nullable */
+  boss_acknowledged_at: string | null;
   tech_id: number;
   technician_name: string;
   van_id: number;
@@ -330,6 +332,12 @@ export interface TechnicianDispatchResponseResult {
   technician_id: number;
   response: TechnicianDispatchResponseResultResponse;
   responded_at: string;
+}
+
+export interface AcknowledgeDispatchResult {
+  /** @minimum 1 */
+  dispatch_id: number;
+  acknowledged_at: string;
 }
 
 export type TransportVanStatus = typeof TransportVanStatus[keyof typeof TransportVanStatus];

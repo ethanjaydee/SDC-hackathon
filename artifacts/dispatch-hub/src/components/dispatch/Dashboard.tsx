@@ -170,7 +170,7 @@ function Workspace() {
               {isTechnician && bossOnly(location) ? <Redirect to={location.startsWith('/today') ? '/log' : '/'} replace /> : (
               <Switch>
                 <Route path="/">{isTechnician ? <TechnicianOverview hub={hub} /> : <OverviewPage hub={hub} />}</Route>
-                <Route path="/intake"><IntakePage /></Route>
+                <Route path="/intake"><IntakePage hub={hub} /></Route>
                 <Route path="/analysis"><Redirect to="/intake" replace /></Route>
                 <Route path="/analysis/:id">{(params) => <AnalysisPage hub={hub} conversationId={Number(params.id)} onApprove={afterApproval} />}</Route>
                 <Route path="/workshop-analysis"><WorkshopAnalysisPage hub={hub} /></Route>

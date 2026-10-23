@@ -10,11 +10,22 @@ type Props = {
   /** Changing this value resets the control (identity, site, technician, analysis). */
   resetKey: string;
   idleLabel?: string;
+  pendingLabel?: string;
+  successLabel?: string;
+  sliderLabel?: string;
   disabledLabel?: string;
   testId?: string;
 };
 
-export function SlideToApprove({ onConfirm, disabled, resetKey, idleLabel = 'Slide to approve & dispatch', disabledLabel = 'Approval unavailable', testId = 'slide-approve' }: Props) {
+export function SlideToApprove({
+  onConfirm, disabled, resetKey,
+  idleLabel = 'Slide to approve & dispatch',
+  pendingLabel = 'Allocating parts…',
+  successLabel = 'Dispatch approved',
+  sliderLabel = 'Slide right to approve dispatch',
+  disabledLabel = 'Approval unavailable',
+  testId = 'slide-approve',
+}: Props) {
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startX: number; startPos: number; max: number } | null>(null);
   const busy = useRef(false);
@@ -84,7 +95,7 @@ export function SlideToApprove({ onConfirm, disabled, resetKey, idleLabel = 'Sli
     else if (e.key === 'Enter') { e.preventDefault(); if (pos >= 0.99) void confirm(); }
   };
 
-  const label = status === 'pending' ? 'Allocating parts…' : status === 'success' ? 'Dispatch approved' : disabled ? disabledLabel : idleLabel;
+  const label = status === 'pending' ? pendingLabel : status === 'success' ? successLabel : disabled ? disabledLabel : idleLabel;
   const maxPx = Math.max(0, trackW - HANDLE - 8);
   return (
     <div className="space-y-1.5">
@@ -93,7 +104,7 @@ export function SlideToApprove({ onConfirm, disabled, resetKey, idleLabel = 'Sli
         <div aria-hidden="true" className="absolute inset-y-1 left-1 rounded-full bg-ok/20 motion-reduce:!transition-none"
           style={{ width: `${Math.max(0, Math.min(trackW - 8, HANDLE + pos * maxPx))}px`, transition: dragging ? 'none' : 'width .5s cubic-bezier(.22,1.2,.36,1)', willChange: 'width' }} />
         <span className="pointer-events-none absolute inset-0 grid place-items-center pl-10 text-sm font-medium text-foreground/80 motion-reduce:!transition-none" aria-live="polite" style={{ opacity: status === 'pending' || status === 'success' ? 1 : Math.max(0, 1 - pos * 1.6), transition: dragging ? 'none' : 'opacity .3s ease' }}>{label}</span>
-        <div role="slider" tabIndex={locked ? -1 : 0} aria-label="Slide right to approve dispatch" aria-valuemin={0} aria-valuemax={100}
+        <div role="slider" tabIndex={locked ? -1 : 0} aria-label={sliderLabel} aria-valuemin={0} aria-valuemax={100}
           aria-valuenow={Math.round(pos * 100)} aria-valuetext={pos >= 0.99 ? 'Ready. Press Enter to confirm.' : `${Math.round(pos * 100)} percent`}
           aria-disabled={locked} aria-describedby={`${testId}-help`} data-testid={`${testId}-handle`}
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel} onKeyDown={onKey}

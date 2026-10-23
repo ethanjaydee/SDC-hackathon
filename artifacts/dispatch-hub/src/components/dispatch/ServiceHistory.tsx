@@ -1,14 +1,15 @@
-import { useMemo } from 'react';
-import { Award, FileText, PenLine, Star } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Award, Download, FileText, Search, Star, ZoomIn } from 'lucide-react';
 import { useGenerateSampleEInvoice } from '@workspace/api-client-react';
-import type { Activity, SampleEInvoice, Technician } from '@workspace/api-client-react';
-import { Link } from 'wouter';
+import type { SampleEInvoice, Technician } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Card, EmptyState, InlineError, Mono, StatusBadge, errorText, initials } from './shared';
+import { Card, EmptyState, InlineError, Mono, StatusBadge, errorText, fieldClass, initials } from './shared';
 import { LevelBadge, ratingText } from './techMeta';
 import { badgeSurfaceForRank, rankBadges } from './serviceHistoryUtils';
 import { getDemoServiceHistory, type SampleCompletedJob } from './demoServiceHistory';
+import { createSampleInvoicePdf } from './sampleInvoicePdf';
+import invoiceLogoUrl from '../../assets/invoice-logo.png';
 
 const dateLabel = (date: string) => {
   const parsed = new Date(date);
@@ -17,35 +18,68 @@ const dateLabel = (date: string) => {
     : parsed.toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 const myr = (amount: number) => `MYR ${amount.toFixed(2)}`;
-const SAMPLE_SIGNATURE = 'M15 64 Q31 12 42 25 Q49 38 24 62 Q58 29 60 47 Q58 63 76 39 Q64 67 91 45 Q103 34 101 49 Q96 63 117 44 Q107 66 132 50 Q150 36 153 45 Q157 53 177 44 M26 76 Q88 67 189 69';
-
 function SampleInvoiceAction({ technician, job }: { technician: Technician; job: SampleCompletedJob }) {
   const invoiceMutation = useGenerateSampleEInvoice();
   const invoice = invoiceMutation.data as SampleEInvoice | undefined;
   const isForThisJob = invoice?.job_number === job.job_number;
+  const [pdfPending, setPdfPending] = useState(false);
+  const [pdfError, setPdfError] = useState('');
 
-  const generate = () => invoiceMutation.mutate({
-    data: {
-      job_number: job.job_number,
-      technician_name: technician.name,
-      completed_at: job.completed_at,
-      job_scope: job.job_scope,
-      amount_myr: job.amount_myr,
-    },
-  });
+  const downloadPdf = async (sample: SampleEInvoice) => {
+    setPdfError('');
+    setPdfPending(true);
+    try {
+      const logoResponse = await fetch(invoiceLogoUrl);
+      if (!logoResponse.ok) throw new Error('The sample invoice logo could not be loaded.');
+      const logoBytes = new Uint8Array(await logoResponse.arrayBuffer());
+      const pdfBytes = await createSampleInvoicePdf(sample, logoBytes);
+      const pdfBuffer = new Uint8Array(pdfBytes).buffer;
+      const url = URL.createObjectURL(new Blob([pdfBuffer], { type: 'application/pdf' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${sample.invoice_number.replace(/[^\w.-]+/g, '-')}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setPdfError('The sample invoice was generated, but the PDF could not be prepared. Try downloading it again.');
+    } finally {
+      setPdfPending(false);
+    }
+  };
+
+  const generate = async () => {
+    setPdfError('');
+    try {
+      const sample = await invoiceMutation.mutateAsync({
+        data: {
+          job_number: job.job_number,
+          technician_name: technician.name,
+          completed_at: job.completed_at,
+          job_scope: job.job_scope,
+          amount_myr: job.amount_myr,
+        },
+      });
+      await downloadPdf(sample);
+    } catch {
+      // The mutation's error state is displayed below.
+    }
+  };
 
   return (
     <div className="min-w-[190px] space-y-2" data-testid={`sample-invoice-action-${job.job_number}`}>
-      <Button type="button" size="sm" variant="outline" onClick={generate} disabled={invoiceMutation.isPending}
+      <Button type="button" size="sm" variant="outline" onClick={() => void generate()} disabled={invoiceMutation.isPending || pdfPending}
         data-testid={`button-generate-invoice-${job.job_number}`}>
         <FileText size={14} />
-        {invoiceMutation.isPending ? 'Generating…' : 'Generate e-invoice'}
+        {invoiceMutation.isPending ? 'Generating…' : pdfPending ? 'Preparing PDF…' : 'Generate & download PDF'}
       </Button>
       {invoiceMutation.isError && (
-        <InlineError testId={`error-sample-invoice-${job.job_number}`} onRetry={generate} retrying={invoiceMutation.isPending}>
+        <InlineError testId={`error-sample-invoice-${job.job_number}`} onRetry={() => void generate()} retrying={invoiceMutation.isPending || pdfPending}>
           {errorText(invoiceMutation.error, 'Sample e-invoice generation failed. No invoice was created.')}
         </InlineError>
       )}
+      {pdfError && <p role="alert" className="text-xs text-err">{pdfError}</p>}
       {invoiceMutation.isSuccess && isForThisJob && invoice && (
         <section className="space-y-2 rounded-lg border border-pending/30 bg-pending/[0.06] p-3 text-xs"
           aria-label={`AI-generated sample invoice for ${job.job_number}`} data-testid={`sample-invoice-result-${job.job_number}`}>
@@ -53,6 +87,9 @@ function SampleInvoiceAction({ technician, job }: { technician: Technician; job:
             <strong className="font-mono">{invoice.invoice_number}</strong>
             <StatusBadge tone="pending">AI-generated sample</StatusBadge>
           </div>
+          <Button type="button" size="sm" variant="outline" onClick={() => void downloadPdf(invoice)} disabled={pdfPending}>
+            <Download size={13} /> {pdfPending ? 'Preparing PDF…' : 'Download sample PDF'}
+          </Button>
           <p className="font-medium">{invoice.line_description}</p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
             <dt className="text-muted-foreground">Job</dt><dd className="font-mono">{invoice.job_number}</dd>
@@ -105,6 +142,30 @@ function SampleHistoryTable({ technician }: { technician: Technician }) {
   );
 }
 
+function ZoomableSamplePhoto({ src, jobNumber }: { src: string; jobNumber: string }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button type="button" className="group flex items-center gap-2 text-left" aria-label={`Zoom sample photo for ${jobNumber}`}>
+          <img src={src} alt={`Illustrative sample photo for ${jobNumber}`}
+            className="h-10 w-14 rounded-md border object-cover transition group-hover:ring-2 group-hover:ring-ring"
+            data-testid={`img-sample-proof-${jobNumber}`} />
+          <span className="max-w-[145px] text-[10px] leading-4 text-muted-foreground">Sample photo · click to zoom</span>
+          <ZoomIn size={13} className="shrink-0 text-primary" aria-hidden="true" />
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>Sample photo · {jobNumber}</DialogTitle>
+          <DialogDescription>Illustrative sample only; this photo is not proof of work on a real dispatch.</DialogDescription>
+        </DialogHeader>
+        <img src={src} alt={`Enlarged illustrative sample photo for ${jobNumber}`}
+          className="mx-auto max-h-[74dvh] w-full rounded-lg object-contain" />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SampleJobRow({ technician, job, assetBase }: { technician: Technician; job: SampleCompletedJob; assetBase: string }) {
   return (
     <tr className="align-top" data-testid={`sample-job-row-${job.job_number}`}>
@@ -115,9 +176,7 @@ function SampleJobRow({ technician, job, assetBase }: { technician: Technician; 
       <td className="max-w-[250px] px-3 py-3">
         <p className="font-medium text-foreground">{job.job_scope}</p>
         <div className="mt-2 flex items-center gap-2">
-          <img src={`${assetBase}${job.proof_image}`} alt={`Illustrative sample service photo for ${job.job_number}`}
-            className="h-10 w-14 rounded-md border object-cover" data-testid={`img-sample-proof-${job.job_number}`} />
-          <span className="max-w-[140px] text-[10px] leading-4 text-muted-foreground">Sample photo · not job evidence</span>
+          <ZoomableSamplePhoto src={`${assetBase}${job.proof_image}`} jobNumber={job.job_number} />
         </div>
       </td>
       <td className="whitespace-nowrap px-3 py-3 text-right font-mono font-semibold tabular">{myr(job.amount_myr)}</td>
@@ -131,46 +190,19 @@ function SampleJobRow({ technician, job, assetBase }: { technician: Technician; 
   );
 }
 
-function SampleProof({ tech, activity }: { tech: Technician; activity: Activity[] }) {
-  const jobs = activity.filter((entry) => entry.dispatch?.tech_id === tech.id);
+function SampleProof({ tech }: { tech: Technician }) {
   return (
     <DialogContent className="max-h-[92dvh] max-w-6xl overflow-y-auto p-4 sm:p-6">
       <DialogHeader>
         <DialogTitle>{tech.name} — work history</DialogTitle>
-        <DialogDescription>Actual saved assignments and fictional sample history are shown separately. Sample content is not audit evidence.</DialogDescription>
+        <DialogDescription>Fictional sample history for this technician. Sample content is not a real dispatch record.</DialogDescription>
       </DialogHeader>
-      <section aria-label="Actual technician job history" className="rounded-xl border p-3 sm:p-4" data-testid={`actual-assignments-${tech.id}`}>
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">Actual saved assignments</h3>
-          <StatusBadge tone="idle">{jobs.length} saved</StatusBadge>
-        </div>
-        {jobs.length ? (
-          <ul className="space-y-2">
-            {jobs.map((entry) => <li key={entry.id} data-testid={`actual-assignment-${entry.id}`} className="flex flex-col gap-1 border-t pt-2 text-xs sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-              <span className="min-w-0 leading-relaxed">
-                <Mono>#{entry.id}</Mono> · {entry.dispatch!.status} · {entry.dispatch!.customer_site?.label ?? 'Historical site unknown'}
-                {entry.dispatch!.completed_at && <span className="text-muted-foreground"> · {dateLabel(entry.dispatch!.completed_at)}</span>}
-              </span>
-              {entry.dispatch!.conversation_id != null && <Link href={`/analysis/${entry.dispatch!.conversation_id}`} className="w-fit shrink-0 font-medium text-primary" data-testid={`link-assignment-request-${entry.id}`}>Open request</Link>}
-            </li>)}
-          </ul>
-        ) : <p className="text-xs text-muted-foreground">No saved assignment is linked to this technician. Fictional sample jobs below are not audit counts.</p>}
-      </section>
       <SampleHistoryTable technician={tech} />
-      <section aria-label="Illustrative sample customer signature" className="rounded-xl border p-3">
-        <p className="mb-2 flex items-center gap-1.5 text-xs font-medium"><PenLine size={13} /> Illustrative sample sign-off</p>
-        <div className="inline-flex max-w-full items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2">
-          <svg viewBox="0 0 220 90" className="h-12 w-40 max-w-full" role="img" aria-label="Synthetic illustrative signature, not linked to a real assignment">
-            <path d={SAMPLE_SIGNATURE} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="text-[11px] leading-relaxed text-muted-foreground">Illustrative synthetic mark only · no saved assignment sign-off</span>
-        </div>
-      </section>
     </DialogContent>
   );
 }
 
-export function BadgeButton({ t, rank, activity, podium }: { t: Technician; rank: number; activity: Activity[]; podium: boolean }) {
+export function BadgeButton({ t, rank, podium }: { t: Technician; rank: number; podium: boolean }) {
   const surface = podium ? badgeSurfaceForRank(rank) : 'border-card-border bg-card';
   return (
     <Dialog>
@@ -186,19 +218,42 @@ export function BadgeButton({ t, rank, activity, podium }: { t: Technician; rank
           <span aria-hidden="true" className="shrink-0 text-xs font-medium text-primary">View history</span>
         </button>
       </DialogTrigger>
-      <SampleProof tech={t} activity={activity} />
+       <SampleProof tech={t} />
     </Dialog>
   );
 }
 
-export function WorkBadges({ technicians, activity = [] }: { technicians: Technician[]; activity?: Activity[] }) {
+export function WorkBadges({ technicians }: { technicians: Technician[] }) {
+  const [search, setSearch] = useState('');
   const ranked = useMemo(() => rankBadges(technicians), [technicians]);
+  const terms = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const filtered = ranked.filter((tech) => {
+    if (!terms.length) return true;
+    const jobs = getDemoServiceHistory(tech);
+    const searchable = [
+      tech.id, tech.name, tech.level, tech.rating, tech.demo_completed_jobs,
+      ...jobs.flatMap((job) => [job.job_number, job.completed_at, dateLabel(job.completed_at), job.level,
+        job.job_scope, job.amount_myr, job.proof_image, job.rating, job.review]),
+    ].join(' ').toLocaleLowerCase();
+    return terms.every((term) => searchable.includes(term));
+  });
   return (
     <Card title={<><Award size={15} /> Technician work badges</>} aside={<StatusBadge tone="pending">Demo ratings</StatusBadge>}>
-      <p className="mb-3 text-xs text-muted-foreground">Ranked by demo score (sample jobs × rating). Open a technician to review actual saved assignments alongside their separate fictional completed-job history.</p>
-      {ranked.length === 0 ? <EmptyState icon={<Award size={16} />} title="No technicians yet">Badges appear when the roster loads.</EmptyState> : (
+      <p className="mb-3 text-xs text-muted-foreground">Ranked by demo score (sample jobs × rating). Search across technicians, sample jobs, dates, scope, sales, ratings and reviews.</p>
+      <label className="relative mb-3 block">
+        <span className="sr-only">Search service history</span>
+        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search any technician or job detail…" className={`${fieldClass} pl-9`}
+          data-testid="service-history-search" />
+      </label>
+      {ranked.length === 0 ? <EmptyState icon={<Award size={16} />} title="No technicians yet">Badges appear when the roster loads.</EmptyState>
+        : filtered.length === 0 ? <EmptyState icon={<Search size={16} />} title="No matching service history">Try another name, job number, scope, date, rating, or review keyword.</EmptyState> : (
         <ol className="space-y-2" aria-label="Technicians ranked by demo work score" data-testid="service-history-ranking">
-          {ranked.map((t, i) => <li key={t.id} className="min-w-0"><BadgeButton t={t} rank={i} activity={activity} podium={i < 3} /></li>)}
+          {filtered.map((t) => {
+            const rank = ranked.findIndex((item) => item.id === t.id);
+            return <li key={t.id} className="min-w-0"><BadgeButton t={t} rank={rank} podium={rank < 3} /></li>;
+          })}
         </ol>
       )}
     </Card>

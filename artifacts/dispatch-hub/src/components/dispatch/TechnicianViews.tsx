@@ -59,7 +59,7 @@ export function TechnicianHistory({ hub, notice }: Hub & { notice: string }) {
               <div className="rounded-lg border p-2"><dt className="text-muted-foreground">Score</dt><dd className="mt-1 font-mono text-lg font-semibold">{((me.demo_completed_jobs ?? 0) * (me.rating ?? 0)).toFixed(0)}</dd></div>
             </dl>
           </div>
-          <BadgeButton t={me} rank={0} activity={own} podium={false} />
+          <BadgeButton t={me} rank={0} podium={false} />
         </Card>
       )}
     </div>

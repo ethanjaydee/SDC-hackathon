@@ -9,7 +9,7 @@ import { LevelBadge, ratingText } from './techMeta';
 import { WorkBadges } from './ServiceHistory';
 import { DataTable, FilterChips, type Column } from './DataTable';
 const TechnicianFilters = FilterChips<'all' | 'Available' | 'Busy'>;
-const EventFilters = FilterChips<'all' | 'Approved' | 'Completed' | 'Reset' | 'Response'>;
+const EventFilters = FilterChips<'all' | 'Approved' | 'Completed' | 'Reset' | 'Response' | 'Acknowledged'>;
 
 export function TechniciansPage({ hub }: Hub) {
   const { technicians, availableCount, hubQ, activity, writePending } = hub;
@@ -146,10 +146,13 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
   );
 }
 
-type Kind = 'all' | 'Approved' | 'Completed' | 'Reset' | 'Response';
+type Kind = 'all' | 'Approved' | 'Completed' | 'Reset' | 'Response' | 'Acknowledged';
 const kindOf = (e: Activity): Exclude<Kind, 'all'> =>
-  e.action_details.startsWith('Technician response:') ? 'Response' : e.completion_dispatch_id != null ? 'Completed' : e.action_details.startsWith('Technician availability reset:') ? 'Reset' : 'Approved';
-const kindTone = { Approved: 'busy', Completed: 'ok', Reset: 'idle', Response: 'pending' } as const;
+  e.action_details.startsWith('Technician response:') ? 'Response'
+    : e.action_details.startsWith('Dispatched conversation acknowledged:') ? 'Acknowledged'
+      : e.completion_dispatch_id != null ? 'Completed'
+        : e.action_details.startsWith('Technician availability reset:') ? 'Reset' : 'Approved';
+const kindTone = { Approved: 'busy', Completed: 'ok', Reset: 'idle', Response: 'pending', Acknowledged: 'idle' } as const;
 const toneForEvent = (e: Activity) => kindOf(e) === 'Response'
   ? (e.action_details.toLowerCase().includes('rejected') ? 'err' : 'ok')
   : kindTone[kindOf(e)];
@@ -157,10 +160,14 @@ const toneForEvent = (e: Activity) => kindOf(e) === 'Response'
 export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: string; todayOnly?: boolean }) {
   const { activity, hubQ } = hub;
   const [kind, setKind] = useState<Kind>('all');
-  const sourceConversationId = (entry: Activity) => entry.dispatch?.conversation_id ??
-    (entry.completion_dispatch_id != null
+  const sourceConversationId = (entry: Activity) => {
+    const linked = entry.dispatch?.conversation_id ?? (entry.completion_dispatch_id != null
       ? activity.find((candidate) => candidate.id === entry.completion_dispatch_id)?.dispatch?.conversation_id
       : null);
+    if (linked != null) return linked;
+    const acknowledged = entry.action_details.match(/Conversation #(\d+)/i);
+    return acknowledged ? Number(acknowledged[1]) : null;
+  };
   const base = todayOnly
     ? activity.filter((e) => e.completion_dispatch_id == null && e.action_details.startsWith('Dispatch approved:') && new Date(e.timestamp).toDateString() === new Date().toDateString())
     : activity;
@@ -180,21 +187,16 @@ export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: stri
   ];
   return (
     <div className="space-y-5">
-      <PageHead kicker={todayOnly ? 'Today' : 'Audit'} title={todayOnly ? "Today's dispatches" : 'Service History'} sub={todayOnly ? 'Approved allocations recorded today.' : 'Every approval, completion and reset.'}>
+      <PageHead kicker={todayOnly ? 'Today' : 'Service'} title={todayOnly ? "Today's dispatches" : 'Service History'} sub={todayOnly ? 'Approved allocations recorded today.' : 'Technician work samples and dispatch records.'}>
         <Button asChild variant="outline"><Link href={todayOnly ? '/log' : '/today'}>{todayOnly ? 'Full log' : 'Today only'}</Link></Button>
       </PageHead>
       {notice && <div className="dh-rise flex items-center gap-2 rounded-lg border border-ok/30 bg-ok/[0.08] px-4 py-2.5 text-sm" role="status" data-testid="status-dispatch-success"><CheckCircle2 size={15} className="text-ok" /> {notice}</div>}
-      {!todayOnly && <WorkBadges technicians={hub.technicians} activity={activity} />}
-      <details className="group" open={todayOnly || !!notice || undefined} data-testid="audit-section">
-        {!todayOnly && <summary className="mb-3 flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
-          <span className="inline-flex items-center gap-2"><LockKeyhole size={14} /> Actual audit history <Mono className="text-muted-foreground">({activity.length})</Mono></span>
-          <span className="text-xs text-muted-foreground">Append-only · legacy entries stay as recorded</span>
-        </summary>}
+      {!todayOnly && <WorkBadges technicians={hub.technicians} />}
       <Card title={<><History size={15} /> Dispatch audit log</>} aside={<span className="inline-flex items-center gap-1"><LockKeyhole size={11} /> Immutable record</span>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Dispatch history unavailable until the hub reconnects.</InlineError> : (
           <DataTable caption="Dispatch log" rows={rows} columns={columns} rowKey={(e) => e.id} loading={hubQ.isLoading}
             initialSort={{ key: 'id', dir: 'desc' }} searchText={(e) => `${e.id} ${e.action_details} ${e.approved_by}`} searchLabel="Search log"
-             toolbar={!todayOnly && <EventFilters label="Event filter" value={kind} onChange={setKind} options={[{ value: 'all', label: 'All' }, { value: 'Approved', label: 'Approved' }, { value: 'Completed', label: 'Completed' }, { value: 'Reset', label: 'Reset' }, { value: 'Response', label: 'Technician response' }]} />}
+             toolbar={!todayOnly && <EventFilters label="Event filter" value={kind} onChange={setKind} options={[{ value: 'all', label: 'All' }, { value: 'Approved', label: 'Approved' }, { value: 'Completed', label: 'Completed' }, { value: 'Reset', label: 'Reset' }, { value: 'Response', label: 'Technician response' }, { value: 'Acknowledged', label: 'Acknowledged' }]} />}
             empty={<EmptyState icon={<History size={16} />} title={todayOnly ? 'No dispatches recorded today' : 'No dispatches yet'}>Approved allocations will appear here.</EmptyState>}
             mobile={(e) => (
               <div className="space-y-1.5 rounded-lg border p-3">
@@ -207,7 +209,6 @@ export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: stri
           />
         )}
       </Card>
-      </details>
     </div>
   );
 }

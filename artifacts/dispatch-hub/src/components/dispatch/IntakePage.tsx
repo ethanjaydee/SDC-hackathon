@@ -1,11 +1,15 @@
+import { useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
-import { ArrowRight, FlaskConical, Inbox, MessageSquareText, ScanSearch } from 'lucide-react';
+import { ArrowRight, Check, FlaskConical, Inbox, Loader2, MessageSquareText, ScanSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getListConversationsQueryKey, useListConversations } from '@workspace/api-client-react';
+import { getGetHubDataQueryKey, getListConversationsQueryKey, useAcknowledgeDispatch, useListConversations } from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
-import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, dateTime } from './shared';
+import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, dateTime, errorText } from './shared';
 import { useDemoSession } from './session';
 import { MessagingConnectionNotice } from './MessagingConnectionNotice';
+import { useToast } from '@/hooks/use-toast';
+import type { DispatchState } from './useDispatchHub';
 
 type Level = 'Easy' | 'Normal' | 'Hard';
 const LEVELS: { level: Level; dot: string; blurb: string }[] = [
@@ -21,8 +25,11 @@ const complexityOf = (c: { complexity?: string; subject: string; mock_summary: s
   return 'Normal';
 };
 
-export default function IntakePage() {
+export default function IntakePage({ hub }: { hub: DispatchState }) {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const acknowledge = useAcknowledgeDispatch();
   const conversationsQ = useListConversations({
     query: { queryKey: getListConversationsQueryKey(), refetchInterval: 5_000, refetchOnWindowFocus: true },
   });
@@ -30,9 +37,24 @@ export default function IntakePage() {
 
   const { technicianId } = useDemoSession();
   const all = conversationsQ.data?.conversations ?? [];
+  const acknowledgedConversationIds = useMemo(() => new Set(hub.activity
+    .filter((entry) => entry.dispatch?.boss_acknowledged_at != null)
+    .map((entry) => entry.dispatch?.conversation_id)
+    .filter((id): id is number => id != null)), [hub.activity]);
   // Technicians see unassigned requests and their own assigned ones only.
-  const conversations = technicianId == null ? all : all.filter((c) => c.technician_id == null || c.technician_id === technicianId);
+  const conversations = technicianId == null
+    ? all.filter((conversation) => conversation.dispatch_activity_id == null || !acknowledgedConversationIds.has(conversation.id))
+    : all.filter((c) => c.technician_id == null || c.technician_id === technicianId);
   const groups = LEVELS.map((meta) => ({ ...meta, items: conversations.filter((c) => complexityOf(c) === meta.level) }));
+  const acknowledgeConversation = (dispatchId: number) => acknowledge.mutate({ id: dispatchId }, {
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetHubDataQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() }),
+      ]);
+      toast({ title: 'Conversation hidden', description: 'The dispatch remains active; its technician, van and reserved parts are unchanged.' });
+    },
+  });
   return (
     <div className="space-y-5">
       <PageHead large kicker="Customer conversations" title="Work Order">
@@ -90,11 +112,28 @@ export default function IntakePage() {
 
                       <div className="mt-4 flex items-center justify-between gap-2 border-t border-card-border pt-3">
                         <span className="font-mono text-[10px] text-muted-foreground">{conversation.message_count} messages</span>
-                        <Button type="button" size="sm" onClick={() => openConversation(conversation.id)}
-                          data-testid={`button-review-conversation-${conversation.id}`}>
-                          <ScanSearch size={13} /> {conversation.dispatch_activity_id != null ? 'View conversation' : 'Open work order'} <ArrowRight size={13} />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          {technicianId == null && conversation.dispatch_activity_id != null && (
+                            <Button type="button" size="icon" variant="outline"
+                              aria-label="Acknowledge and hide dispatched work order"
+                              title="Hide this card from the Boss list; the dispatch stays active"
+                              disabled={acknowledge.isPending}
+                              onClick={() => acknowledgeConversation(conversation.dispatch_activity_id!)}
+                              data-testid={`button-acknowledge-dispatch-${conversation.dispatch_activity_id}`}>
+                              {acknowledge.isPending && acknowledge.variables?.id === conversation.dispatch_activity_id
+                                ? <Loader2 size={14} className="animate-spin" />
+                                : <Check size={14} />}
+                            </Button>
+                          )}
+                          <Button type="button" size="sm" onClick={() => openConversation(conversation.id)}
+                            data-testid={`button-review-conversation-${conversation.id}`}>
+                            <ScanSearch size={13} /> {conversation.dispatch_activity_id != null ? 'View conversation' : 'Open work order'} <ArrowRight size={13} />
+                          </Button>
+                        </div>
                       </div>
+                      {acknowledge.isError && acknowledge.variables?.id === conversation.dispatch_activity_id && (
+                        <p role="alert" className="mt-2 text-xs text-err">{errorText(acknowledge.error, 'The conversation could not be hidden. Try again.')}</p>
+                      )}
                     </article>
                   );
                 })}

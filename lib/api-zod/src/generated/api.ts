@@ -234,6 +234,7 @@ export const GetHubDataResponse = zod.object({
   "completed_at": zod.string().nullable(),
   "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
   "technician_response_at": zod.coerce.date().nullable(),
+  "boss_acknowledged_at": zod.coerce.date().nullable(),
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),
@@ -285,6 +286,25 @@ export const RespondToDispatchResponse = zod.object({
   "technician_id": zod.number().int().min(1),
   "response": zod.enum(['Accepted', 'Rejected']),
   "responded_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Hide a dispatched conversation from the Boss work-order list without completing the job
+ */
+
+
+
+export const AcknowledgeDispatchParams = zod.object({
+  "id": zod.coerce.number().int().min(1).describe('Activity ID of the saved dispatch')
+})
+
+
+
+
+export const AcknowledgeDispatchResponse = zod.object({
+  "dispatch_id": zod.number().int().min(1),
+  "acknowledged_at": zod.coerce.date()
 })
 
 
@@ -891,6 +911,7 @@ export const ApproveDispatchResponse = zod.object({
   "completed_at": zod.string().nullable(),
   "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
   "technician_response_at": zod.coerce.date().nullable(),
+  "boss_acknowledged_at": zod.coerce.date().nullable(),
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),
@@ -995,6 +1016,7 @@ export const CompleteDispatchResponse = zod.object({
   "completed_at": zod.string().nullable(),
   "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
   "technician_response_at": zod.coerce.date().nullable(),
+  "boss_acknowledged_at": zod.coerce.date().nullable(),
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),
@@ -1100,6 +1122,7 @@ export const ResetTechnicianAvailabilityResponse = zod.object({
   "completed_at": zod.string().nullable(),
   "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
   "technician_response_at": zod.coerce.date().nullable(),
+  "boss_acknowledged_at": zod.coerce.date().nullable(),
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),

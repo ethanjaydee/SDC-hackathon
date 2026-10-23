@@ -19,6 +19,8 @@ export interface SavedDispatch {
   technician_response: SavedDispatchTechnicianResponse;
   /** @nullable */
   technician_response_at: Date | null;
+  /** @nullable */
+  boss_acknowledged_at: Date | null;
   tech_id: number;
   technician_name: string;
   van_id: number;

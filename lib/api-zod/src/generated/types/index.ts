@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './acknowledgeDispatchResult';
 export * from './activity';
 export * from './analysis';
 export * from './analysisAnalysisSource';

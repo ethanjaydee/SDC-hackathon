@@ -462,7 +462,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
               ) : <p className="text-sm text-muted-foreground">No technician review sample is available for this assignment.</p>}
             </Card>
           )}
-          {dispatchSaved && (
+          {dispatchSaved && isTech && (
             <Card title="Technician response" aside={
               <StatusBadge tone={technicianResponse === 'Accepted' ? 'ok' : technicianResponse === 'Rejected' ? 'err' : 'pending'}>
                 {technicianResponse ?? 'Awaiting response'}
@@ -528,17 +528,39 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                 </Card>
               )}
 
-              {match && (
-                <Card title={<><CheckCircle2 size={15} /> Approve dispatch</>} aside={<span className="truncate text-xs">{match.name} · van allocated on approval</span>}>
-                  <div className="space-y-3">
-                    {hub.approveError && <InlineError>{hub.approveError}</InlineError>}
-                    <p className="text-xs text-muted-foreground">Approved by <b className="text-foreground">{APPROVER}</b> · saved in the immutable dispatch log</p>
-                    <SlideToApprove onConfirm={approve}
-                      resetKey={`${keyStr}|${match.id}`}
-                      disabled={dispatchSaved || !analysisIsCurrent || threadQ.isError || hub.writePending || hub.connectionLost || hub.approve.isPending || recQ.isFetching}
-                      disabledLabel={dispatchSaved ? 'Already dispatched' : hub.connectionLost ? 'Hub offline' : recQ.isFetching ? 'Checking dispatch assignment…' : 'Approval unavailable'}
-                      testId="slide-approve" />
-                  </div>
+              {!isTech && (
+                <Card title="Dispatch plan" aside={
+                  <StatusBadge tone={match ? 'ok' : 'pending'}>{match ? 'Ready to dispatch' : 'Plan unavailable'}</StatusBadge>
+                }>
+                  {hub.hubQ.isLoading ? <Skeleton className="h-24" />
+                    : !hub.hubQ.data ? <InlineError onRetry={() => void hub.hubQ.refetch()} retrying={hub.hubQ.isFetching}>Reconnect to the hub to prepare a dispatch plan.</InlineError>
+                      : !site ? <p role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-3 text-sm">Choose a customer site before preparing a dispatch plan.</p>
+                        : !match ? <p role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-3 text-sm">No available technician and stocked van currently match this job.</p>
+                          : (
+                            <div className="space-y-3" data-testid="dispatch-plan-panel">
+                              <dl className="grid gap-3 sm:grid-cols-2">
+                                <div className="rounded-lg border bg-muted/30 p-3">
+                                  <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Technician</dt>
+                                  <dd className="mt-1 font-semibold">{match.name}</dd>
+                                </div>
+                                <div className="rounded-lg border bg-muted/30 p-3">
+                                  <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Van</dt>
+                                  <dd className="mt-1 font-semibold">{hub.hubQ.data.vans?.find((van) => van.id === match.van_id)?.name ?? `Van ${match.van_id}`}</dd>
+                                </div>
+                              </dl>
+                              <p className="text-xs text-muted-foreground">The server rechecks technician availability and van stock when you dispatch.</p>
+                              {hub.approveError && <InlineError>{hub.approveError}</InlineError>}
+                              <SlideToApprove onConfirm={approve}
+                                resetKey={`${keyStr}|${match.id}`}
+                                idleLabel="Slide to dispatch job"
+                                pendingLabel="Allocating technician and van…"
+                                successLabel="Dispatch recorded"
+                                sliderLabel="Slide right to dispatch this job"
+                                disabled={dispatchSaved || !analysisIsCurrent || threadQ.isError || hub.writePending || hub.connectionLost || hub.approve.isPending || recQ.isFetching}
+                                disabledLabel={dispatchSaved ? 'Already dispatched' : hub.connectionLost ? 'Hub offline' : recQ.isFetching ? 'Checking dispatch assignment…' : 'Dispatch unavailable'}
+                                testId="slide-approve" />
+                            </div>
+                          )}
                 </Card>
               )}
             </>

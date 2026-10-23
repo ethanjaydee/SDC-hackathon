@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AcknowledgeDispatchResult,
   Analysis,
   ConversationList,
   ConversationMessageInput,
@@ -648,6 +649,80 @@ export const useRespondToDispatch = <TError = ErrorType<InvalidRequestResponse |
         TContext
       > => {
       return useMutation(getRespondToDispatchMutationOptions(options));
+    }
+
+export const getAcknowledgeDispatchUrl = (id: number,) => {
+
+
+
+
+  return `/api/dispatches/${id}/acknowledge`
+}
+
+/**
+ * @summary Hide a dispatched conversation from the Boss work-order list without completing the job
+ */
+export const acknowledgeDispatch = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AcknowledgeDispatchResult> => {
+
+  return customFetch<AcknowledgeDispatchResult>(getAcknowledgeDispatchUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcknowledgeDispatchMutationKey = () => ['acknowledgeDispatch'] as const;
+
+export const getAcknowledgeDispatchMutationOptions = <TError = ErrorType<InvalidRequestResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeDispatch>>, TError,AcknowledgeDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acknowledgeDispatch>>, TError,AcknowledgeDispatchMutationVariables, TContext> => {
+
+const mutationKey = getAcknowledgeDispatchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acknowledgeDispatch>>, AcknowledgeDispatchMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  acknowledgeDispatch(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcknowledgeDispatchMutationResult = NonNullable<Awaited<ReturnType<typeof acknowledgeDispatch>>>
+
+    export type AcknowledgeDispatchMutationError = ErrorType<InvalidRequestResponse | void>
+    export type AcknowledgeDispatchMutationVariables = {id: number}
+
+    /**
+ * @summary Hide a dispatched conversation from the Boss work-order list without completing the job
+ */
+export const useAcknowledgeDispatch = <TError = ErrorType<InvalidRequestResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeDispatch>>, TError,AcknowledgeDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acknowledgeDispatch>>,
+        TError,
+        AcknowledgeDispatchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAcknowledgeDispatchMutationOptions(options));
     }
 
 export const getListWorkshopReviewsUrl = () => {
