@@ -121,6 +121,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HubData"
+  /dispatches/{id}/technician-response:
+    post:
+      operationId: respondToDispatch
+      tags: [hub]
+      summary: Record the assigned technician's acceptance or rejection of a dispatched job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Activity ID of the saved dispatch
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TechnicianDispatchResponseInput" }
+      responses:
+        "200":
+          description: Saved response; rejection keeps the dispatch, van and reserved stock allocated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TechnicianDispatchResponseResult" }
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "404":
+          description: Dispatch not found
+        "409":
+          description: The dispatch is no longer active, belongs to another technician, or already has a different response
   /workshop-reviews:
     get:
       operationId: listWorkshopReviews
@@ -164,6 +192,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WorkshopReviewSummary"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "503":
+          $ref: "#/components/responses/InvalidRequest"
+  /sample-e-invoices/generate:
+    post:
+      operationId: generateSampleEInvoice
+      tags: [hub]
+      summary: Generate AI wording for a fictional sample service invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SampleEInvoiceInput"
+      responses:
+        "200":
+          description: AI-generated wording with server-validated illustrative values
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SampleEInvoice"
         "400":
           $ref: "#/components/responses/InvalidRequest"
         "503":
@@ -568,6 +618,29 @@ components:
           items: { type: string, minLength: 1, maxLength: 300 }
         review_count: { type: integer, minimum: 1, maximum: 100 }
         generated_at: { type: string, format: date-time }
+    SampleEInvoiceInput:
+      type: object
+      required: [job_number, technician_name, completed_at, job_scope, amount_myr]
+      properties:
+        job_number: { type: string, minLength: 1, maxLength: 40 }
+        technician_name: { type: string, minLength: 1, maxLength: 120 }
+        completed_at: { type: string, format: date-time }
+        job_scope: { type: string, minLength: 1, maxLength: 500 }
+        amount_myr: { type: number, exclusiveMinimum: 0, maximum: 10000 }
+    SampleEInvoice:
+      type: object
+      required: [invoice_number, job_number, technician_name, completed_at, job_scope, line_description, amount_myr, currency, sample_note, generated_at]
+      properties:
+        invoice_number: { type: string, minLength: 1, maxLength: 64 }
+        job_number: { type: string, minLength: 1, maxLength: 40 }
+        technician_name: { type: string, minLength: 1, maxLength: 120 }
+        completed_at: { type: string, format: date-time }
+        job_scope: { type: string, minLength: 1, maxLength: 500 }
+        line_description: { type: string, minLength: 1, maxLength: 240 }
+        amount_myr: { type: number, exclusiveMinimum: 0, maximum: 10000 }
+        currency: { type: string, enum: [MYR] }
+        sample_note: { type: string, minLength: 1, maxLength: 240 }
+        generated_at: { type: string, format: date-time }
     TelegramStatus:
       type: object
       required: [configured, connected, bot_username, bot_url, error, last_received_at]
@@ -643,13 +716,17 @@ components:
         lng: { type: number, minimum: -180, maximum: 180 }
     SavedDispatch:
       type: object
-      required: [tech_id, technician_name, van_id, parts, customer_site, status, completed_at, conversation_id]
+      required: [tech_id, technician_name, van_id, parts, customer_site, status, completed_at, conversation_id, technician_response, technician_response_at]
       properties:
         status:
           type: string
           enum: [Active, Completed, Unknown]
           description: Unknown means an older assignment cannot safely be completed.
         completed_at: { type: [string, "null"] }
+        technician_response:
+          type: [string, "null"]
+          enum: [Accepted, Rejected, null]
+        technician_response_at: { type: [string, "null"], format: date-time }
         tech_id: { type: integer }
         technician_name: { type: string }
         van_id: { type: integer }
@@ -662,6 +739,20 @@ components:
           items: { type: string }
         customer_site: { $ref: "#/components/schemas/DemoCustomerSite" }
         conversation_id: { type: ["integer", "null"], minimum: 1 }
+    TechnicianDispatchResponseInput:
+      type: object
+      required: [technician_id, response]
+      properties:
+        technician_id: { type: integer, minimum: 1 }
+        response: { type: string, enum: [Accepted, Rejected] }
+    TechnicianDispatchResponseResult:
+      type: object
+      required: [dispatch_id, technician_id, response, responded_at]
+      properties:
+        dispatch_id: { type: integer, minimum: 1 }
+        technician_id: { type: integer, minimum: 1 }
+        response: { type: string, enum: [Accepted, Rejected] }
+        responded_at: { type: string, format: date-time }
     ShopLocation:
       type: object
       required: [name, label, area, lat, lng]

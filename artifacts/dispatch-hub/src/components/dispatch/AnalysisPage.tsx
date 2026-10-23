@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowLeft, Bot, CheckCircle2, ChevronDown, ExternalLink, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Route as RouteIcon, Send, Sparkles } from 'lucide-react';
+import { ArrowLeft, Bot, CheckCircle2, ChevronDown, ExternalLink, FlaskConical, Loader2, MapPin, MessageSquareText, RefreshCw, Route as RouteIcon, Send, Sparkles, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getGetConversationThreadQueryKey, getListConversationsQueryKey,
+  getGetHubDataQueryKey,
   getGetTechnicianRouteQueryKey, recommendTechnicians, useAnalyzeConversation, useGetTechnicianRoute, useGetConversationThread, useSendTelegramReply, useGetTelegramStatus, getGetTelegramStatusQueryKey, useSetConversationSite,
+  useRespondToDispatch,
   type Technician, type DemoSiteId,
 } from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
@@ -18,6 +20,7 @@ import { APPROVER, type DispatchState } from './useDispatchHub';
 import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, initials, fieldClass } from './shared';
 import { useDemoSession } from './session';
 import { MessagingConnectionNotice } from './MessagingConnectionNotice';
+import { getDemoReviewsForTechnician } from './demoReviewSamples';
 
 const urgencyTone = { High: 'err', Med: 'pending', Medium: 'pending', Low: 'idle' } as const;
 type Props = { hub: DispatchState; conversationId: number; onApprove: (tech: Technician) => void };
@@ -36,6 +39,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     },
   });
   const analyze = useAnalyzeConversation();
+  const responseMutation = useRespondToDispatch();
   const tgQ = useGetTelegramStatus({ query: { queryKey: getGetTelegramStatusQueryKey(), refetchInterval: 15_000 } });
   const [replyText, setReplyText] = useState('');
   const sendReply = useSendTelegramReply({
@@ -123,6 +127,37 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     return isTech ? ranked.filter((t) => t.id === technicianId) : ranked;
   }, [hub.hubQ.data, analysis, site, complexity, isTech, technicianId]);
   const dispatchSaved = thread?.dispatch_activity_id != null;
+  const savedDispatchEntry = dispatchSaved
+    ? hub.hubQ.data?.activity_log.find((entry) => entry.id === thread?.dispatch_activity_id)
+    : undefined;
+  const savedDispatch = savedDispatchEntry?.dispatch ?? null;
+  const assignedTechnician = savedDispatch
+    ? hub.technicians.find((technician) => technician.id === savedDispatch.tech_id) ?? null
+    : null;
+  const technicianReviews = assignedTechnician
+    ? getDemoReviewsForTechnician(assignedTechnician.id, assignedTechnician.level)
+    : [];
+  const customerReview = technicianReviews.length
+    ? technicianReviews[(conversationId + 1) % technicianReviews.length]
+    : null;
+  const mutationResponse = responseMutation.data?.dispatch_id === thread?.dispatch_activity_id
+    ? responseMutation.data
+    : null;
+  const technicianResponse = savedDispatch?.technician_response ?? mutationResponse?.response ?? null;
+  const technicianResponseAt = savedDispatch?.technician_response_at ?? mutationResponse?.responded_at ?? null;
+  const canRespondToDispatch = isTech && technicianId != null
+    && savedDispatch?.tech_id === technicianId
+    && savedDispatch.status === 'Active'
+    && technicianResponse == null;
+  const submitTechnicianResponse = (response: 'Accepted' | 'Rejected') => {
+    if (thread?.dispatch_activity_id == null || technicianId == null) return;
+    responseMutation.mutate({
+      id: thread.dispatch_activity_id,
+      data: { technician_id: technicianId, response },
+    }, {
+      onSuccess: () => { void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() }); },
+    });
+  };
   const analyzedId = thread?.analyzed_through_message_id ?? null;
   const siteId = thread?.customer_site_id ?? null;
   const analysisSignature = JSON.stringify([analysis?.issue, analysis?.parts, complexity, analysis?.analysis_source]);
@@ -213,19 +248,22 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   const whyNot = !selfTech ? 'Your technician profile is not loaded.'
     : selfTech.status !== 'Available' ? 'You are busy with another job. Complete it first.'
     : (selfTech.level ?? 0) < needLevel ? `This ${complexity} job needs Level ${needLevel}+. You are Level ${selfTech.level ?? 1}.`
-    : 'No free shared van currently carries every required part.';
+    : 'No available shared van currently carries every required part.';
   const JobBrief = () => (
-    <Card title={<><CheckCircle2 size={15} /> Job brief</>} aside={<StatusBadge tone={complexity === 'Hard' ? 'err' : complexity === 'Normal' ? 'pending' : 'ok'}>{complexity}</StatusBadge>}>
+    <Card title={<><CheckCircle2 size={15} /> AI diagnosis & job brief</>} aside={<StatusBadge tone={complexity === 'Hard' ? 'err' : complexity === 'Normal' ? 'pending' : 'ok'}>{analysis?.urgency ?? complexity} urgency</StatusBadge>}>
       <div className="space-y-3" data-testid="job-brief">
         {analysis ? (
           <>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              Suggested issue · {analysis.is_fallback === false || analysis.analysis_source === 'AI' ? 'AI analysis' : 'Rule-based analysis'}
+            </p>
             <p className="text-sm font-medium">{analysis.issue}</p>
             <div><p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Required parts</p><PartChips parts={analysis.parts} /></div>
           </>
         ) : <p role="status" className="text-sm text-muted-foreground">Job requirements are being prepared.</p>}
         {analysis && analysisIsCurrent && !dispatchSaved && (
           <p role="status" data-testid="eligibility" className={`rounded-lg border p-3 text-sm ${match ? 'border-ok/40 bg-ok/[0.07]' : 'border-pending/30 bg-pending/[0.07]'}`}>
-            {match ? 'You are eligible: qualified, available, and a free van has the parts. Slide below to take this job.' : whyNot}
+            {match ? 'You are eligible: qualified, available, and an available van has the parts. Slide below to take this job.' : whyNot}
           </p>
         )}
       </div>
@@ -236,9 +274,8 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     <div className="w-full space-y-5">
       <header className="flex flex-col gap-4 pb-1 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary">Service request · #{thread.id}</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary">Work Order · #{thread.id}</p>
           <h1 className="mt-1.5 break-words text-[32px] font-semibold leading-[1.04] tracking-tight md:text-[46px]" data-testid="request-title">{thread.subject}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{thread.customer_name} · {site?.label ?? 'Customer site not assigned'} · Analysis and dispatch review</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="outline"><Link href="/intake"><ArrowLeft size={14} /> Back to inbox</Link></Button>
@@ -307,13 +344,6 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                 </ol>
               </details>
             )}
-            <details className="group mt-3 rounded-lg border border-card-border bg-card">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
-                <span className="inline-flex items-center gap-2"><FlaskConical size={13} className="text-primary" /> Conversation summary</span>
-                <ChevronDown size={15} className="text-muted-foreground transition-transform group-open:rotate-180" />
-              </summary>
-              <p className="border-t border-card-border px-3 py-3 text-sm leading-relaxed">{thread.mock_summary}</p>
-            </details>
             <form className="mt-4 border-t border-card-border pt-4" data-testid="telegram-reply-form"
               onSubmit={(event) => {
                 event.preventDefault();
@@ -365,7 +395,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
             </Card>
           )}
 
-          {!isTech && <Card title="AI analysis" aside={
+          {!isTech && !dispatchSaved && <Card title="AI analysis" aside={
             analysisIsCurrent ? <StatusBadge tone="ok"><CheckCircle2 size={10} /> Current</StatusBadge>
               : <StatusBadge tone="pending">{analyze.isPending ? 'Analyzing' : 'Re-analysis needed'}</StatusBadge>
           }>
@@ -420,7 +450,60 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
               </div>
             </Card>
           )}
-          {dispatchSaved && <Card title="Dispatch already recorded"><p className="text-sm text-muted-foreground">This request is assigned and remains here for review. It cannot be approved again. Use Service History to check completion status.</p></Card>}
+          {dispatchSaved && (
+            <Card title={assignedTechnician ? `Customer review · ${assignedTechnician.name}` : 'Customer review'} aside={<StatusBadge tone="pending">Sample review</StatusBadge>}>
+              {assignedTechnician && customerReview ? (
+                <article className="space-y-2" data-testid="assigned-technician-review">
+                  <div className="flex items-center gap-2" aria-label={`${customerReview.rating} out of 5 stars`}>
+                    {Array.from({ length: 5 }, (_, index) => <Star key={index} size={15} className={index < customerReview.rating ? 'fill-amber-400 text-amber-500' : 'text-muted-foreground/35'} aria-hidden="true" />)}
+                    <span className="font-mono text-xs">{customerReview.rating}/5</span>
+                  </div>
+                  <p className="text-sm leading-6">“{customerReview.comment}”</p>
+                  <p className="text-[11px] text-muted-foreground">Fictional sample review for {assignedTechnician.name}; not feedback saved for this work order.</p>
+                </article>
+              ) : <p className="text-sm text-muted-foreground">No technician review sample is available for this assignment.</p>}
+            </Card>
+          )}
+          {dispatchSaved && (
+            <Card title="Technician response" aside={
+              <StatusBadge tone={technicianResponse === 'Accepted' ? 'ok' : technicianResponse === 'Rejected' ? 'err' : 'pending'}>
+                {technicianResponse ?? 'Awaiting response'}
+              </StatusBadge>
+            }>
+              <div className="space-y-3" data-testid="technician-response-panel">
+                {technicianResponse === 'Accepted' ? (
+                  <p className="text-sm leading-relaxed">
+                    {assignedTechnician?.name ?? 'The assigned technician'} accepted this job
+                    {technicianResponseAt ? ` · ${dateTime(technicianResponseAt)}` : ''}. The dispatch remains active.
+                  </p>
+                ) : technicianResponse === 'Rejected' ? (
+                  <p className="rounded-lg border border-err/25 bg-err/[0.06] p-3 text-sm leading-relaxed">
+                    {assignedTechnician?.name ?? 'The assigned technician'} rejected this job
+                    {technicianResponseAt ? ` · ${dateTime(technicianResponseAt)}` : ''}. The dispatch, technician, van and reserved parts remain allocated for the Boss to handle.
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No accept or reject response has been recorded yet.</p>
+                )}
+                {canRespondToDispatch && (
+                  <>
+                    <p className="text-xs text-muted-foreground">Reject records your response only; it does not release the assignment, van or reserved parts.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" onClick={() => submitTechnicianResponse('Accepted')} disabled={responseMutation.isPending} data-testid="button-accept-dispatch">
+                        {responseMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                        Accept job
+                      </Button>
+                      <Button type="button" variant="destructive" onClick={() => submitTechnicianResponse('Rejected')} disabled={responseMutation.isPending} data-testid="button-reject-dispatch">
+                        Reject job
+                      </Button>
+                    </div>
+                  </>
+                )}
+                {responseMutation.isError && (
+                  <p role="alert" className="text-xs text-err">{errorText(responseMutation.error, 'The response could not be saved. Choose again to retry.')}</p>
+                )}
+              </div>
+            </Card>
+          )}
           {!dispatchSaved && !(analysis && analysisIsCurrent) && (
             <Card title={<><Sparkles size={15} /> Recommended technician</>}>
               <p role="status" className="text-sm text-muted-foreground">A recommendation appears once the analysis is current for the latest messages.</p>
@@ -434,7 +517,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                     : !site ? <div role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-4 text-sm"><b>Customer site is not assigned.</b> Choose a sample site first.</div>
                       : !match ? (
                         <div role="status" className="rounded-lg border border-pending/30 bg-pending/[0.07] p-4 text-sm">
-                          <b>No qualified technician.</b> {complexity} jobs need Level {minLevel}+, an available tech, and a free shared van with every required part.
+                          <b>No qualified technician.</b> {complexity} jobs need Level {minLevel}+, an available tech, and an available shared van with every required part.
                         </div>
                       ) : (
                         <div className="space-y-3" data-testid="recommendation-summary" aria-live="polite">
@@ -443,7 +526,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                             <span className="min-w-0 flex-1">
                               <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><span className="truncate text-base font-semibold">{match.name}</span><LevelBadge tech={match} /></span>
                               <span className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-                                <span>Rating {ratingText(match)}</span><span>{match.zone}</span><Mono>{hub.hubQ.data?.vans?.find((v) => v.id === match.van_id)?.name ?? 'Shared van'} · provisional</Mono>
+                                <span>Rating {ratingText(match)}</span><Mono>{hub.hubQ.data?.vans?.find((v) => v.id === match.van_id)?.name ?? 'Shared van'} · provisional</Mono>
                               </span>
                             </span>
                             <span className="shrink-0 text-right text-xs">
@@ -517,7 +600,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
               )}
             </>
           )}
-          <p className="text-xs text-muted-foreground">Only this saved conversation is analyzed. Dispatch approval is a separate action and rechecks current technician and stock data.</p>
+          {!dispatchSaved && <p className="text-xs text-muted-foreground">Only this saved conversation is analyzed. Dispatch approval is a separate action and rechecks current technician and stock data.</p>}
         </div>
       </div>
     </div>

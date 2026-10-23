@@ -1,12 +1,12 @@
-import { ArrowRight, Check, CircleAlert, Lightbulb, MessageSquareText, RefreshCw, Sparkles, Star } from 'lucide-react';
+import { ArrowRight, Check, CircleAlert, Lightbulb, RefreshCw, Sparkles, Star } from 'lucide-react';
 import {
   getListWorkshopReviewsQueryKey,
   useListWorkshopReviews,
   useSummarizeWorkshopReviews,
 } from '@workspace/api-client-react';
-import type { CustomerReview, WorkshopReviewSummary } from '@workspace/api-client-react';
+import type { WorkshopReviewSummary } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { Card, EmptyState, errorText, InlineError, PageHead, SkeletonRows, StatusBadge } from './shared';
+import { Card, EmptyState, errorText, InlineError, PageHead, StatusBadge, type Hub } from './shared';
 import { getDemoReviewGroups } from './demoReviewSamples';
 
 function formatReviewDate(value: string) {
@@ -28,23 +28,6 @@ function Stars({ rating, label }: { rating: number; label?: string }) {
         />
       ))}
     </span>
-  );
-}
-
-function ReviewRow({ review }: { review: CustomerReview }) {
-  return (
-    <article className="grid gap-3 border-b border-card-border py-4 last:border-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start" data-testid={`review-row-${review.id}`}>
-      <div className="min-w-0">
-        <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground/90" data-testid={`review-comment-${review.id}`}>{review.comment}</p>
-        <time className="mt-2 block text-xs text-muted-foreground" dateTime={review.created_at} data-testid={`review-date-${review.id}`}>
-          {formatReviewDate(review.created_at)}
-        </time>
-      </div>
-      <div className="flex items-center gap-2 sm:justify-end">
-        <Stars rating={review.rating} />
-        <span className="font-mono text-xs tabular text-muted-foreground">{review.rating}.0</span>
-      </div>
-    </article>
   );
 }
 
@@ -95,7 +78,8 @@ function SummaryPanel({ summary }: { summary: WorkshopReviewSummary }) {
   );
 }
 
-export default function ReviewsPage() {
+export default function ReviewsPage({ hub }: Hub) {
+  const { technicians } = hub;
   const reviewsQuery = useListWorkshopReviews({
     query: { queryKey: getListWorkshopReviewsQueryKey() },
   });
@@ -103,8 +87,7 @@ export default function ReviewsPage() {
 
   const data = reviewsQuery.data;
   const summary = summarizeReviews.data;
-  const visibleReviews = data?.reviews ?? [];
-  const sampleGroups = getDemoReviewGroups();
+  const sampleGroups = getDemoReviewGroups(technicians);
 
   return (
     <div className="space-y-5" data-testid="reviews-page">
@@ -199,75 +182,23 @@ export default function ReviewsPage() {
                   <p className="text-[10px] text-muted-foreground">{group.count} samples</p>
                 </div>
               </div>
-              {group.bestReview && (
-                <article className="mt-3 rounded-lg border border-pending/25 bg-card p-3 shadow-sm" aria-label={`Top-rated ${group.level} sample review`} data-testid={`best-sample-review-${group.level}`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-pending">Best sample</p>
-                      <p className="mt-1 text-xs font-semibold">{group.bestReview.job}</p>
+              <ul className="mt-3 max-h-[520px] space-y-2 overflow-y-auto" aria-label={`${group.level} sample reviews`}>
+                {group.reviews.map((review) => (
+                  <li key={review.id} className="rounded-md border border-card-border bg-card px-2.5 py-2" data-testid={`sample-review-${review.id}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold">{review.technicianName ?? 'Sample technician'}</span>
+                      <Stars rating={review.rating} label={`${review.rating} out of 5 stars`} />
                     </div>
-                    <Stars rating={group.bestReview.rating} label={`${group.bestReview.rating} out of 5 stars`} />
-                  </div>
-                  <blockquote className="mt-2 text-xs leading-5 text-muted-foreground">“{group.bestReview.comment}”</blockquote>
-                </article>
-              )}
-              <div className="mt-3">
-                <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">More examples</p>
-                <ul className="mt-1.5 space-y-2">
-                  {group.otherReviews.map((review) => (
-                    <li key={review.id} className="rounded-md border border-card-border bg-card px-2.5 py-2" data-testid={`sample-review-${review.id}`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-[11px] font-medium">{review.job}</span>
-                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[10px] tabular ${review.rating <= 2 ? 'bg-err/10 text-err' : review.rating >= 4 ? 'bg-ok/10 text-ok' : 'bg-muted text-muted-foreground'}`}>{review.rating}/5</span>
-                      </div>
-                      <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{review.comment}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                    <p className="mt-1 text-[11px] font-medium text-foreground/85">{review.job}</p>
+                    <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{review.comment}</p>
+                  </li>
+                ))}
+              </ul>
             </section>
           ))}
         </div>
       </Card>
 
-      <Card
-        title="Saved reviews"
-        aside={
-          data ? (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="reviews-all-time-stats">
-              <span><strong className="font-mono font-semibold tabular text-foreground" data-testid="reviews-total-count">{data.review_count}</strong> all-time</span>
-              <span className="text-card-border" aria-hidden="true">|</span>
-              <span><strong className="font-mono font-semibold tabular text-foreground" data-testid="reviews-average-rating">{data.average_rating == null ? '—' : data.average_rating.toFixed(1)}</strong> average</span>
-            </div>
-          ) : <span>All-time totals</span>
-        }
-      >
-        {reviewsQuery.isLoading ? (
-          <SkeletonRows rows={4} label="Loading saved reviews" />
-        ) : reviewsQuery.isError ? (
-          <InlineError
-            testId="reviews-list-error"
-            onRetry={() => reviewsQuery.refetch()}
-            retrying={reviewsQuery.isFetching}
-            retryLabel="Reload reviews"
-          >
-            {errorText(reviewsQuery.error, 'Saved reviews could not be loaded.')}
-          </InlineError>
-        ) : visibleReviews.length ? (
-          <>
-            <div className="divide-y-0" data-testid="reviews-list">
-              {visibleReviews.slice(0, 100).map((review) => <ReviewRow key={review.id} review={review} />)}
-            </div>
-            <p className="border-t border-card-border pt-3 text-[11px] text-muted-foreground" data-testid="reviews-latest-window">
-              Showing the latest {Math.min(visibleReviews.length, 100)} reviews. Average rating and total are all-time.
-            </p>
-          </>
-        ) : (
-          <EmptyState icon={<MessageSquareText size={17} />} title="No customer feedback yet">
-            Customer feedback will appear here when it is available.
-          </EmptyState>
-        )}
-      </Card>
     </div>
   );
 }

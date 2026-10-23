@@ -35,13 +35,13 @@ export default function IntakePage() {
   const groups = LEVELS.map((meta) => ({ ...meta, items: conversations.filter((c) => complexityOf(c) === meta.level) }));
   return (
     <div className="space-y-5">
-      <PageHead large kicker="Step 1 · Customer conversations" title="Service Requests" sub="Open a request to read its conversation. Analysis starts in the background as the review loads.">
-        <StatusBadge tone="pending"><FlaskConical size={10} /> Mock summaries</StatusBadge>
+      <PageHead large kicker="Customer conversations" title="Work Order">
+        <StatusBadge tone="pending"><FlaskConical size={10} /> Demo work orders</StatusBadge>
       </PageHead>
 
       <MessagingConnectionNotice />
 
-      <Card title={<><Inbox size={15} /> Requests by difficulty</>} aside={<span className="font-mono">{conversations.length} saved chats</span>}>
+      <Card title={<><Inbox size={15} /> Work orders by difficulty</>} aside={<span className="font-mono">{conversations.length} work orders</span>}>
         {conversationsQ.isLoading ? <SkeletonRows rows={4} label="Loading saved conversations" />
           : conversationsQ.isError && !conversationsQ.data
             ? <InlineError onRetry={() => void conversationsQ.refetch()} retrying={conversationsQ.isFetching}>Saved conversations could not be loaded.</InlineError>
@@ -79,13 +79,6 @@ export default function IntakePage() {
                           : <StatusBadge tone="pending">Needs review</StatusBadge>}
                       </div>
 
-                      <div className="mt-4 rounded-lg bg-secondary/55 p-3">
-                        <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-primary">
-                          <FlaskConical size={11} /> Conversation summary
-                        </div>
-                        <p className="line-clamp-3 text-sm leading-relaxed text-foreground/90">{conversation.mock_summary}</p>
-                      </div>
-
                       <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                         <span className="min-w-0 truncate">
                           Latest: <b className="text-foreground">{conversation.latest_message.sender_name}</b>
@@ -99,7 +92,7 @@ export default function IntakePage() {
                         <span className="font-mono text-[10px] text-muted-foreground">{conversation.message_count} messages</span>
                         <Button type="button" size="sm" onClick={() => openConversation(conversation.id)}
                           data-testid={`button-review-conversation-${conversation.id}`}>
-                          <ScanSearch size={13} /> {conversation.dispatch_activity_id != null ? 'View conversation' : 'Open request'} <ArrowRight size={13} />
+                          <ScanSearch size={13} /> {conversation.dispatch_activity_id != null ? 'View conversation' : 'Open work order'} <ArrowRight size={13} />
                         </Button>
                       </div>
                     </article>
@@ -110,7 +103,6 @@ export default function IntakePage() {
                 ))}
               </div>}
       </Card>
-      <p className="text-xs text-muted-foreground">Open a chat to start its analysis while you read. Suggestions are advisory; a dispatcher must still approve every dispatch.</p>
     </div>
   );
 }

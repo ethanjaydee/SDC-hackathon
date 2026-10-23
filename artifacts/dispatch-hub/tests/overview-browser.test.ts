@@ -15,8 +15,8 @@ const hubData = {
     { id: 2, name: 'Workshop Van 2', plate: 'DEMO-V02', status: 'Busy', technician_id: 2, technician_name: 'Mina Tan', dispatch_id: 7 },
   ],
   technicians: [
-    { id: 1, name: 'Ari Lee', status: 'Available', zone: 'North', van_id: 1 },
-    { id: 2, name: 'Mina Tan', status: 'Busy', zone: 'Central', van_id: 2, lat: 3.025, lng: 101.617 },
+    { id: 1, name: 'Ari Lee', status: 'Available', zone: 'North', van_id: 1, level: 1, rating: 4.8, demo_completed_jobs: 8 },
+    { id: 2, name: 'Mina Tan', status: 'Busy', zone: 'Central', van_id: 2, level: 2, rating: 4.4, demo_completed_jobs: 6, lat: 3.025, lng: 101.617 },
   ],
   inventory: [
     { id: 1, van_id: 1, part_name: 'Capacitor', quantity: 5 },
@@ -65,7 +65,18 @@ async function startVite(): Promise<{ process: ChildProcess; output: () => strin
 async function mockOverviewApi(page: Page) {
   await page.route('**/api/hub-data', (route) => route.fulfill({ json: hubData }));
   await page.route('**/api/conversations', (route) => route.fulfill({ json: { conversations: [
-    { id: 1, dispatch_activity_id: null }, { id: 2, dispatch_activity_id: null },
+    {
+      id: 1, dispatch_activity_id: null, subject: 'Demo work order 1', mock_summary: 'Easy sample repair',
+      complexity: 'Easy', source: 'Demo', customer_name: 'Demo Customer 1', customer_site_id: 'central',
+      updated_at: '2026-10-24T09:00:00.000Z', message_count: 1, technician_id: null,
+      latest_message: { sender_name: 'Customer', text: 'The remote needs replacing.' },
+    },
+    {
+      id: 2, dispatch_activity_id: null, subject: 'Demo work order 2', mock_summary: 'Normal sample repair',
+      complexity: 'Normal', source: 'Demo', customer_name: 'Demo Customer 2', customer_site_id: 'north',
+      updated_at: '2026-10-24T10:00:00.000Z', message_count: 1, technician_id: null,
+      latest_message: { sender_name: 'Customer', text: 'The air conditioner needs a filter clean.' },
+    },
   ] } }));
 }
 
@@ -92,7 +103,7 @@ test('overview prioritizes technician availability with unfinished requests, sal
     const desktop = await openOverview(browser, 1440, 960);
     try {
       const page = desktop.page;
-      assert.equal(await page.getByRole('note', { name: 'Demo profile: Boss, Dispatch manager' }).count(), 1);
+      assert.equal(await page.getByRole('note', { name: 'Demo profile: Boss, Dispatch CEO' }).count(), 1);
       assert.equal(await page.getByRole('button', { name: /sign out/i }).count(), 1, 'demo role can be switched back to the chooser');
       const circle = page.getByTestId('overview-availability-circle');
       assert.equal(await circle.getAttribute('role'), 'img');
@@ -100,9 +111,13 @@ test('overview prioritizes technician availability with unfinished requests, sal
       assert.equal(await page.getByText('View readiness', { exact: true }).count(), 0);
       assert.equal(await page.getByTestId('overview-availability-value').innerText(), '1/ 2');
       assert.equal(await page.getByTestId('overview-unfinished-count').innerText(), '2');
-      assert.match(await page.getByTestId('overview-sales-ytd-value').innerText(), /^RM [\d,]+$/);
-      assert.match(await page.getByTestId('overview-sales-ytd').innerText(), /Mock data/i);
-      assert.equal(await page.getByTestId('overview-customer-rating-value').innerText(), '3.6/5');
+       assert.match(await page.getByTestId('overview-daily-sales-value').innerText(), /^RM [\d,]+$/);
+       assert.match(await page.getByTestId('overview-daily-sales').innerText(), /Sample daily average/i);
+       assert.match(await page.getByTestId('overview-daily-sales-secondary').innerText(), /YTD · RM [\d,]+/i);
+       const salesValueBox = await page.getByTestId('overview-daily-sales-value').boundingBox();
+       const salesYtdBox = await page.getByTestId('overview-daily-sales-secondary').boundingBox();
+       assert.ok(salesValueBox && salesYtdBox && salesYtdBox.y > salesValueBox.y, 'YTD is displayed below daily sales');
+       assert.match(await page.getByTestId('overview-customer-rating-value').innerText(), /^\d\.\d\/5$/);
       assert.match(await page.getByTestId('overview-customer-rating').innerText(), /Sample/i);
       assert.equal(await page.getByTestId('overview-low-stock-count-value').innerText(), '2', 'low stock includes only quantities strictly below five');
 
@@ -152,9 +167,11 @@ test('overview prioritizes technician availability with unfinished requests, sal
       page.on('request', (request) => {
         if (/\/api\/technicians\/\d+\/route\//.test(request.url())) routeRequests += 1;
       });
-      await page.getByRole('link', { name: /Technician map/ }).click();
+      await page.getByRole('link', { name: 'Map', exact: true }).click();
       await page.getByTestId('boss-busy-van-2').waitFor();
-      await page.getByRole('heading', { name: 'Busy van locations' }).first().waitFor();
+      await page.getByRole('heading', { name: 'Locations' }).first().waitFor();
+      assert.equal(await page.getByRole('button', { name: /Fit all/ }).count(), 0);
+      assert.equal(await page.getByText(/No route lines or live GPS|S is the fixed workshop/i).count(), 0);
       assert.equal(await page.getByText('Shop to customer route', { exact: true }).count(), 0);
       assert.equal(routeRequests, 0, 'the Boss map does not request a shop-to-customer route');
       const mapPins = await page.locator('.leaflet-marker-pane .af-pin').allTextContents();
@@ -162,6 +179,28 @@ test('overview prioritizes technician availability with unfinished requests, sal
       assert.ok(mapPins.includes('V2'), 'busy van marker is shown at its sample position');
       assert.ok(mapPins.includes('C2'), 'saved customer site marker is shown');
       assert.equal(await page.locator('.leaflet-overlay-pane path.leaflet-interactive').count(), 0, 'Boss map draws no route line');
+
+       await page.getByRole('link', { name: 'Service History', exact: true }).click();
+       const technicianBadge = page.getByTestId('work-badge-1');
+       await technicianBadge.waitFor();
+       assert.doesNotMatch(await technicianBadge.innerText(), /camera/i);
+       await technicianBadge.click();
+        await page.getByTestId('sample-history-table-1').waitFor();
+       assert.equal(await page.getByTestId('sample-history-table-1').count(), 1);
+       assert.equal(await page.getByTestId('sample-job-row-SAMPLE-001-01').count(), 1);
+       assert.equal(await page.getByTestId('img-sample-proof-SAMPLE-001-01').count(), 1);
+       assert.equal(await page.getByTestId('button-generate-invoice-SAMPLE-001-01').count(), 1);
+       await page.keyboard.press('Escape');
+
+       await page.getByRole('link', { name: 'Reviews', exact: true }).click();
+       await page.getByTestId('review-sample-levels').waitFor();
+       assert.equal(await page.getByRole('heading', { name: 'Saved reviews', exact: true }).count(), 0);
+       assert.ok(await page.getByText('Ari Lee', { exact: true }).count() > 0, 'sample reviews identify the assigned technician');
+
+       await page.getByRole('link', { name: 'Work Order', exact: true }).click();
+       await page.getByRole('heading', { name: 'Work Order', exact: true }).waitFor();
+       assert.equal(await page.getByText('Open a request to read its conversation. Analysis starts in the background as the review loads.', { exact: true }).count(), 0);
+       assert.equal(await page.getByText('Conversation summary', { exact: true }).count(), 0);
     } finally {
       await desktop.context.close();
     }

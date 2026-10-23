@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { BarChart3, Boxes, FlaskConical, Wallet } from 'lucide-react';
+import { BarChart3, FlaskConical, Wallet } from 'lucide-react';
 import { Card, Mono, PageHead, StatusBadge, fieldClass, type Hub } from './shared';
 import {
-  ANALYTICS_YEARS, LOW_STOCK_THRESHOLD, MONTHS, USAGE_PARTS, getPartsMonthlyUsage, getSalesMonthly, getSalesYearly, getStockPlan, type UsagePart,
+  ANALYTICS_YEARS, USAGE_PARTS, getPartsMonthlyUsage, getSalesMonthly, getSalesYearly, type UsagePart,
 } from './workshopAnalytics';
 
 const C1 = '#61A9BD', C2 = '#CED14E', C3 = '#44986D';
@@ -14,19 +14,15 @@ const tip = { borderRadius: 8, border: '1px solid hsl(var(--card-border))', back
 export default function WorkshopAnalysisPage({ hub }: Hub) {
   const [year, setYear] = useState<number>(ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1]);
   const [part, setPart] = useState<UsagePart>(USAGE_PARTS[0]);
-  const [month, setMonth] = useState(1);
   const monthly = useMemo(() => getSalesMonthly(year), [year]);
   const yearly = useMemo(() => getSalesYearly(), []);
   const usage = useMemo(() => getPartsMonthlyUsage(year, part), [year, part]);
-  const inv = hub.hubQ.data?.inventory;
-  const plan = useMemo(() => getStockPlan(part, year, month, inv), [part, year, month, inv]);
-  const allPlans = useMemo(() => USAGE_PARTS.map((p) => getStockPlan(p, year, month, inv)), [year, month, inv]);
-  const avg = plan.averageMonthlyUsage;
+  const avg = useMemo(() => getPartsMonthlyUsage(year, part).reduce((sum, row) => sum + row.units, 0) / 12, [year, part]);
   const usageData = usage.map((u) => ({ ...u, average: Number(avg.toFixed(1)) }));
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Workshop" title="Workshop analysis" sub="Sample sales revenue and accessory usage trends, with a restock plan against live van stock.">
+      <PageHead kicker="Workshop" title="Workshop analysis" sub="Sample sales revenue and accessory usage trends.">
         <label className="sr-only" htmlFor="wa-year">Sample year</label>
         <select id="wa-year" className={`${fieldClass} w-auto`} value={year} onChange={(e) => setYear(Number(e.target.value))}>
           {ANALYTICS_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -89,40 +85,6 @@ export default function WorkshopAnalysisPage({ hub }: Hub) {
         </div>
       </Card>
 
-      <Card title={<><Boxes size={15} /> Restock plan</>} aside={<span className="text-xs">Target = month usage + 5 spare · alert below {LOW_STOCK_THRESHOLD}</span>}>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <label className="sr-only" htmlFor="wa-month">Plan month</label>
-          <select id="wa-month" className={`${fieldClass} w-auto`} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-            {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m} {year}</option>)}
-          </select>
-          {!inv && <StatusBadge tone="pending">Live stock unavailable</StatusBadge>}
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead><tr className="border-b text-left text-xs text-muted-foreground">
-              <th className="py-2 font-medium">Accessory</th><th className="font-medium">Usage ({MONTHS[month - 1]})</th><th className="font-medium">Target</th>
-              <th className="font-medium">Fleet stock</th><th className="font-medium">Suggested buy</th><th className="font-medium">Van alerts</th>
-            </tr></thead>
-            <tbody>
-              {allPlans.map((p) => {
-                const alerts = p.vanAlerts.filter((v) => v.belowThreshold);
-                return (
-                  <tr key={p.partName} className="border-b border-card-border align-top">
-                    <td className="py-2 font-medium">{p.partName}</td>
-                    <td className="font-mono tabular">{p.monthlyUsage}</td>
-                    <td className="font-mono tabular">{p.targetStock}</td>
-                    <td className="font-mono tabular">{p.stockOnHand ?? 'Unknown'}{p.belowThreshold && <span className="ml-1.5"><StatusBadge tone="err">Below {LOW_STOCK_THRESHOLD}</StatusBadge></span>}</td>
-                    <td className="font-mono tabular">{p.suggestedPurchase ?? 'Unknown'}</td>
-                    <td className="text-xs">{p.stockOnHand == null ? <span className="text-muted-foreground">Unknown</span>
-                      : alerts.length ? <span className="text-err">{alerts.map((v) => `Van ${v.vanId}: ${v.quantity}`).join(' · ')}</span> : <span className="text-muted-foreground">None</span>}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-3 text-xs text-muted-foreground">Fleet stock is the total across vans; van alerts flag any single van strictly below {LOW_STOCK_THRESHOLD}. Suggested buy is advisory only and never changes inventory.</p>
-      </Card>
     </div>
   );
 }

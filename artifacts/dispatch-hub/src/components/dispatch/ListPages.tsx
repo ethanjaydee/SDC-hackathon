@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'wouter';
-import { ArrowRight, Boxes, CheckCircle2, History, LockKeyhole, RotateCcw, Users } from 'lucide-react';
+import { Boxes, CheckCircle2, History, LockKeyhole, RotateCcw, Users } from 'lucide-react';
 import type { Activity, Technician } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, ConfirmAction, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, TechRow, dateTime, initials, techTone, type Hub } from './shared';
@@ -8,10 +8,8 @@ import { CompletionControl } from './CompletionControl';
 import { LevelBadge, ratingText } from './techMeta';
 import { WorkBadges } from './ServiceHistory';
 import { DataTable, FilterChips, type Column } from './DataTable';
-import { ANALYTICS_YEARS, MONTHS } from './workshopAnalytics';
-import { RestockSuggestion } from './RestockSuggestion';
 const TechnicianFilters = FilterChips<'all' | 'Available' | 'Busy'>;
-const EventFilters = FilterChips<'all' | 'Approved' | 'Completed' | 'Reset'>;
+const EventFilters = FilterChips<'all' | 'Approved' | 'Completed' | 'Reset' | 'Response'>;
 
 export function TechniciansPage({ hub }: Hub) {
   const { technicians, availableCount, hubQ, activity, writePending } = hub;
@@ -70,21 +68,18 @@ export function TechniciansPage({ hub }: Hub) {
     ) },
     { key: 'level', header: 'Level', sort: (t) => t.level ?? 1, cell: (t) => <LevelBadge tech={t} /> },
     { key: 'rating', header: 'Rating · jobs', sort: (t) => t.rating ?? 0, cell: (t) => <span className="whitespace-nowrap text-xs">★ <Mono>{ratingText(t)}</Mono> · <Mono>{t.demo_completed_jobs ?? 0}</Mono> <span className="text-muted-foreground">demo</span></span> },
-    { key: 'zone', header: 'Zone', sort: (t) => t.zone, cell: (t) => <span>{t.zone}{t.specialty && <span className="block text-[11px] text-muted-foreground">{t.specialty}</span>}</span> },
     { key: 'actions', header: 'Assignment', cell: actions },
   ];
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Team" title="Technicians" sub="Level and status. Vans are shared and allocated per job. Ratings and job counts are demo data; positions are samples.">
-        <Button asChild variant="outline"><Link href="/map">Open map <ArrowRight size={13} /></Link></Button>
-      </PageHead>
+      <PageHead kicker="Team" title="Technicians" sub="Level and status. Vans are shared and allocated per job. Ratings and job counts are demo data; positions are samples." />
       {hub.completionError && <InlineError>{hub.completionError}</InlineError>}
       {hub.resetError && <InlineError>{hub.resetError}</InlineError>}
       <Card title={<><Users size={15} /> All technicians</>} aside={<Mono>{availableCount}/{technicians.length} available</Mono>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Technician data unavailable.</InlineError> : (
           <DataTable caption="Technicians" rows={rows} columns={columns} rowKey={(t) => t.id} loading={hubQ.isLoading}
-            searchText={(t) => `${t.name} ${t.zone}`} searchLabel="Filter by name or zone"
+             searchText={(t) => t.name} searchLabel="Filter by technician name"
             initialSort={{ key: 'name', dir: 'asc' }}
             toolbar={<TechnicianFilters label="Status filter" value={status} onChange={setStatus} options={[{ value: 'all', label: 'All' }, { value: 'Available', label: 'Available' }, { value: 'Busy', label: 'Busy' }]} />}
             empty={<EmptyState icon={<Users size={16} />} title="No technicians match">Try another filter.</EmptyState>}
@@ -99,8 +94,6 @@ export function TechniciansPage({ hub }: Hub) {
 export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean }) {
   const { inventory, technicians, hubQ } = hub;
   const [van, setVan] = useState<number | null>(null);
-  const [planYear, setPlanYear] = useState<number>(ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1]);
-  const [planMonth, setPlanMonth] = useState(1);
   const vans = useMemo(() => [...new Set(inventory.map((i) => i.van_id))].sort((a, b) => a - b).slice(0, 3), [inventory]);
   const lines = (v: number) => inventory.filter((i) => i.van_id === v && (!lowOnly || i.quantity < 5)).sort((a, b) => a.part_name.localeCompare(b.part_name));
   const active = van != null && vans.includes(van) ? van : null;
@@ -111,12 +104,6 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
         {lowOnly ? <Button asChild variant="outline"><Link href="/stock">All stock</Link></Button>
           : <Button asChild variant="outline"><Link href="/stock/low">Low stock only</Link></Button>}
       </PageHead>
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
-        <span className="text-sm font-medium">Restock planning period</span>
-        <label className="text-xs">Year <select aria-label="Restock sample year" className="ml-1 rounded-md border bg-background p-2" value={planYear} onChange={(e) => setPlanYear(Number(e.target.value))}>{ANALYTICS_YEARS.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
-        <label className="text-xs">Month <select aria-label="Restock sample month" className="ml-1 rounded-md border bg-background p-2" value={planMonth} onChange={(e) => setPlanMonth(Number(e.target.value))}>{MONTHS.map((month, i) => <option key={month} value={i + 1}>{month}</option>)}</select></label>
-        <p className="w-full text-xs text-muted-foreground">Sample month usage + 5 spare − fleet stock = suggested purchase. The amount is shared across vans, not per van.</p>
-      </div>
       <Card title={<><Boxes size={15} /> {lowOnly ? 'Low-stock lines' : 'Vans'}</>} aside={<Mono>{vans.length} vans</Mono>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Inventory data unavailable.</InlineError>
           : hubQ.isLoading ? <SkeletonRows rows={3} label="Loading vans" />
@@ -145,7 +132,6 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
                       <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 text-sm" data-testid={lowOnly ? `low-stock-${i.id}` : undefined}>
                         <span className="min-w-0 flex-1">{i.part_name}</span>
                         <span data-testid={`text-qty-${i.id}`} className={`inline-flex min-w-8 justify-center rounded-md px-1.5 py-0.5 font-mono font-semibold tabular ${i.quantity < 5 ? 'bg-pending/12 text-pending' : ''}`}>{i.quantity}</span>
-                        {i.quantity < 5 && <RestockSuggestion item={i} inventory={inventory} year={planYear} month={planMonth} stale={hubQ.isError} />}
                       </li>
                     ))}
                   </ul>
@@ -160,10 +146,13 @@ export function StockPage({ hub, lowOnly = false }: Hub & { lowOnly?: boolean })
   );
 }
 
-type Kind = 'all' | 'Approved' | 'Completed' | 'Reset';
+type Kind = 'all' | 'Approved' | 'Completed' | 'Reset' | 'Response';
 const kindOf = (e: Activity): Exclude<Kind, 'all'> =>
-  e.completion_dispatch_id != null ? 'Completed' : e.action_details.startsWith('Technician availability reset:') ? 'Reset' : 'Approved';
-const kindTone = { Approved: 'busy', Completed: 'ok', Reset: 'idle' } as const;
+  e.action_details.startsWith('Technician response:') ? 'Response' : e.completion_dispatch_id != null ? 'Completed' : e.action_details.startsWith('Technician availability reset:') ? 'Reset' : 'Approved';
+const kindTone = { Approved: 'busy', Completed: 'ok', Reset: 'idle', Response: 'pending' } as const;
+const toneForEvent = (e: Activity) => kindOf(e) === 'Response'
+  ? (e.action_details.toLowerCase().includes('rejected') ? 'err' : 'ok')
+  : kindTone[kindOf(e)];
 
 export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: string; todayOnly?: boolean }) {
   const { activity, hubQ } = hub;
@@ -179,7 +168,7 @@ export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: stri
   const columns: Column<Activity>[] = [
     { key: 'id', header: 'ID', sort: (e) => e.id, cell: (e) => <Mono>#{e.id}</Mono> },
     { key: 'time', header: 'Time', sort: (e) => new Date(e.timestamp).getTime(), cell: (e) => <Mono className="whitespace-nowrap text-xs"><time dateTime={e.timestamp}>{dateTime(e.timestamp)}</time></Mono> },
-    { key: 'kind', header: 'Event', sort: (e) => kindOf(e), cell: (e) => <StatusBadge tone={kindTone[kindOf(e)]}>{kindOf(e)}</StatusBadge> },
+    { key: 'kind', header: 'Event', sort: (e) => kindOf(e), cell: (e) => <StatusBadge tone={toneForEvent(e)}>{kindOf(e)}</StatusBadge> },
     { key: 'details', header: 'Details', cell: (e) => <span className="block min-w-56">{e.action_details}</span> },
     { key: 'source', header: 'Source chat', cell: (e) => {
       const conversationId = sourceConversationId(e);
@@ -205,11 +194,11 @@ export function LogPage({ hub, notice, todayOnly = false }: Hub & { notice: stri
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Dispatch history unavailable until the hub reconnects.</InlineError> : (
           <DataTable caption="Dispatch log" rows={rows} columns={columns} rowKey={(e) => e.id} loading={hubQ.isLoading}
             initialSort={{ key: 'id', dir: 'desc' }} searchText={(e) => `${e.id} ${e.action_details} ${e.approved_by}`} searchLabel="Search log"
-            toolbar={!todayOnly && <EventFilters label="Event filter" value={kind} onChange={setKind} options={[{ value: 'all', label: 'All' }, { value: 'Approved', label: 'Approved' }, { value: 'Completed', label: 'Completed' }, { value: 'Reset', label: 'Reset' }]} />}
+             toolbar={!todayOnly && <EventFilters label="Event filter" value={kind} onChange={setKind} options={[{ value: 'all', label: 'All' }, { value: 'Approved', label: 'Approved' }, { value: 'Completed', label: 'Completed' }, { value: 'Reset', label: 'Reset' }, { value: 'Response', label: 'Technician response' }]} />}
             empty={<EmptyState icon={<History size={16} />} title={todayOnly ? 'No dispatches recorded today' : 'No dispatches yet'}>Approved allocations will appear here.</EmptyState>}
             mobile={(e) => (
               <div className="space-y-1.5 rounded-lg border p-3">
-                <div className="flex items-center justify-between gap-2"><StatusBadge tone={kindTone[kindOf(e)]}>{kindOf(e)}</StatusBadge><Mono className="text-xs text-muted-foreground">#{e.id} · {dateTime(e.timestamp)}</Mono></div>
+                <div className="flex items-center justify-between gap-2"><StatusBadge tone={toneForEvent(e)}>{kindOf(e)}</StatusBadge><Mono className="text-xs text-muted-foreground">#{e.id} · {dateTime(e.timestamp)}</Mono></div>
                 <p className="text-sm">{e.action_details}</p>
                 {sourceConversationId(e) != null && <Link href={`/analysis/${sourceConversationId(e)}`} className="inline-flex items-center gap-1 text-xs font-medium text-primary">Open source chat <Mono>#{sourceConversationId(e)}</Mono></Link>}
                 <p className="text-xs text-muted-foreground">By {e.approved_by}</p>

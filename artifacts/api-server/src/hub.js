@@ -11,6 +11,8 @@ export { callRunPodModel } from "./runpodAnalysis.js";
 import { isOfferStale } from "./offerFreshness.js";
 import { prepareTelegramStorage, createTelegramStorage } from "./telegramStore.js";
 import { sendTelegramMessage, TelegramDeliveryError } from "./telegramTransport.js";
+import { generateSampleEInvoice } from "./sampleEInvoice.js";
+import { createTechnicianResponseRecorder, TechnicianResponseError } from "./dispatchResponse.js";
 import {
   AnalyzeRequestBody,
   AnalyzeRequestResponse,
@@ -21,6 +23,8 @@ import {
   ApproveDispatchResponse,
   CompleteDispatchBody,
   CompleteDispatchResponse,
+  RespondToDispatchBody,
+  RespondToDispatchResponse,
   ResetTechnicianAvailabilityBody,
   ResetTechnicianAvailabilityResponse,
   GetHubDataResponse,
@@ -29,6 +33,8 @@ import {
   ListSupplierQuotesResponse,
   SearchSupplierCatalogQueryParams,
   SearchSupplierCatalogResponse,
+  GenerateSampleEInvoiceBody,
+  GenerateSampleEInvoiceResponse,
   SaveSupplierQuoteBody,
   SaveSupplierQuoteResponse,
   ListReorderDraftsResponse,
@@ -87,7 +93,9 @@ db.exec(`
     technician_name TEXT NOT NULL,
     van_id INTEGER NOT NULL,
     parts_json TEXT NOT NULL,
-    customer_site_json TEXT NOT NULL
+    customer_site_json TEXT NOT NULL,
+    technician_response TEXT CHECK(technician_response IS NULL OR technician_response IN ('Accepted', 'Rejected')),
+    technician_response_at TEXT
   );
   CREATE TABLE IF NOT EXISTS conversation_threads (
     id INTEGER PRIMARY KEY,
@@ -198,6 +206,12 @@ db.transaction(() => {
   if (!columns.some((column) => column.name === "shop_location_json")) {
     db.exec("ALTER TABLE dispatches ADD COLUMN shop_location_json TEXT");
   }
+  if (!columns.some((column) => column.name === "technician_response")) {
+    db.exec("ALTER TABLE dispatches ADD COLUMN technician_response TEXT CHECK(technician_response IS NULL OR technician_response IN ('Accepted', 'Rejected'))");
+  }
+  if (!columns.some((column) => column.name === "technician_response_at")) {
+    db.exec("ALTER TABLE dispatches ADD COLUMN technician_response_at TEXT");
+  }
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS one_active_dispatch_per_tech
       ON dispatches(tech_id) WHERE status = 'Active';
@@ -304,18 +318,21 @@ function getHubData() {
     inventory: db.prepare("SELECT * FROM inventory ORDER BY van_id, id").all(),
     activity_log: db.prepare(`
       SELECT a.*, d.tech_id, d.technician_name, d.van_id, d.parts_json, d.customer_site_json, d.shop_location_json, d.conversation_id,
+        d.technician_response, d.technician_response_at,
         d.status AS dispatch_status, completed.timestamp AS completed_at,
         original.activity_id AS completion_dispatch_id
       FROM activity_log a LEFT JOIN dispatches d ON d.activity_id = a.id
       LEFT JOIN activity_log completed ON completed.id = d.completion_activity_id
       LEFT JOIN dispatches original ON original.completion_activity_id = a.id
       ORDER BY a.id DESC
-    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, shop_location_json, conversation_id, dispatch_status, completed_at, ...activity }) => ({
+    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, shop_location_json, conversation_id, technician_response, technician_response_at, dispatch_status, completed_at, ...activity }) => ({
       ...activity,
       dispatch: tech_id == null ? null : {
         tech_id, technician_name, van_id,
         status: dispatch_status,
         completed_at,
+        technician_response,
+        technician_response_at,
         parts: JSON.parse(parts_json),
         customer_site: JSON.parse(customer_site_json),
         shop_location: shop_location_json ? JSON.parse(shop_location_json) : null,
@@ -560,6 +577,8 @@ const completeDispatch = db.transaction(({ dispatch_id, completed_by }) => {
   db.prepare("UPDATE technicians SET status = 'Available' WHERE id = ?").run(job.tech_id);
   return getHubData();
 });
+
+const recordTechnicianResponse = createTechnicianResponseRecorder(db);
 
 const resetTechnicianAvailability = db.transaction(({ technician_id, reset_by }) => {
   const technician = db.prepare(
@@ -1009,6 +1028,29 @@ router.post("/workshop-reviews/summary", async (_req, res) => {
     res.status(503).json({ error: "AI review summary is unavailable. Your saved reviews are unchanged; try again later." });
   }
 });
+router.post("/sample-e-invoices/generate", async (req, res) => {
+  const parsed = GenerateSampleEInvoiceBody.safeParse(req.body);
+  if (!parsed.success
+    || !parsed.data.job_number.trim()
+    || !parsed.data.technician_name.trim()
+    || !parsed.data.job_scope.trim()
+    || Number.isNaN(new Date(parsed.data.completed_at).getTime())) {
+    res.status(400).json({ error: "Provide a valid sample job number, technician, completion date, scope, and amount." });
+    return;
+  }
+  try {
+    const invoice = await generateSampleEInvoice({
+      ...parsed.data,
+      job_number: parsed.data.job_number.trim(),
+      technician_name: parsed.data.technician_name.trim(),
+      job_scope: parsed.data.job_scope.trim(),
+    });
+    res.json(GenerateSampleEInvoiceResponse.parse(invoice));
+  } catch (error) {
+    req.log?.warn({ err: error }, "Sample e-invoice AI generation failed");
+    res.status(503).json({ error: "AI sample invoice is unavailable right now. Your service history is unchanged; try again shortly." });
+  }
+});
 router.get("/conversations", (_req, res) => {
   res.json(ListConversationsResponse.parse({
     conversations: listConversationSummaries(),
@@ -1253,6 +1295,27 @@ router.post("/analyze-request", async (req, res) => {
     return;
   }
   res.json(AnalyzeRequestResponse.parse(await callRunPodModel(parsed.data.text)));
+});
+router.post("/dispatches/:id/technician-response", (req, res, next) => {
+  const dispatch_id = Number(req.params.id);
+  const parsed = RespondToDispatchBody.safeParse(req.body);
+  if (!Number.isSafeInteger(dispatch_id) || dispatch_id < 1 || !parsed.success) {
+    res.status(400).json({ error: "Provide a valid dispatch ID, technician ID, and accept/reject response." });
+    return;
+  }
+  try {
+    res.json(RespondToDispatchResponse.parse(recordTechnicianResponse.immediate({
+      dispatch_id,
+      technician_id: parsed.data.technician_id,
+      response: parsed.data.response,
+    })));
+  } catch (error) {
+    if (error instanceof TechnicianResponseError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
 });
 router.post("/approve-dispatch", (req, res, next) => {
   const parsed = ApproveDispatchBody.safeParse(req.body);

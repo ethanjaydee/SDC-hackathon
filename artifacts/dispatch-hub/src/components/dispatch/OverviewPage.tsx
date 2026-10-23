@@ -12,8 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, EmptyState, InlineError, Mono, PageHead, StatusBadge, dateTime, type Hub } from './shared';
 import { canAutoRefresh, pollInterval } from '@/lib/reliability';
 import { getUnfinishedRequests } from './overviewMetrics';
-import { getDemoReviewAverage, DEMO_REVIEW_SAMPLES } from './demoReviewSamples';
-import { ANALYTICS_YEARS, MONTHS, getSalesYtd } from './workshopAnalytics';
+import { getDemoReviewAverage, getDemoReviewCount } from './demoReviewSamples';
+import { ANALYTICS_YEARS, MONTHS, getSalesMonthly, getSalesYtd } from './workshopAnalytics';
 
 export default function OverviewPage({ hub }: Hub) {
   const { hubQ, technicians, inventory, activity } = hub;
@@ -36,16 +36,20 @@ export default function OverviewPage({ hub }: Hub) {
   const availableCount = technicians.filter((tech) => tech.status === 'Available').length;
   const requestsReady = ready && !!requestsQ.data;
   const requestCounts = getUnfinishedRequests(requestsQ.data?.conversations ?? [], activity);
-  const dateParts = new Intl.DateTimeFormat('en', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: 'numeric' }).formatToParts(new Date());
+  const dateParts = new Intl.DateTimeFormat('en', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date());
   const currentYear = Number(dateParts.find((part) => part.type === 'year')!.value);
   const salesYear = ANALYTICS_YEARS.find((year) => year === currentYear) ?? ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1];
   const salesMonth = salesYear === currentYear ? Number(dateParts.find((part) => part.type === 'month')!.value) : 12;
+  const salesDay = salesYear === currentYear ? Number(dateParts.find((part) => part.type === 'day')!.value) : 31;
   const salesYtd = getSalesYtd(salesYear, salesMonth);
+  const monthlySales = getSalesMonthly(salesYear)[salesMonth - 1].salesMyr;
+  const daysInMonth = new Date(Date.UTC(salesYear, salesMonth, 0)).getUTCDate();
+  const dailySales = Math.round(monthlySales / daysInMonth);
   const useSampleRating = !reviewsQ.isError && reviewsQ.data?.review_count === 0;
-  const demoRating = getDemoReviewAverage();
+  const demoRating = getDemoReviewAverage(technicians);
   const overviewRating = useSampleRating ? demoRating : reviewsQ.data?.average_rating;
   const ratingCaption = useSampleRating
-    ? `Sample · ${DEMO_REVIEW_SAMPLES.length} examples`
+    ? `Sample · ${getDemoReviewCount(technicians)} examples`
     : reviewsQ.data?.review_count ? `${reviewsQ.data.review_count} reviews · all time` : 'No reviews yet';
   const lowStockItems = inventory.filter((line) => line.quantity < 5);
   const latest = activity.slice(0, 4);
@@ -123,14 +127,18 @@ export default function OverviewPage({ hub }: Hub) {
                   <ul className="grid grid-cols-2 gap-2" data-testid="overview-technician-list">
                     {technicians.map((tech) => {
                       const available = tech.status === 'Available';
+                      const busy = tech.status === 'Busy';
+                      const cardTone = available ? 'border-ok/20 bg-ok/[0.045]' : busy ? 'border-err/25 bg-err/[0.045]' : 'border-border/70 bg-muted/45';
+                      const iconTone = available ? 'border-ok/25 bg-ok/10 text-ok' : busy ? 'border-err/25 bg-err/10 text-err' : 'border-border bg-muted text-muted-foreground';
+                      const statusTone = available ? 'border-ok/25 bg-ok/10 text-ok' : busy ? 'border-err/25 bg-err/10 text-err' : 'border-border bg-muted text-muted-foreground';
                       return (
-                        <li key={tech.id} aria-label={`${tech.name}, ${tech.status}, ${tech.zone}`} className={`flex min-w-0 items-start gap-2 rounded-lg border px-2 py-2 ${available ? 'border-ok/20 bg-ok/[0.045]' : 'border-border/70 bg-muted/45'}`} data-testid={`overview-technician-${tech.id}`}>
-                          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${available ? 'border-ok/25 bg-ok/10 text-ok' : 'border-border bg-muted text-muted-foreground'}`}>
+                        <li key={tech.id} aria-label={`${tech.name}, ${tech.status}`} className={`flex min-w-0 items-start gap-2 rounded-lg border px-2 py-2 ${cardTone}`} data-testid={`overview-technician-${tech.id}`}>
+                          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${iconTone}`}>
                             <UserRound size={16} strokeWidth={1.8} aria-hidden="true" />
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block break-words text-xs font-semibold leading-tight">{tech.name}</span>
-                            <span className={`mt-1 block w-fit rounded-full border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] ${available ? 'border-ok/25 bg-ok/10 text-ok' : 'border-border bg-muted text-muted-foreground'}`}>
+                            <span className={`mt-1 block w-fit rounded-full border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] ${statusTone}`}>
                               {tech.status}
                             </span>
                             <span className={`mt-1 block text-[10px] leading-tight ${available ? 'text-ok' : 'text-muted-foreground'}`}>
@@ -179,11 +187,12 @@ export default function OverviewPage({ hub }: Hub) {
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
             <SummaryLink
               href="/workshop-analysis"
-              title="Sales · YTD"
-              value={`RM ${salesYtd.toLocaleString('en-MY')}`}
-              caption={`Jan–${MONTHS[salesMonth - 1]} ${salesYear} · Sample`}
+              title="Daily Sales"
+              value={`RM ${dailySales.toLocaleString('en-MY')}`}
+              caption={`Sample daily average · ${salesDay} ${MONTHS[salesMonth - 1]}`}
+              secondaryCaption={`YTD · RM ${salesYtd.toLocaleString('en-MY')}`}
               icon={<Wallet size={16} />}
-              testId="overview-sales-ytd"
+              testId="overview-daily-sales"
               linkTestId="link-overview-sales"
               loading={false}
               error={false}
@@ -260,7 +269,7 @@ export default function OverviewPage({ hub }: Hub) {
 }
 
 function SummaryLink({
-  href, title, value, caption, icon, testId, linkTestId, loading, error, cached, retry, retrying, errorMessage, alert = false, badge, ratingStars,
+  href, title, value, caption, icon, testId, linkTestId, loading, error, cached, retry, retrying, errorMessage, alert = false, badge, ratingStars, secondaryCaption,
 }: {
   href: string;
   title: string;
@@ -278,6 +287,7 @@ function SummaryLink({
   alert?: boolean;
   badge?: string;
   ratingStars?: number | null;
+  secondaryCaption?: string;
 }) {
   return (
     <section aria-label={title} data-testid={testId} className="min-w-0 rounded-xl border border-card-border bg-card shadow-sm">
@@ -296,6 +306,7 @@ function SummaryLink({
               <span className={`font-mono text-3xl font-semibold leading-none tabular ${alert ? 'text-pending' : ''}`} data-testid={`${testId}-value`}>{value ?? '—'}</span>
               <span className="truncate text-[11px] text-muted-foreground">{caption}</span>
             </span>
+              {secondaryCaption && <span className="text-[10px] font-medium text-muted-foreground" data-testid={`${testId}-secondary`}>{secondaryCaption}</span>}
             {ratingStars !== undefined && (
               <span className="flex h-4 items-center gap-0.5" role="img" aria-label={ratingStars == null ? 'No ratings yet' : `${ratingStars.toFixed(1)} out of 5 stars`} data-testid={`${testId}-stars`}>
                 {Array.from({ length: 5 }, (_, index) => {

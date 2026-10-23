@@ -78,7 +78,7 @@ export function TechnicianReviews({ hub }: Hub) {
       </PageHead>
       <p role="note" className="rounded-lg border border-pending/20 bg-pending/[0.045] px-4 py-3 text-xs leading-5 text-muted-foreground">Illustrative sample comments only. They are fictional, not saved customer reviews.</p>
       {hub.hubQ.isLoading ? null : techs.length === 0 ? <EmptyState icon={<MessageSquareText size={17} />} title="No technicians loaded">Reviews appear when the roster loads.</EmptyState> : techs.map((t) => {
-        const reviews = getDemoReviewsForTechnician(t.id);
+        const reviews = getDemoReviewsForTechnician(t.id, t.level);
         const mine = t.id === technicianId;
         return (
           <Card key={t.id} className={mine ? 'border-primary/40' : ''} title={<>{t.name}{mine && <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary">YOU</span>}</>}
@@ -106,13 +106,13 @@ export function TechnicianOverview({ hub }: Hub) {
   const free = vans.filter((v) => v.status === 'Available');
   return (
     <div className="space-y-5" data-testid="technician-overview">
-      <PageHead large kicker="Your day" title={me ? `Hello, ${me.name.split(' ')[0]}` : 'Overview'} sub="Your active jobs, sample record and the vans free to take out.">
-        {me && <StatusBadge tone={me.status === 'Available' ? 'ok' : 'busy'}>{me.status}</StatusBadge>}
+      <PageHead large kicker="Your day" title={me ? `Hello, ${me.name.split(' ')[0]}` : 'Overview'} sub="Your active jobs, sample record and the vans available to take out.">
+        {me && <StatusBadge tone={me.status === 'Available' ? 'ok' : 'err'}>{me.status}</StatusBadge>}
       </PageHead>
       {hub.completionError && <InlineError>{hub.completionError}</InlineError>}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title={<><ActivityIcon size={15} /> Active jobs</>} aside={<Mono>{active.length}</Mono>}>
-          {active.length === 0 ? <EmptyState icon={<ActivityIcon size={16} />} title="No active job">Take an open request from <Link href="/intake" className="text-primary underline">Service Requests</Link>.</EmptyState> : (
+          {active.length === 0 ? <EmptyState icon={<ActivityIcon size={16} />} title="No active job">Take an open request from <Link href="/intake" className="text-primary underline">Work Order</Link>.</EmptyState> : (
             <ul className="divide-y">
               {active.map((e) => (
                 <li key={e.id} className="space-y-1.5 py-3 text-sm">
@@ -133,10 +133,10 @@ export function TechnicianOverview({ hub }: Hub) {
           ) : <p className="text-sm text-muted-foreground">Loading your profile…</p>}
         </Card>
       </div>
-      <Card title={<><Truck size={15} /> Shared transport</>} aside={<Mono>{free.length}/{vans.length} free</Mono>}>
+      <Card title={<><Truck size={15} /> Shared transport</>} aside={<Mono>{free.length}/{vans.length} available</Mono>}>
         {vans.length === 0 ? <p className="text-sm text-muted-foreground">No transport data yet.</p> : (
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {vans.map((v) => <li key={v.id} className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${v.status === 'Busy' ? 'border-err/25 bg-err/[0.06]' : ''}`}><span>{v.name}</span><StatusBadge tone={v.status === 'Busy' ? 'err' : 'ok'}>{v.status === 'Busy' ? 'Busy' : 'Free'}</StatusBadge></li>)}
+            {vans.map((v) => <li key={v.id} className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${v.status === 'Busy' ? 'border-err/25 bg-err/[0.06]' : ''}`}><span>{v.name}</span><StatusBadge tone={v.status === 'Busy' ? 'err' : 'ok'}>{v.status === 'Busy' ? 'Busy' : 'Available'}</StatusBadge></li>)}
           </ul>
         )}
         <Link href="/transport" className="mt-3 inline-block text-xs font-medium text-primary">Open Transport</Link>

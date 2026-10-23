@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ExternalLink, Maximize2, MapPinned } from 'lucide-react';
+import { ExternalLink, MapPinned } from 'lucide-react';
 import { getGetTechnicianRouteQueryKey, useGetTechnicianRoute } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
@@ -144,19 +144,17 @@ export default function MapPage({ hub }: Hub) {
     const site = activity.find((e) => e.id === id)?.dispatch?.customer_site;
     if (site) updateCustomerSite(site.id);
   };
-  const saved = activity.filter((e) => e.completion_dispatch_id == null);
+  const saved = activity.filter((e) => e.dispatch != null && e.completion_dispatch_id == null);
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${shop.lat},${shop.lng}&destination=${customerSite.lat},${customerSite.lng}&travelmode=driving`;
   const unlocatedBusy = busyVanJobs.filter((job) => !job.vanLocation || !job.customerSite).length;
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Field view" title={technicianId == null ? 'Busy van locations' : 'Technician map'} sub={technicianId == null ? 'The fixed workshop, every busy van sample position, and its saved customer site. No route lines or live GPS.' : 'Fixed shop, your selected customer and the Google driving route.'}>
+      <PageHead kicker="Field view" title={technicianId == null ? 'Locations' : 'Map'} sub={technicianId == null ? 'The fixed workshop, every busy van location, and its customer site.' : 'Fixed shop, your selected customer and the Google driving route.'}>
         {technicianId != null && <select className={cn(fieldClass, 'w-full sm:w-auto')} aria-label="Customer site" data-testid="select-map-site" value={customerSiteId} disabled={writePending} onChange={(e) => updateCustomerSite(e.target.value)}>
           {DEMO_CUSTOMER_SITES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>}
-        <Button type="button" variant="outline" onClick={fit}><Maximize2 size={13} /> Fit all</Button>
       </PageHead>
-      <p className="rounded-lg border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">{technicianId == null ? 'S is the fixed workshop, V marks a busy van at its assigned technician’s synthetic sample position, and C marks that dispatch’s saved customer site. These are not live GPS locations; no route is drawn.' : 'S is the fixed shop and C is a customer site. Route, distance and time are the Google driving route from the shop to the customer; unavailable routes are never replaced with straight-line estimates. Positions are synthetic samples, not live GPS.'}</p>
       {hubQ.isError && <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Hub connection lost. Showing last known statuses.</InlineError>}
       {hub.completionError && <InlineError>{hub.completionError}</InlineError>}
       {tileErrors > 0 && <InlineError>Some map tiles could not be loaded. Saved assignments remain available in the list.</InlineError>}
@@ -171,7 +169,7 @@ export default function MapPage({ hub }: Hub) {
         </div>
         <div className="min-w-0 space-y-4">
           {technicianId == null ? (
-            <Card title="Busy van locations" aside={<Mono>{busyVanJobs.length}</Mono>}>
+            <Card title="Locations" aside={<Mono>{busyVanJobs.length}</Mono>}>
               {busyVanJobs.length ? (
                 <ul className="space-y-2" data-testid="boss-busy-van-locations">
                   {busyVanJobs.map((job) => (
@@ -181,7 +179,7 @@ export default function MapPage({ hub }: Hub) {
                         <StatusBadge tone="busy">Busy</StatusBadge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {job.vanLocation ? `${job.technician?.zone ?? 'Demo area'} · assigned technician sample position` : 'Van location unknown'}
+                         {job.vanLocation ? 'Assigned technician sample position' : 'Van location unknown'}
                       </p>
                       <p className="text-xs text-muted-foreground">{job.customerSite?.label ?? 'Customer location unknown · no saved site'}</p>
                       {job.entry && <Mono className="mt-1 block text-[11px]">Dispatch #{job.entry.id}</Mono>}

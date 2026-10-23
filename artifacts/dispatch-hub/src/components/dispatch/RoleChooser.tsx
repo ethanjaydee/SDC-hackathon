@@ -35,7 +35,7 @@ export default function RoleChooser() {
               className="group rounded-xl border border-card-border bg-card p-5 text-left transition-[border-color,transform] hover:-translate-y-0.5 hover:border-primary/50 motion-reduce:transition-none">
               <Briefcase size={22} className="text-primary" />
               <span className="mt-4 block font-display text-2xl font-semibold">Boss</span>
-              <span className="mt-1 block text-sm text-muted-foreground">Dispatch manager. Assign jobs, watch transport, read workshop analysis.</span>
+              <span className="mt-1 block text-sm text-muted-foreground">Dispatch CEO. Assign jobs, watch transport, read workshop analysis.</span>
             </button>
             <button type="button" data-testid="button-role-technician" onClick={() => setPicking(true)}
               className="group rounded-xl border border-card-border bg-card p-5 text-left transition-[border-color,transform] hover:-translate-y-0.5 hover:border-primary/50 motion-reduce:transition-none">
@@ -58,7 +58,7 @@ export default function RoleChooser() {
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary font-mono text-xs font-semibold">{initials(t.name)}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold">{t.name}</span>
-                          <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><LevelBadge tech={t} /><span>{t.zone}</span></span>
+                          <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><LevelBadge tech={t} /></span>
                         </span>
                       </button>
                     </li>

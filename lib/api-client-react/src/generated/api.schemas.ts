@@ -72,6 +72,78 @@ export interface WorkshopReviewSummary {
   generated_at: string;
 }
 
+export interface SampleEInvoiceInput {
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  job_number: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  technician_name: string;
+  completed_at: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  job_scope: string;
+  /**
+     * @maximum 10000
+     * @exclusiveMinimum 0
+     */
+  amount_myr: number;
+}
+
+export type SampleEInvoiceCurrency = typeof SampleEInvoiceCurrency[keyof typeof SampleEInvoiceCurrency];
+
+
+export const SampleEInvoiceCurrency = {
+  MYR: 'MYR',
+} as const;
+
+export interface SampleEInvoice {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  invoice_number: string;
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  job_number: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  technician_name: string;
+  completed_at: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  job_scope: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  line_description: string;
+  /**
+     * @maximum 10000
+     * @exclusiveMinimum 0
+     */
+  amount_myr: number;
+  currency: SampleEInvoiceCurrency;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  sample_note: string;
+  generated_at: string;
+}
+
 export interface TelegramStatus {
   configured: boolean;
   connected: boolean;
@@ -156,6 +228,17 @@ export const SavedDispatchStatus = {
   Unknown: 'Unknown',
 } as const;
 
+/**
+ * @nullable
+ */
+export type SavedDispatchTechnicianResponse = typeof SavedDispatchTechnicianResponse[keyof typeof SavedDispatchTechnicianResponse] | null;
+
+
+export const SavedDispatchTechnicianResponse = {
+  Accepted: 'Accepted',
+  Rejected: 'Rejected',
+} as const;
+
 export interface ShopLocation {
   name: string;
   label: string;
@@ -188,6 +271,10 @@ export interface SavedDispatch {
   status: SavedDispatchStatus;
   /** @nullable */
   completed_at: string | null;
+  /** @nullable */
+  technician_response: SavedDispatchTechnicianResponse;
+  /** @nullable */
+  technician_response_at: string | null;
   tech_id: number;
   technician_name: string;
   van_id: number;
@@ -212,6 +299,37 @@ export interface Activity {
   action_details: string;
   approved_by: string;
   dispatch: SavedDispatch | null;
+}
+
+export type TechnicianDispatchResponseInputResponse = typeof TechnicianDispatchResponseInputResponse[keyof typeof TechnicianDispatchResponseInputResponse];
+
+
+export const TechnicianDispatchResponseInputResponse = {
+  Accepted: 'Accepted',
+  Rejected: 'Rejected',
+} as const;
+
+export interface TechnicianDispatchResponseInput {
+  /** @minimum 1 */
+  technician_id: number;
+  response: TechnicianDispatchResponseInputResponse;
+}
+
+export type TechnicianDispatchResponseResultResponse = typeof TechnicianDispatchResponseResultResponse[keyof typeof TechnicianDispatchResponseResultResponse];
+
+
+export const TechnicianDispatchResponseResultResponse = {
+  Accepted: 'Accepted',
+  Rejected: 'Rejected',
+} as const;
+
+export interface TechnicianDispatchResponseResult {
+  /** @minimum 1 */
+  dispatch_id: number;
+  /** @minimum 1 */
+  technician_id: number;
+  response: TechnicianDispatchResponseResultResponse;
+  responded_at: string;
 }
 
 export type TransportVanStatus = typeof TransportVanStatus[keyof typeof TransportVanStatus];

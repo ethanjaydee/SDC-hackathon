@@ -7,6 +7,7 @@
  */
 import type { DemoCustomerSite } from './demoCustomerSite';
 import type { SavedDispatchStatus } from './savedDispatchStatus';
+import type { SavedDispatchTechnicianResponse } from './savedDispatchTechnicianResponse';
 import type { ShopLocation } from './shopLocation';
 
 export interface SavedDispatch {
@@ -14,6 +15,10 @@ export interface SavedDispatch {
   status: SavedDispatchStatus;
   /** @nullable */
   completed_at: string | null;
+  /** @nullable */
+  technician_response: SavedDispatchTechnicianResponse;
+  /** @nullable */
+  technician_response_at: Date | null;
   tech_id: number;
   technician_name: string;
   van_id: number;

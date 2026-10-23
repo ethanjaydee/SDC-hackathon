@@ -53,7 +53,7 @@ function Workspace() {
   useEffect(() => { setMenuOpen(false); window.scrollTo(0, 0); }, [location]);
 
   const afterApproval = (tech: { name: string }) => {
-    setNotice(`Dispatch recorded for ${tech.name}. A free van was allocated and parts were reserved at approval.`);
+    setNotice(`Dispatch recorded for ${tech.name}. An available van was allocated and parts were reserved at approval.`);
   };
 
   const me = hub.technicians.find((t) => t.id === technicianId);
@@ -64,9 +64,9 @@ function Workspace() {
 
   const items = [
     { to: '/', label: 'Overview', Icon: Activity },
-    { to: '/intake', label: 'Service Requests', Icon: Inbox },
-    { to: '/map', label: 'Technician map', Icon: MapIcon },
-    ...(isTechnician ? [] : [{ to: '/technicians', label: 'Manpower', Icon: Users }]),
+    { to: '/intake', label: 'Work Order', Icon: Inbox },
+    { to: '/map', label: 'Map', Icon: MapIcon },
+    ...(isTechnician ? [] : [{ to: '/technicians', label: 'Technicians', Icon: Users }]),
     { to: '/transport', label: 'Transport', Icon: Truck, count: lowStockCount || undefined },
     { to: '/log', label: 'Service History', Icon: History },
     { to: '/reviews', label: 'Reviews', Icon: Star },
@@ -93,7 +93,7 @@ function Workspace() {
 
   const isAnalysisRoute = location.startsWith('/analysis/');
   const profileName = isTechnician ? me?.name ?? 'Technician' : 'Boss';
-  const profileRole = isTechnician ? 'Technician · demo identity' : 'Dispatch manager';
+  const profileRole = isTechnician ? 'Technician · demo identity' : 'Dispatch CEO';
   const sideFooter = (
     <div className="space-y-2">
     <div role="note" aria-label={`Demo profile: ${profileName}, ${profileRole}`} className="rounded-lg border border-sidebar-border bg-card/60 p-3">
@@ -174,7 +174,7 @@ function Workspace() {
                 <Route path="/analysis"><Redirect to="/intake" replace /></Route>
                 <Route path="/analysis/:id">{(params) => <AnalysisPage hub={hub} conversationId={Number(params.id)} onApprove={afterApproval} />}</Route>
                 <Route path="/workshop-analysis"><WorkshopAnalysisPage hub={hub} /></Route>
-                <Route path="/reviews">{isTechnician ? <TechnicianReviews hub={hub} /> : <ReviewsPage />}</Route>
+                <Route path="/reviews">{isTechnician ? <TechnicianReviews hub={hub} /> : <ReviewsPage hub={hub} />}</Route>
                 <Route path="/transport"><TransportPage hub={hub} /></Route>
                 <Route path="/map"><MapPage hub={hub} /></Route>
                 <Route path="/technicians"><TechniciansPage hub={hub} /></Route>

@@ -37,13 +37,13 @@ export function Mono({ children, className }: { children: ReactNode; className?:
   return <span className={cn('font-mono text-[0.92em] tabular tracking-tight', className)}>{children}</span>;
 }
 
-export function PageHead({ kicker, title, sub, children, large = false }: { kicker: string; title: string; sub: string; children?: ReactNode; large?: boolean }) {
+export function PageHead({ kicker, title, sub, children, large = false }: { kicker: string; title: string; sub?: string; children?: ReactNode; large?: boolean }) {
   return (
     <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between pb-2">
       <div className="min-w-0">
         <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary">{kicker}</p>
         <h1 className={`mt-1 leading-[1.05] font-semibold ${large ? 'text-[36px] md:text-[46px]' : 'text-[28px] md:text-[34px]'}`}>{title}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{sub}</p>
+        {sub && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{sub}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </header>
@@ -81,10 +81,10 @@ export function StatusBadge({ tone, children, pulse, className, ...rest }: { ton
 }
 
 export function techTone(status: string): Tone {
-  return status === 'Available' ? 'ok' : status === 'Busy' ? 'busy' : 'idle';
+  return status === 'Available' ? 'ok' : status === 'Busy' ? 'err' : 'idle';
 }
 
-export function TechRow({ tech }: { tech: { id: number; name: string; status: string; zone: string; van_id?: number } }) {
+export function TechRow({ tech }: { tech: { id: number; name: string; status: string; van_id?: number } }) {
   const available = tech.status === 'Available';
   return (
     <div className="flex items-center justify-between gap-3" data-testid={`technician-${tech.id}`}>
@@ -92,7 +92,6 @@ export function TechRow({ tech }: { tech: { id: number; name: string; status: st
         <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full font-mono text-xs font-semibold ${available ? 'border border-ok/35 bg-ok/15 text-ok shadow-[0_0_14px_rgba(34,197,94,0.28)]' : 'bg-secondary'}`}>{initials(tech.name)}</span>
         <div className="min-w-0">
           <div className="truncate font-medium">{tech.name}</div>
-          <div className="flex gap-2 text-xs text-muted-foreground"><span>{tech.zone}</span></div>
         </div>
       </div>
       <StatusBadge

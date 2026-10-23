@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DEMO_REVIEW_SAMPLES, getDemoReviewAverage, getDemoReviewGroups } from '../src/components/dispatch/demoReviewSamples';
+import type { Technician } from '@workspace/api-client-react';
 
 test('sample customer reviews are clearly synthetic and grouped with a top-rated example per difficulty', () => {
   const groups = getDemoReviewGroups();
@@ -27,4 +28,18 @@ test('every demo technician has samples including a negative one', () => {
     assert.ok(reviews.some((review) => review.rating <= 2));
   }
   assert.ok(DEMO_TECHNICIAN_REVIEW_SAMPLES.every((review) => review.technicianId != null));
+});
+
+test('expanded job-level reviews identify the exact synthetic technician', () => {
+  const technicians: Technician[] = [
+    { id: 1, name: 'Amir Hakim', status: 'Available', zone: 'Petaling Jaya', van_id: 1, level: 1 },
+    { id: 2, name: 'Mei Tan', status: 'Available', zone: 'Puchong', van_id: 2, level: 2 },
+    { id: 3, name: 'Ravi Kumar', status: 'Available', zone: 'Cheras', van_id: 3, level: 3 },
+  ];
+  const groups = getDemoReviewGroups(technicians);
+  const reviews = groups.flatMap((group) => group.reviews);
+  assert.equal(reviews.length, 15);
+  assert.ok(reviews.every((review) => technicians.some((tech) => tech.name === review.technicianName)));
+  assert.deepEqual(groups.map((group) => group.level), ['Easy', 'Normal', 'Hard']);
+  assert.ok(groups.every((group) => group.reviews.length >= 3));
 });

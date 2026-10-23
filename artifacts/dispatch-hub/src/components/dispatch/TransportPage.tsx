@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { Boxes, ChevronDown, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, type Hub } from './shared';
-import { RestockSuggestion } from './RestockSuggestion';
-import { ANALYTICS_YEARS } from './workshopAnalytics';
 import { cn } from '@/lib/utils';
 
 export default function TransportPage({ hub }: Hub) {
@@ -11,15 +9,13 @@ export default function TransportPage({ hub }: Hub) {
   const vans = hubQ.data?.vans ?? [];
   const [lowOnly, setLowOnly] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
-  const year = ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1];
-  const month = 1;
-  const free = vans.filter((v) => v.status === 'Available').length;
+  const available = vans.filter((v) => v.status === 'Available').length;
   return (
     <div className="space-y-5">
-      <PageHead kicker="Fleet" title="Transport" sub="Five shared vans. A free van is allocated to a technician when a job is approved, then released on completion.">
+      <PageHead kicker="Fleet" title="Transport" sub="Five shared vans. An available van is allocated to a technician when a job is approved, then released on completion.">
         <Button type="button" variant={lowOnly ? 'default' : 'outline'} aria-pressed={lowOnly} onClick={() => setLowOnly((v) => !v)} data-testid="button-low-stock-only">{lowOnly ? 'Show all stock' : 'Low stock only'}</Button>
       </PageHead>
-      <Card title={<><Truck size={15} /> Shared vans</>} aside={<Mono>{free}/{vans.length} free</Mono>}>
+      <Card title={<><Truck size={15} /> Shared vans</>} aside={<Mono>{available}/{vans.length} available</Mono>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Transport data unavailable.</InlineError>
           : hubQ.isLoading ? <SkeletonRows rows={5} label="Loading vans" />
           : !vans.length ? <EmptyState icon={<Truck size={16} />} title="No vans reported">Vans appear when the hub has transport data.</EmptyState> : (
@@ -38,7 +34,7 @@ export default function TransportPage({ hub }: Hub) {
                     </span>
                     {busy
                       ? <span className="text-xs"><StatusBadge tone="err">Busy</StatusBadge> <span className="ml-1 font-medium">{v.technician_name ?? 'Assigned technician'}</span>{v.dispatch_id != null && <Mono className="ml-1 text-muted-foreground">#{v.dispatch_id}</Mono>}</span>
-                      : <StatusBadge tone="ok" pulse>Free</StatusBadge>}
+                      : <StatusBadge tone="ok" pulse>Available</StatusBadge>}
                     <ChevronDown size={16} className={cn('text-muted-foreground transition-transform', on && 'rotate-180')} />
                   </button>
                   {on && (
@@ -49,7 +45,6 @@ export default function TransportPage({ hub }: Hub) {
                             <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
                               <span className="min-w-0 flex-1">{i.part_name}</span>
                               <span data-testid={`text-qty-${i.id}`} className={`inline-flex min-w-8 justify-center rounded-md px-1.5 py-0.5 font-mono font-semibold tabular ${i.quantity < 5 ? 'bg-pending/10 text-pending' : ''}`}>{i.quantity}</span>
-                              {i.quantity < 5 && <RestockSuggestion item={i} inventory={inventory} year={year} month={month} stale={hubQ.isError} />}
                             </li>
                           ))}
                         </ul>

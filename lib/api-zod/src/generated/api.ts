@@ -232,6 +232,8 @@ export const GetHubDataResponse = zod.object({
   "dispatch": zod.union([zod.object({
   "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
   "completed_at": zod.string().nullable(),
+  "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
+  "technician_response_at": zod.coerce.date().nullable(),
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),
@@ -253,6 +255,36 @@ export const GetHubDataResponse = zod.object({
   "conversation_id": zod.number().int().min(1).nullable()
 }),zod.null()])
 }))
+})
+
+
+/**
+ * @summary Record the assigned technician's acceptance or rejection of a dispatched job
+ */
+
+
+
+export const RespondToDispatchParams = zod.object({
+  "id": zod.coerce.number().int().min(1).describe('Activity ID of the saved dispatch')
+})
+
+
+
+
+export const RespondToDispatchBody = zod.object({
+  "technician_id": zod.number().int().min(1),
+  "response": zod.enum(['Accepted', 'Rejected'])
+})
+
+
+
+
+
+export const RespondToDispatchResponse = zod.object({
+  "dispatch_id": zod.number().int().min(1),
+  "technician_id": zod.number().int().min(1),
+  "response": zod.enum(['Accepted', 'Rejected']),
+  "responded_at": zod.coerce.date()
 })
 
 
@@ -336,6 +368,59 @@ export const SummarizeWorkshopReviewsResponse = zod.object({
   "improvements": zod.array(zod.string().min(1).max(summarizeWorkshopReviewsResponseImprovementsItemMax)).max(summarizeWorkshopReviewsResponseImprovementsMax),
   "strengths": zod.array(zod.string().min(1).max(summarizeWorkshopReviewsResponseStrengthsItemMax)).max(summarizeWorkshopReviewsResponseStrengthsMax),
   "review_count": zod.number().int().min(1).max(summarizeWorkshopReviewsResponseReviewCountMax),
+  "generated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Generate AI wording for a fictional sample service invoice
+ */
+export const generateSampleEInvoiceBodyJobNumberMax = 40;
+
+export const generateSampleEInvoiceBodyTechnicianNameMax = 120;
+
+export const generateSampleEInvoiceBodyJobScopeMax = 500;
+
+export const generateSampleEInvoiceBodyAmountMyrExclusiveMin = 0;
+export const generateSampleEInvoiceBodyAmountMyrMax = 10000;
+
+
+
+export const GenerateSampleEInvoiceBody = zod.object({
+  "job_number": zod.string().min(1).max(generateSampleEInvoiceBodyJobNumberMax),
+  "technician_name": zod.string().min(1).max(generateSampleEInvoiceBodyTechnicianNameMax),
+  "completed_at": zod.coerce.date(),
+  "job_scope": zod.string().min(1).max(generateSampleEInvoiceBodyJobScopeMax),
+  "amount_myr": zod.number().gt(generateSampleEInvoiceBodyAmountMyrExclusiveMin).max(generateSampleEInvoiceBodyAmountMyrMax)
+})
+
+export const generateSampleEInvoiceResponseInvoiceNumberMax = 64;
+
+export const generateSampleEInvoiceResponseJobNumberMax = 40;
+
+export const generateSampleEInvoiceResponseTechnicianNameMax = 120;
+
+export const generateSampleEInvoiceResponseJobScopeMax = 500;
+
+export const generateSampleEInvoiceResponseLineDescriptionMax = 240;
+
+export const generateSampleEInvoiceResponseAmountMyrExclusiveMin = 0;
+export const generateSampleEInvoiceResponseAmountMyrMax = 10000;
+
+export const generateSampleEInvoiceResponseSampleNoteMax = 240;
+
+
+
+export const GenerateSampleEInvoiceResponse = zod.object({
+  "invoice_number": zod.string().min(1).max(generateSampleEInvoiceResponseInvoiceNumberMax),
+  "job_number": zod.string().min(1).max(generateSampleEInvoiceResponseJobNumberMax),
+  "technician_name": zod.string().min(1).max(generateSampleEInvoiceResponseTechnicianNameMax),
+  "completed_at": zod.coerce.date(),
+  "job_scope": zod.string().min(1).max(generateSampleEInvoiceResponseJobScopeMax),
+  "line_description": zod.string().min(1).max(generateSampleEInvoiceResponseLineDescriptionMax),
+  "amount_myr": zod.number().gt(generateSampleEInvoiceResponseAmountMyrExclusiveMin).max(generateSampleEInvoiceResponseAmountMyrMax),
+  "currency": zod.enum(['MYR']),
+  "sample_note": zod.string().min(1).max(generateSampleEInvoiceResponseSampleNoteMax),
   "generated_at": zod.coerce.date()
 })
 
@@ -804,6 +889,8 @@ export const ApproveDispatchResponse = zod.object({
   "dispatch": zod.union([zod.object({
   "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
   "completed_at": zod.string().nullable(),
+  "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
+  "technician_response_at": zod.coerce.date().nullable(),
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),
@@ -906,6 +993,8 @@ export const CompleteDispatchResponse = zod.object({
   "dispatch": zod.union([zod.object({
   "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
   "completed_at": zod.string().nullable(),
+  "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
+  "technician_response_at": zod.coerce.date().nullable(),
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),
@@ -1009,6 +1098,8 @@ export const ResetTechnicianAvailabilityResponse = zod.object({
   "dispatch": zod.union([zod.object({
   "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
   "completed_at": zod.string().nullable(),
+  "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
+  "technician_response_at": zod.coerce.date().nullable(),
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),

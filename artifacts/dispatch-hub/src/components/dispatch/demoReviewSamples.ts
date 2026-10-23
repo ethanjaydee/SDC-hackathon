@@ -1,3 +1,5 @@
+import type { Technician } from '@workspace/api-client-react';
+
 export type ReviewLevel = 'Easy' | 'Normal' | 'Hard';
 
 export type DemoReviewSample = {
@@ -5,6 +7,7 @@ export type DemoReviewSample = {
   level: ReviewLevel;
   /** Stable demo association; see technicianKeyFor. */
   technicianId?: number;
+  technicianName?: string;
   job: string;
   rating: number;
   comment: string;
@@ -31,9 +34,38 @@ export const DEMO_REVIEW_SAMPLES: readonly DemoReviewSample[] = [
   { id: 'hard-04', level: 'Hard', job: 'Capacitor replacement', rating: 1, comment: 'The air-conditioner stopped cooling again the next morning, so we had to arrange another visit.' },
 ];
 
-export function getDemoReviewGroups() {
+const EXPANDED_REVIEW_BANK: Record<ReviewLevel, readonly Pick<DemoReviewSample, 'job' | 'rating' | 'comment'>[]> = {
+  Easy: [
+    { job: 'LED bulb replacement', rating: 5, comment: 'The new bulb works perfectly and the visit was quick.' },
+    { job: 'Remote battery swap', rating: 4, comment: 'The remote was tested before the technician left.' },
+    { job: 'Lamp replacement', rating: 3, comment: 'The replacement works. A little more notice before arrival would help.' },
+  ],
+  Normal: [
+    { job: 'AC filter service', rating: 5, comment: 'Cooling improved and the service was explained clearly.' },
+    { job: 'Drain hose inspection', rating: 4, comment: 'The leak stopped and the work area was left tidy.' },
+    { job: 'Routine AC cleaning', rating: 3, comment: 'The main service was completed, though updates could be clearer.' },
+  ],
+  Hard: [
+    { job: 'Capacitor fault assessment', rating: 5, comment: 'The expert explained the assessment and confirmed the next steps.' },
+    { job: 'Control board diagnosis', rating: 4, comment: 'The technician kept us informed while checking the fault.' },
+    { job: 'Electrical fault inspection', rating: 2, comment: 'The visit took longer than expected and we wanted clearer updates.' },
+  ],
+};
+
+export function getDemoReviewSamples(technicians?: readonly Technician[]) {
+  if (!technicians?.length) return [...DEMO_REVIEW_SAMPLES];
+  return technicians.flatMap((technician) =>
+    getDemoReviewsForTechnician(technician.id, technician.level).map((review) => ({
+      ...review,
+      technicianName: technician.name,
+    })),
+  );
+}
+
+export function getDemoReviewGroups(technicians?: readonly Technician[]) {
+  const samples = getDemoReviewSamples(technicians);
   return DEMO_REVIEW_LEVELS.map(({ level, note }) => {
-    const reviews = DEMO_REVIEW_SAMPLES.filter((review) => review.level === level);
+    const reviews = samples.filter((review) => review.level === level);
     const bestReview = reviews.reduce<DemoReviewSample | null>(
       (best, review) => !best || review.rating > best.rating ? review : best,
       null,
@@ -50,8 +82,13 @@ export function getDemoReviewGroups() {
   });
 }
 
-export function getDemoReviewAverage() {
-  return DEMO_REVIEW_SAMPLES.reduce((sum, review) => sum + review.rating, 0) / DEMO_REVIEW_SAMPLES.length;
+export function getDemoReviewAverage(technicians?: readonly Technician[]) {
+  const reviews = getDemoReviewSamples(technicians);
+  return reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
+}
+
+export function getDemoReviewCount(technicians?: readonly Technician[]) {
+  return getDemoReviewSamples(technicians).length;
 }
 
 const TECH_SLOTS = 12;
@@ -79,7 +116,21 @@ export const DEMO_TECHNICIAN_REVIEW_SAMPLES: readonly DemoReviewSample[] = [
   ...NEGATIVE.map(([level, job, rating, comment], i): DemoReviewSample => ({ id: `tech-neg-${i + 1}`, level, job, rating, comment, technicianId: i + 1 })),
 ];
 
-export function getDemoReviewsForTechnician(technicianId: number) {
+export function getDemoReviewsForTechnician(technicianId: number, technicianLevel?: number) {
   const key = technicianKeyFor(technicianId);
-  return DEMO_TECHNICIAN_REVIEW_SAMPLES.filter((review) => review.technicianId === key);
+  const baseline = DEMO_TECHNICIAN_REVIEW_SAMPLES.filter((review) => review.technicianId === key);
+  const level: ReviewLevel = technicianLevel === 1
+    ? 'Easy'
+    : technicianLevel === 2
+      ? 'Normal'
+      : technicianLevel === 3
+        ? 'Hard'
+        : key <= 4 ? 'Easy' : key <= 8 ? 'Normal' : 'Hard';
+  const expanded = EXPANDED_REVIEW_BANK[level].map((review, index) => ({
+    ...review,
+    id: `tech-${key}-expanded-${index + 1}`,
+    level,
+    technicianId: key,
+  }));
+  return [...baseline, ...expanded];
 }

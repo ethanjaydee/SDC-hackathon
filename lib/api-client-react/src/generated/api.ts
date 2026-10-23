@@ -36,6 +36,8 @@ import type {
   ReorderDraft,
   ReorderDraftInput,
   ReorderDraftList,
+  SampleEInvoice,
+  SampleEInvoiceInput,
   SearchSupplierCatalogParams,
   ServiceRequestInput,
   SupplierCatalogProviders,
@@ -43,6 +45,8 @@ import type {
   SupplierOffer,
   SupplierQuoteInput,
   SupplierQuoteList,
+  TechnicianDispatchResponseInput,
+  TechnicianDispatchResponseResult,
   TechnicianRecommendations,
   TechnicianResetInput,
   TechnicianRoute,
@@ -557,6 +561,95 @@ export function useGetHubData<TData = Awaited<ReturnType<typeof getHubData>>, TE
 
 
 
+export const getRespondToDispatchUrl = (id: number,) => {
+
+
+
+
+  return `/api/dispatches/${id}/technician-response`
+}
+
+/**
+ * @summary Record the assigned technician's acceptance or rejection of a dispatched job
+ */
+export const respondToDispatch = async (id: number,
+    technicianDispatchResponseInput: TechnicianDispatchResponseInput, options?: Parameters<typeof customFetch>[1]): Promise<TechnicianDispatchResponseResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TechnicianDispatchResponseResult>(getRespondToDispatchUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(technicianDispatchResponseInput)
+  }
+);}
+
+
+
+
+
+export const getRespondToDispatchMutationKey = () => ['respondToDispatch'] as const;
+
+export const getRespondToDispatchMutationOptions = <TError = ErrorType<InvalidRequestResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondToDispatch>>, TError,RespondToDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof respondToDispatch>>, TError,RespondToDispatchMutationVariables, TContext> => {
+
+const mutationKey = getRespondToDispatchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof respondToDispatch>>, RespondToDispatchMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  respondToDispatch(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RespondToDispatchMutationResult = NonNullable<Awaited<ReturnType<typeof respondToDispatch>>>
+    export type RespondToDispatchMutationBody = BodyType<TechnicianDispatchResponseInput>
+    export type RespondToDispatchMutationError = ErrorType<InvalidRequestResponse | void>
+    export type RespondToDispatchMutationVariables = {id: number;data: BodyType<TechnicianDispatchResponseInput>}
+
+    /**
+ * @summary Record the assigned technician's acceptance or rejection of a dispatched job
+ */
+export const useRespondToDispatch = <TError = ErrorType<InvalidRequestResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondToDispatch>>, TError,RespondToDispatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof respondToDispatch>>,
+        TError,
+        RespondToDispatchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRespondToDispatchMutationOptions(options));
+    }
+
 export const getListWorkshopReviewsUrl = () => {
 
 
@@ -794,6 +887,94 @@ export const useSummarizeWorkshopReviews = <TError = ErrorType<InvalidRequestRes
         TContext
       > => {
       return useMutation(getSummarizeWorkshopReviewsMutationOptions(options));
+    }
+
+export const getGenerateSampleEInvoiceUrl = () => {
+
+
+
+
+  return `/api/sample-e-invoices/generate`
+}
+
+/**
+ * @summary Generate AI wording for a fictional sample service invoice
+ */
+export const generateSampleEInvoice = async (sampleEInvoiceInput: SampleEInvoiceInput, options?: Parameters<typeof customFetch>[1]): Promise<SampleEInvoice> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SampleEInvoice>(getGenerateSampleEInvoiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sampleEInvoiceInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateSampleEInvoiceMutationKey = () => ['generateSampleEInvoice'] as const;
+
+export const getGenerateSampleEInvoiceMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateSampleEInvoice>>, TError,GenerateSampleEInvoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateSampleEInvoice>>, TError,GenerateSampleEInvoiceMutationVariables, TContext> => {
+
+const mutationKey = getGenerateSampleEInvoiceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateSampleEInvoice>>, GenerateSampleEInvoiceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateSampleEInvoice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateSampleEInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof generateSampleEInvoice>>>
+    export type GenerateSampleEInvoiceMutationBody = BodyType<SampleEInvoiceInput>
+    export type GenerateSampleEInvoiceMutationError = ErrorType<InvalidRequestResponse>
+    export type GenerateSampleEInvoiceMutationVariables = {data: BodyType<SampleEInvoiceInput>}
+
+    /**
+ * @summary Generate AI wording for a fictional sample service invoice
+ */
+export const useGenerateSampleEInvoice = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateSampleEInvoice>>, TError,GenerateSampleEInvoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateSampleEInvoice>>,
+        TError,
+        GenerateSampleEInvoiceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGenerateSampleEInvoiceMutationOptions(options));
     }
 
 export const getAnalyzeRequestUrl = () => {
