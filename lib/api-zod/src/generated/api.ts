@@ -205,6 +205,90 @@ export const GetHubDataResponse = zod.object({
 })
 
 
+/**
+ * @summary List saved customer reviews and the overall average star rating
+ */
+
+export const listWorkshopReviewsResponseReviewsItemRatingMax = 5;
+
+export const listWorkshopReviewsResponseReviewsItemCommentMin = 3;
+export const listWorkshopReviewsResponseReviewsItemCommentMax = 1000;
+
+export const listWorkshopReviewsResponseReviewCountMin = 0;
+
+export const listWorkshopReviewsResponseAverageRatingMax = 5;
+
+
+
+export const ListWorkshopReviewsResponse = zod.object({
+  "reviews": zod.array(zod.object({
+  "id": zod.number().int().min(1),
+  "rating": zod.number().int().min(1).max(listWorkshopReviewsResponseReviewsItemRatingMax),
+  "comment": zod.string().min(listWorkshopReviewsResponseReviewsItemCommentMin).max(listWorkshopReviewsResponseReviewsItemCommentMax),
+  "created_at": zod.coerce.date()
+})),
+  "review_count": zod.number().int().min(listWorkshopReviewsResponseReviewCountMin),
+  "average_rating": zod.number().min(1).max(listWorkshopReviewsResponseAverageRatingMax).nullable()
+})
+
+
+/**
+ * @summary Save a customer star rating and written review
+ */
+export const createWorkshopReviewBodyRatingMax = 5;
+
+export const createWorkshopReviewBodyCommentMin = 3;
+export const createWorkshopReviewBodyCommentMax = 1000;
+
+
+
+export const CreateWorkshopReviewBody = zod.object({
+  "rating": zod.number().int().min(1).max(createWorkshopReviewBodyRatingMax),
+  "comment": zod.string().min(createWorkshopReviewBodyCommentMin).max(createWorkshopReviewBodyCommentMax)
+})
+
+
+export const createWorkshopReviewResponseRatingMax = 5;
+
+export const createWorkshopReviewResponseCommentMin = 3;
+export const createWorkshopReviewResponseCommentMax = 1000;
+
+
+
+export const CreateWorkshopReviewResponse = zod.object({
+  "id": zod.number().int().min(1),
+  "rating": zod.number().int().min(1).max(createWorkshopReviewResponseRatingMax),
+  "comment": zod.string().min(createWorkshopReviewResponseCommentMin).max(createWorkshopReviewResponseCommentMax),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Generate improvement and strength themes from saved reviews using AI
+ */
+export const summarizeWorkshopReviewsResponseOverviewMax = 400;
+
+export const summarizeWorkshopReviewsResponseImprovementsItemMax = 300;
+
+export const summarizeWorkshopReviewsResponseImprovementsMax = 5;
+
+export const summarizeWorkshopReviewsResponseStrengthsItemMax = 300;
+
+export const summarizeWorkshopReviewsResponseStrengthsMax = 5;
+
+export const summarizeWorkshopReviewsResponseReviewCountMax = 100;
+
+
+
+export const SummarizeWorkshopReviewsResponse = zod.object({
+  "overview": zod.string().min(1).max(summarizeWorkshopReviewsResponseOverviewMax),
+  "improvements": zod.array(zod.string().min(1).max(summarizeWorkshopReviewsResponseImprovementsItemMax)).max(summarizeWorkshopReviewsResponseImprovementsMax),
+  "strengths": zod.array(zod.string().min(1).max(summarizeWorkshopReviewsResponseStrengthsItemMax)).max(summarizeWorkshopReviewsResponseStrengthsMax),
+  "review_count": zod.number().int().min(1).max(summarizeWorkshopReviewsResponseReviewCountMax),
+  "generated_at": zod.coerce.date()
+})
+
+
 export const analyzeRequestBodyTextMax = 5000;
 
 

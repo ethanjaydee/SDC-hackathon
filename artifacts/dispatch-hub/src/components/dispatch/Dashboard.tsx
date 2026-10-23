@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
-import { Activity, BarChart3, Boxes, FlaskConical, History, Inbox, Loader2, LogOut, Map as MapIcon, Menu, Radio, Users } from 'lucide-react';
+import { Activity, BarChart3, Boxes, FlaskConical, History, Inbox, Loader2, LogOut, Map as MapIcon, Menu, Radio, Star, Users } from 'lucide-react';
 import { useClerk, useUser } from '@clerk/react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
@@ -11,6 +11,7 @@ import IntakePage from './IntakePage';
 import AnalysisPage from './AnalysisPage';
 import MapPage from './MapPage';
 import WorkshopAnalysisPage from './WorkshopAnalysisPage';
+import ReviewsPage from './ReviewsPage';
 import { LogPage, StockPage, TechniciansPage } from './ListPages';
 import { InlineError, StatusBadge } from './shared';
 import { ConnectionStatus, useConnection } from './ConnectionStatus';
@@ -52,6 +53,7 @@ export default function Dashboard() {
     { to: '/technicians', label: 'Manpower', Icon: Users },
     { to: '/stock', label: 'Inventory', Icon: Boxes, count: lowStockCount || undefined },
     { to: '/log', label: 'Service History', Icon: History },
+    { to: '/reviews', label: 'Reviews', Icon: Star },
     { to: '/workshop-analysis', label: 'Analysis', Icon: BarChart3 },
   ] as { to: string; label: string; Icon: typeof Activity; badge?: string; count?: number }[];
 
@@ -150,6 +152,7 @@ export default function Dashboard() {
                 <Route path="/analysis"><Redirect to="/intake" replace /></Route>
                 <Route path="/analysis/:id">{(params) => <AnalysisPage hub={hub} conversationId={Number(params.id)} onApprove={afterApproval} />}</Route>
                 <Route path="/workshop-analysis"><WorkshopAnalysisPage hub={hub} /></Route>
+                <Route path="/reviews"><ReviewsPage /></Route>
                 <Route path="/map"><MapPage hub={hub} /></Route>
                 <Route path="/technicians"><TechniciansPage hub={hub} /></Route>
                 <Route path="/stock/low"><StockPage hub={hub} lowOnly /></Route>

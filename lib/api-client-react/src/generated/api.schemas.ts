@@ -5,6 +5,73 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface CustomerReview {
+  /** @minimum 1 */
+  id: number;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+  /**
+     * @minLength 3
+     * @maxLength 1000
+     */
+  comment: string;
+  created_at: string;
+}
+
+export interface WorkshopReviewInput {
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+  /**
+     * @minLength 3
+     * @maxLength 1000
+     */
+  comment: string;
+}
+
+export interface WorkshopReviewList {
+  reviews: CustomerReview[];
+  /** @minimum 0 */
+  review_count: number;
+  /**
+     * @minimum 1
+     * @maximum 5
+     * @nullable
+     */
+  average_rating: number | null;
+}
+
+export interface WorkshopReviewSummary {
+  /**
+     * @minLength 1
+     * @maxLength 400
+     */
+  overview: string;
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 300
+     */
+  improvements: string[];
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 300
+     */
+  strengths: string[];
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  review_count: number;
+  generated_at: string;
+}
+
 export interface TelegramStatus {
   configured: boolean;
   connected: boolean;

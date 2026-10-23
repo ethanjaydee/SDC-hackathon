@@ -4,7 +4,7 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { demoSites } from "./demoSites.js";
 import { candidateEligibility, classifyRepair, seedWorkshopDemo } from "./workshopDemo.js";
-import { analyzeRepair, recommendWorkshopTechnicians } from "./dispatchIntelligence.js";
+import { analyzeRepair, recommendWorkshopTechnicians, summarizeCustomerReviews } from "./dispatchIntelligence.js";
 import { isOfferStale } from "./offerFreshness.js";
 import { prepareTelegramStorage, createTelegramStorage } from "./telegramStore.js";
 import { sendTelegramMessage, TelegramDeliveryError } from "./telegramTransport.js";
@@ -40,6 +40,10 @@ import {
   SendConversationMessageResponse,
   AnalyzeConversationResponse,
   SetConversationSiteBody,
+  CreateWorkshopReviewBody,
+  CreateWorkshopReviewResponse,
+  ListWorkshopReviewsResponse,
+  SummarizeWorkshopReviewsResponse,
 } from "@workspace/api-zod";
 
 // The managed Express service mounts this router at /api.
@@ -102,6 +106,14 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS conversation_messages_thread
     ON conversation_messages(conversation_id, id);
+  CREATE TABLE IF NOT EXISTS customer_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+    comment TEXT NOT NULL CHECK(length(trim(comment)) BETWEEN 3 AND 1000),
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS customer_reviews_recent
+    ON customer_reviews(id DESC);
   CREATE TABLE IF NOT EXISTS supplier_quotes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     search_term TEXT NOT NULL,
@@ -879,6 +891,63 @@ router.use((_req, res, next) => {
 });
 router.get("/hub-data", (_req, res) => {
   res.json(GetHubDataResponse.parse(getHubData()));
+});
+router.get("/workshop-reviews", (_req, res) => {
+  const totals = db.prepare(`
+    SELECT COUNT(*) AS review_count, AVG(rating) AS average_rating
+    FROM customer_reviews
+  `).get();
+  const reviews = db.prepare(`
+    SELECT id, rating, comment, created_at
+    FROM customer_reviews
+    ORDER BY id DESC
+    LIMIT 100
+  `).all();
+  res.json(ListWorkshopReviewsResponse.parse({
+    reviews,
+    review_count: totals.review_count,
+    average_rating: totals.average_rating == null ? null : Number(totals.average_rating),
+  }));
+});
+router.post("/workshop-reviews", (req, res) => {
+  const parsed = CreateWorkshopReviewBody.safeParse(req.body);
+  const comment = parsed.success ? parsed.data.comment.trim() : "";
+  if (!parsed.success || comment.length < 3) {
+    res.status(400).json({ error: "Enter a 1–5 star rating and at least 3 characters of customer feedback." });
+    return;
+  }
+  const createdAt = new Date().toISOString();
+  const inserted = db.prepare(`
+    INSERT INTO customer_reviews (rating, comment, created_at)
+    VALUES (?, ?, ?)
+  `).run(parsed.data.rating, comment, createdAt);
+  res.status(201).json(CreateWorkshopReviewResponse.parse({
+    id: inserted.lastInsertRowid,
+    rating: parsed.data.rating,
+    comment,
+    created_at: createdAt,
+  }));
+});
+router.post("/workshop-reviews/summary", async (_req, res) => {
+  const recentReviews = db.prepare(`
+    SELECT rating, comment FROM customer_reviews
+    ORDER BY id DESC
+    LIMIT 100
+  `).all();
+  if (recentReviews.length === 0) {
+    res.status(400).json({ error: "Save at least one customer review before requesting an AI summary." });
+    return;
+  }
+  try {
+    const summary = await summarizeCustomerReviews(recentReviews);
+    res.json(SummarizeWorkshopReviewsResponse.parse({
+      ...summary,
+      review_count: recentReviews.length,
+      generated_at: new Date().toISOString(),
+    }));
+  } catch {
+    res.status(503).json({ error: "AI review summary is unavailable. Your saved reviews are unchanged; try again later." });
+  }
 });
 router.get("/conversations", (_req, res) => {
   res.json(ListConversationsResponse.parse({

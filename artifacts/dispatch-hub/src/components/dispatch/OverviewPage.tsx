@@ -1,8 +1,13 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
-import { ArrowRight, Boxes, History, Inbox, Wallet, UserRound } from 'lucide-react';
+import { ArrowRight, Boxes, History, Inbox, Star, Wallet, UserRound } from 'lucide-react';
 import { useUser } from '@clerk/react';
-import { getListConversationsQueryKey, useListConversations } from '@workspace/api-client-react';
+import {
+  getListConversationsQueryKey,
+  getListWorkshopReviewsQueryKey,
+  useListConversations,
+  useListWorkshopReviews,
+} from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, EmptyState, InlineError, Mono, PageHead, StatusBadge, dateTime, type Hub } from './shared';
@@ -18,6 +23,13 @@ export default function OverviewPage({ hub }: Hub) {
       refetchInterval: pollInterval(),
       refetchOnWindowFocus: canAutoRefresh,
       enabled: !hub.writePending,
+    },
+  });
+  const reviewsQ = useListWorkshopReviews({
+    query: {
+      queryKey: getListWorkshopReviewsQueryKey(),
+      refetchInterval: pollInterval(),
+      refetchOnWindowFocus: canAutoRefresh,
     },
   });
   const { user } = useUser();
@@ -206,6 +218,22 @@ export default function OverviewPage({ hub }: Hub) {
               errorMessage="Low-stock count is unavailable until the hub reconnects."
               alert={lowStockItems.length > 0}
             />
+            <SummaryLink
+              href="/reviews"
+              title="Customer rating"
+              value={reviewsQ.data?.average_rating == null ? null : `${reviewsQ.data.average_rating.toFixed(1)}/5`}
+              caption={reviewsQ.data?.review_count ? `${reviewsQ.data.review_count} reviews · all time` : 'No reviews yet'}
+              icon={<Star size={16} />}
+              testId="overview-customer-rating"
+              linkTestId="link-overview-customer-rating"
+              loading={reviewsQ.isLoading && !reviewsQ.data}
+              error={reviewsQ.isError && !reviewsQ.data}
+              cached={Boolean(reviewsQ.data) && reviewsQ.isError}
+              retry={() => void reviewsQ.refetch()}
+              retrying={reviewsQ.isFetching}
+              errorMessage="Customer rating is unavailable right now."
+              ratingStars={reviewsQ.data?.average_rating}
+            />
           </div>
         </div>
       </div>
@@ -240,7 +268,7 @@ export default function OverviewPage({ hub }: Hub) {
 }
 
 function SummaryLink({
-  href, title, value, caption, icon, testId, linkTestId, loading, error, cached, retry, retrying, errorMessage, alert = false, badge,
+  href, title, value, caption, icon, testId, linkTestId, loading, error, cached, retry, retrying, errorMessage, alert = false, badge, ratingStars,
 }: {
   href: string;
   title: string;
@@ -257,6 +285,7 @@ function SummaryLink({
   errorMessage: string;
   alert?: boolean;
   badge?: string;
+  ratingStars?: number | null;
 }) {
   return (
     <section aria-label={title} data-testid={testId} className="min-w-0 rounded-xl border border-card-border bg-card shadow-sm">
@@ -269,10 +298,29 @@ function SummaryLink({
       ) : error ? (
         <div className="px-3.5 py-3"><InlineError onRetry={retry} retrying={retrying}>{errorMessage}</InlineError></div>
       ) : (
-        <Link href={href} aria-label={`Open ${title}: ${value} ${caption}`} data-testid={linkTestId} className="group flex min-h-[4.75rem] items-end justify-between gap-2 px-3.5 pb-3.5 pt-2 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-          <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className={`font-mono text-3xl font-semibold leading-none tabular ${alert ? 'text-pending' : ''}`} data-testid={`${testId}-value`}>{value ?? '—'}</span>
-            <span className="truncate text-[11px] text-muted-foreground">{caption}</span>
+        <Link href={href} aria-label={`Open ${title}: ${value ?? 'not rated'}, ${caption}`} data-testid={linkTestId} className="group flex min-h-[4.75rem] items-end justify-between gap-2 px-3.5 pb-3.5 pt-2 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+          <span className="flex min-w-0 flex-col gap-1.5">
+            <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className={`font-mono text-3xl font-semibold leading-none tabular ${alert ? 'text-pending' : ''}`} data-testid={`${testId}-value`}>{value ?? '—'}</span>
+              <span className="truncate text-[11px] text-muted-foreground">{caption}</span>
+            </span>
+            {ratingStars !== undefined && (
+              <span className="flex h-4 items-center gap-0.5" role="img" aria-label={ratingStars == null ? 'No ratings yet' : `${ratingStars.toFixed(1)} out of 5 stars`} data-testid={`${testId}-stars`}>
+                {Array.from({ length: 5 }, (_, index) => {
+                  const filled = ratingStars == null ? 0 : Math.max(0, Math.min(1, ratingStars - index));
+                  return (
+                    <span key={index} className="relative inline-flex h-[14px] w-[14px]">
+                      <Star size={14} className="absolute inset-0 text-muted-foreground/35" aria-hidden="true" />
+                      {filled > 0 && (
+                        <span className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - filled * 100}% 0 0)` }}>
+                          <Star size={14} className="fill-amber-400 text-amber-500" aria-hidden="true" />
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+              </span>
+            )}
           </span>
           <ArrowRight size={15} className="mb-0.5 shrink-0 text-primary transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
         </Link>

@@ -25,6 +25,7 @@ import type {
   ConversationMessageInput,
   ConversationSiteInput,
   ConversationThread,
+  CustomerReview,
   DispatchCompletionInput,
   DispatchInput,
   HealthStatus,
@@ -45,7 +46,10 @@ import type {
   TechnicianRecommendations,
   TechnicianResetInput,
   TelegramReplyInput,
-  TelegramStatus
+  TelegramStatus,
+  WorkshopReviewInput,
+  WorkshopReviewList,
+  WorkshopReviewSummary
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -469,6 +473,245 @@ export function useGetHubData<TData = Awaited<ReturnType<typeof getHubData>>, TE
 
 
 
+
+export const getListWorkshopReviewsUrl = () => {
+
+
+
+
+  return `/api/workshop-reviews`
+}
+
+/**
+ * @summary List saved customer reviews and the overall average star rating
+ */
+export const listWorkshopReviews = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkshopReviewList> => {
+
+  return customFetch<WorkshopReviewList>(getListWorkshopReviewsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWorkshopReviewsQueryKey = () => {
+    return [
+    `/api/workshop-reviews`
+    ] as const;
+    }
+
+
+export const getListWorkshopReviewsQueryOptions = <TData = Awaited<ReturnType<typeof listWorkshopReviews>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkshopReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkshopReviewsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkshopReviews>>> = ({ signal }) => listWorkshopReviews({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkshopReviews>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWorkshopReviewsQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkshopReviews>>>
+export type ListWorkshopReviewsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List saved customer reviews and the overall average star rating
+ */
+
+export function useListWorkshopReviews<TData = Awaited<ReturnType<typeof listWorkshopReviews>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkshopReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWorkshopReviewsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateWorkshopReviewUrl = () => {
+
+
+
+
+  return `/api/workshop-reviews`
+}
+
+/**
+ * @summary Save a customer star rating and written review
+ */
+export const createWorkshopReview = async (workshopReviewInput: WorkshopReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<CustomerReview> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CustomerReview>(getCreateWorkshopReviewUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(workshopReviewInput)
+  }
+);}
+
+
+
+
+
+export const getCreateWorkshopReviewMutationKey = () => ['createWorkshopReview'] as const;
+
+export const getCreateWorkshopReviewMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkshopReview>>, TError,CreateWorkshopReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWorkshopReview>>, TError,CreateWorkshopReviewMutationVariables, TContext> => {
+
+const mutationKey = getCreateWorkshopReviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWorkshopReview>>, CreateWorkshopReviewMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createWorkshopReview(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateWorkshopReviewMutationResult = NonNullable<Awaited<ReturnType<typeof createWorkshopReview>>>
+    export type CreateWorkshopReviewMutationBody = BodyType<WorkshopReviewInput>
+    export type CreateWorkshopReviewMutationError = ErrorType<InvalidRequestResponse>
+    export type CreateWorkshopReviewMutationVariables = {data: BodyType<WorkshopReviewInput>}
+
+    /**
+ * @summary Save a customer star rating and written review
+ */
+export const useCreateWorkshopReview = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkshopReview>>, TError,CreateWorkshopReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createWorkshopReview>>,
+        TError,
+        CreateWorkshopReviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateWorkshopReviewMutationOptions(options));
+    }
+
+export const getSummarizeWorkshopReviewsUrl = () => {
+
+
+
+
+  return `/api/workshop-reviews/summary`
+}
+
+/**
+ * @summary Generate improvement and strength themes from saved reviews using AI
+ */
+export const summarizeWorkshopReviews = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkshopReviewSummary> => {
+
+  return customFetch<WorkshopReviewSummary>(getSummarizeWorkshopReviewsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSummarizeWorkshopReviewsMutationKey = () => ['summarizeWorkshopReviews'] as const;
+
+export const getSummarizeWorkshopReviewsMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, TError,void, TContext> => {
+
+const mutationKey = getSummarizeWorkshopReviewsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, void> = () => {
+
+
+          return  summarizeWorkshopReviews(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SummarizeWorkshopReviewsMutationResult = NonNullable<Awaited<ReturnType<typeof summarizeWorkshopReviews>>>
+
+    export type SummarizeWorkshopReviewsMutationError = ErrorType<InvalidRequestResponse>
+
+
+    /**
+ * @summary Generate improvement and strength themes from saved reviews using AI
+ */
+export const useSummarizeWorkshopReviews = <TError = ErrorType<InvalidRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof summarizeWorkshopReviews>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSummarizeWorkshopReviewsMutationOptions(options));
+    }
 
 export const getAnalyzeRequestUrl = () => {
 
