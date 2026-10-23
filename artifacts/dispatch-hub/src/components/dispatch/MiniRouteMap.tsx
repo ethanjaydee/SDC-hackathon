@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { decodeGooglePolyline } from './routeGeometry';
 
 export type MiniPoint = { id: number; name: string; lat: number; lng: number; selected: boolean; eligible: boolean };
 type Props = {
   customer: { lat: number; lng: number; label: string };
   technicians: MiniPoint[];
-  /** Google-returned encoded polyline for the selected technician, used only on the Google map. */
+  /** Google-returned encoded polyline for the selected technician. */
   polyline?: string | null;
   height?: number;
 };
@@ -32,7 +33,7 @@ function loadGoogle(key: string): Promise<Gmaps> {
 
 const abbr = (n: string) => n.split(' ').map((p) => p[0]).join('').replace(/[^a-z0-9]/gi, '').slice(0, 2);
 
-function LeafletMap({ customer, technicians, height }: Props) {
+function LeafletMap({ customer, technicians, polyline, height }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -55,9 +56,14 @@ function LeafletMap({ customer, technicians, height }: Props) {
       pts.push([t.lat, t.lng]);
       L.marker([t.lat, t.lng], { icon: icon(t.selected ? 'best' : t.eligible ? 'ok' : 'busy', abbr(t.name)), title: `${t.name}${t.eligible ? '' : ' (not eligible)'}`, opacity: t.eligible || t.selected ? 1 : 0.55 }).addTo(g);
     });
+    const routePath = polyline ? decodeGooglePolyline(polyline) : [];
+    if (routePath.length > 1) {
+      L.polyline(routePath, { color: '#c84224', weight: 5, opacity: 0.9 }).addTo(g);
+      pts.push(...routePath);
+    }
     m.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15, animate: false });
-  }, [customer, technicians]);
-  return <div ref={box} style={{ height }} className="w-full rounded-lg border" role="img" aria-label="Map of customer site and sample technician positions" />;
+  }, [customer, technicians, polyline]);
+  return <div ref={box} style={{ height }} className="w-full rounded-lg border" role="img" aria-label="Map of customer site, recommended technician, and driving route" />;
 }
 
 function GoogleMap({ customer, technicians, polyline, height }: Props) {
@@ -99,7 +105,7 @@ export function MiniRouteMap(props: Props) {
       <figcaption className="text-[11px] leading-snug text-muted-foreground">
         {google
           ? 'Google Maps. Technician positions are synthetic samples, not live GPS. A route line appears only when Google returns one.'
-          : 'OpenStreetMap view of the selected van and customer only. Not Google: no route line, distance or ETA is drawn. Positions are synthetic samples.'}
+          : 'OpenStreetMap street map with a Google Routes driving path when available. Technician and customer positions are synthetic samples, not live GPS.'}
       </figcaption>
     </figure>
   );

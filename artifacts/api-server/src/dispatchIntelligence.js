@@ -106,12 +106,12 @@ export async function googleDrivingRoute(technician, customer) {
 
 export async function recommendWorkshopTechnicians(hub, thread, site) {
   const complexity = thread.analysis.complexity ?? classifyRepair(thread.subject);
-  const configured = Boolean(process.env.GOOGLE_MAPS_API_KEY && process.env.VITE_GOOGLE_MAPS_API_KEY);
+  const configured = Boolean(process.env.GOOGLE_MAPS_API_KEY);
   const candidates = await Promise.all(hub.technicians.map(async (tech) => {
     const reason = candidateEligibility(hub, tech, thread.analysis.parts, complexity);
     const candidate = { technician_id: tech.id, eligible: !reason, reason: reason ?? `${tech.experience_label ?? "Qualified technician"} · required parts ready`,
       distance_meters: null, duration_seconds: null, polyline: null };
-    if (configured && Number.isFinite(tech.lat) && Number.isFinite(tech.lng)) {
+    if (configured && !reason && Number.isFinite(tech.lat) && Number.isFinite(tech.lng)) {
       try { Object.assign(candidate, await googleDrivingRoute(tech, site)); } catch { /* No fabricated fallback distance. */ }
     }
     return candidate;
@@ -140,14 +140,17 @@ export async function recommendWorkshopTechnicians(hub, thread, site) {
       recommended = result.technician_id; summary = result.summary; source = "AI";
     } catch { summary += " Rule-based fallback: AI recommendation unavailable."; }
   }
-  const routed = candidates.filter((candidate) => candidate.distance_meters != null).length;
+  const routed = eligible.filter((candidate) => candidate.distance_meters != null).length;
+  const routingStatus = !configured ? "not_configured" : !eligible.length ? "unavailable"
+    : routed === eligible.length ? "ready" : routed ? "partial" : "unavailable";
   return {
     analysis_message_id: thread.analyzed_through_message_id, complexity,
     recommended_technician_id: recommended, summary, source,
-    routing_status: !configured ? "not_configured" : routed === candidates.length ? "ready" : routed ? "partial" : "unavailable",
-    routing_message: !configured ? "Google driving routes are unavailable until both Google Maps keys are configured. No straight-line substitute is used."
-      : routed === candidates.length ? "Driving distances and estimated travel times from Google Maps; technician positions are synthetic."
-        : `Google returned ${routed} of ${candidates.length} routes. Missing routes have no distance or ETA.`,
+    routing_status: routingStatus,
+    routing_message: !configured ? "Google driving routes are unavailable until the server-side Google Maps Routes key is configured. No straight-line substitute is used."
+      : !eligible.length ? "No eligible technicians are available for route comparison."
+        : routed === eligible.length ? "Driving distances and estimated travel times from Google Maps; technician positions are synthetic."
+          : `Google returned ${routed} of ${eligible.length} routes for eligible technicians. Missing routes have no distance or ETA.`,
     candidates,
   };
 }

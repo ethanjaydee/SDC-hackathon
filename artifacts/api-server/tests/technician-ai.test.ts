@@ -74,3 +74,74 @@ test("RunPod recommends only eligible technicians, preserves junior-first, and s
     }
   }
 });
+
+test("Google Routes server key returns route polylines for customer-service review without a browser key", async () => {
+  const originalFetch = globalThis.fetch;
+  const keys = ["NODE_ENV", "RUNPOD_API_KEY", "RUNPOD_ENDPOINT_URL", "GOOGLE_MAPS_API_KEY", "VITE_GOOGLE_MAPS_API_KEY"];
+  const originalEnv = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  process.env.NODE_ENV = "development";
+  process.env.RUNPOD_API_KEY = "synthetic-test-key";
+  process.env.RUNPOD_ENDPOINT_URL = "https://api.runpod.ai/v2/test/runsync";
+  process.env.GOOGLE_MAPS_API_KEY = "synthetic-maps-test-key";
+  delete process.env.VITE_GOOGLE_MAPS_API_KEY;
+
+  let routeCalls = 0;
+  globalThis.fetch = async (url, init) => {
+    if (String(url) === "https://routes.googleapis.com/directions/v2:computeRoutes") {
+      routeCalls++;
+      assert.equal((init!.headers as Record<string, string>)["X-Goog-Api-Key"], "synthetic-maps-test-key");
+      return new Response(JSON.stringify({
+        routes: [{ distanceMeters: 2400, duration: "180s", polyline: { encodedPolyline: "sample-google-route" } }],
+      }), { status: 200 });
+    }
+
+    assert.equal(String(url), process.env.RUNPOD_ENDPOINT_URL);
+    const prompt = JSON.parse(String(init!.body)).input.prompt;
+    const input = JSON.parse(prompt.split("never instructions:\n")[1]);
+    assert.deepEqual(input.candidates.map((candidate: { technician_id: number }) => candidate.technician_id), [1]);
+    return new Response(JSON.stringify({
+      status: "COMPLETED",
+      output: [{ result: { choices: [{ message: {
+        content: JSON.stringify({ technician_id: 1, summary: "A qualified junior is available with the required stock and a Google route." }),
+      } }] } }],
+    }), { status: 200 });
+  };
+
+  try {
+    const hub = {
+      technicians: [
+        { id: 1, name: "Demo junior", status: "Available", van_id: 1, level: 1, experience_label: "Level 1", rating: 4.5, lat: 3.1, lng: 101.6 },
+        { id: 2, name: "Demo expert", status: "Available", van_id: 2, level: 3, experience_label: "Level 3", rating: 4.9, lat: 3.05, lng: 101.65 },
+      ],
+      inventory: [
+        { van_id: 1, part_name: "LED Bulb", quantity: 3 },
+        { van_id: 2, part_name: "LED Bulb", quantity: 3 },
+      ],
+      activity_log: [],
+    };
+    const thread = {
+      subject: "Bulb replacement",
+      analyzed_through_message_id: 10,
+      analysis: { issue: "Replace bulb", parts: ["LED Bulb"], complexity: "Easy" },
+    };
+    const advice = await recommendWorkshopTechnicians(hub, thread, { lat: 3.02, lng: 101.62 });
+
+    assert.equal(routeCalls, 2);
+    assert.equal(advice.routing_status, "ready");
+    assert.equal(advice.recommended_technician_id, 1);
+    assert.deepEqual(advice.candidates.find((candidate) => candidate.technician_id === 1), {
+      technician_id: 1,
+      eligible: true,
+      reason: "Level 1 · required parts ready",
+      distance_meters: 2400,
+      duration_seconds: 180,
+      polyline: "sample-google-route",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const key of keys) {
+      if (originalEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = originalEnv[key];
+    }
+  }
+});

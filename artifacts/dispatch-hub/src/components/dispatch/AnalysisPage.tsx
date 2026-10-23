@@ -194,8 +194,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     : !tgLive ? `Telegram is not connected${tg?.error ? ` (${tg.error})` : ''}. Sending is unavailable until the bot reconnects.`
     : !thread.can_send_telegram_reply ? 'Telegram only lets the bot reply after the customer messages first. Ask the customer to send one more message.'
     : 'Delivered through Telegram only when you press Send.';
-  const mapKeyConfigured = !!(import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined);
-  const routeReady = !!recs && recs.routing_status !== 'unavailable' && recs.routing_status !== 'not_configured';
+  const routeReady = recs?.routing_status === 'ready' || recs?.routing_status === 'partial';
   return (
     <div className="w-full space-y-5">
       <header className="flex flex-col gap-4 pb-1 md:flex-row md:items-end md:justify-between">
@@ -436,11 +435,17 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                   </a>) : undefined}>
                   <MiniRouteMap customer={site} technicians={mapPoints}
                     polyline={routeReady && selectedCandidate ? selectedCandidate.polyline : null} />
-                  {!mapKeyConfigured && (
-                    <p className="mt-2 text-xs text-pending" role="status" data-testid="route-unavailable">Google route unavailable: no Maps key is configured. No route line, distance or ETA is drawn. Use the directions link.</p>
+                  {!recs && (
+                    <p className="mt-2 text-xs text-muted-foreground" role="status" data-testid="route-loading">
+                      {recQ.isFetching ? 'Loading the Google route for this recommendation…' : 'Route information is not available yet. Refresh the recommendation to try again.'}
+                    </p>
                   )}
-                  {mapKeyConfigured && !(routeReady && selectedCandidate?.polyline) && (
-                    <p className="mt-2 text-xs text-pending" role="status">Google did not return a route for this van. Use the directions link.</p>
+                  {recs && !selectedCandidate?.polyline && (
+                    <p className="mt-2 text-xs text-pending" role="status" data-testid="route-unavailable">
+                      {recs.routing_status === 'not_configured'
+                        ? 'Google Routes is not configured on the server. No route line, distance, or ETA is shown.'
+                        : 'Google did not return a route for this recommended technician. No route line, distance, or ETA is shown.'}
+                    </p>
                   )}
                 </Card>
               )}
