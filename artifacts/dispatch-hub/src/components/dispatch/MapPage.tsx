@@ -10,6 +10,7 @@ import { CompletionControl } from './CompletionControl';
 import { cn } from '@/lib/utils';
 import { decodeGooglePolyline } from './routeGeometry';
 import { useDemoSession } from './session';
+import { getBusyVanMapLocations } from './busyVanMapLocations';
 
 const dispatchTone = { Active: 'busy', Completed: 'ok', Unknown: 'idle' } as const;
 
@@ -31,6 +32,10 @@ export default function MapPage({ hub }: Hub) {
     () => technicianId == null ? hub.activity : hub.activity.filter((e) => e.dispatch?.tech_id === technicianId),
     [hub.activity, technicianId],
   );
+  const busyVanJobs = useMemo(
+    () => getBusyVanMapLocations(hubQ.data?.vans ?? [], activity, technicians),
+    [activity, hubQ.data?.vans, technicians],
+  );
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -39,7 +44,7 @@ export default function MapPage({ hub }: Hub) {
   // The id is a legacy association only; the server returns the shop-to-customer route.
   const legacyId = technicianId ?? technicians[0]?.id ?? 0;
   const routeQ = useGetTechnicianRoute(legacyId, customerSiteId, {
-    query: { queryKey: getGetTechnicianRouteQueryKey(legacyId, customerSiteId), enabled: legacyId > 0, staleTime: 5 * 60 * 1000 },
+    query: { queryKey: getGetTechnicianRouteQueryKey(legacyId, customerSiteId), enabled: technicianId != null && legacyId > 0, staleTime: 5 * 60 * 1000 },
   });
   const route = routeQ.data?.customer_site_id === customerSiteId ? routeQ.data : null;
   const routePath = useMemo(
@@ -63,6 +68,15 @@ export default function MapPage({ hub }: Hub) {
   }, []);
 
   const fit = () => {
+    if (technicianId == null) {
+      const points: L.LatLngTuple[] = [[shop.lat, shop.lng]];
+      for (const job of busyVanJobs) {
+        if (job.vanLocation) points.push([job.vanLocation.lat, job.vanLocation.lng]);
+        if (job.customerSite) points.push([job.customerSite.lat, job.customerSite.lng]);
+      }
+      map.current?.fitBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 14 });
+      return;
+    }
     const pts: L.LatLngTuple[] = [[shop.lat, shop.lng], [customerSite.lat, customerSite.lng]];
     routePath.forEach((p) => pts.push(p as L.LatLngTuple));
     map.current?.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 14 });
@@ -73,48 +87,111 @@ export default function MapPage({ hub }: Hub) {
     g.clearLayers(); markers.current = {};
     const pin = (cls: string, label: string) => L.divIcon({ className: 'af-pin-wrap', iconSize: [30, 30], iconAnchor: [15, 15], html: el('div', `af-pin ${cls}`, label) });
     const sp = el('div', 'af-pop');
-    sp.append(el('b', '', shop.name), el('span', '', 'Fixed shop · route origin · Synthetic demo coordinates, not GPS'));
+    sp.append(el('b', '', shop.name), el('span', '', 'Fixed workshop · Synthetic demo coordinates, not GPS'));
     L.marker([shop.lat, shop.lng], { icon: pin('shop', 'S'), title: shop.name, zIndexOffset: 700 }).bindPopup(sp).addTo(g);
-    const cp = el('div', 'af-pop');
-    cp.append(el('b', '', `Customer: ${customerSite.label}`), el('span', '', 'Not a saved assignment · Synthetic demo coordinates'));
-    L.marker([customerSite.lat, customerSite.lng], { icon: pin('customer', 'C'), title: customerSite.label, zIndexOffset: 500 }).bindPopup(cp).addTo(g);
-    if (routePath.length > 1) {
+    if (technicianId == null) {
+      const points: L.LatLngTuple[] = [[shop.lat, shop.lng]];
+      for (const job of busyVanJobs) {
+        if (job.vanLocation) {
+          const popup = el('div', 'af-pop');
+          popup.append(
+            el('b', '', `${job.van.name} · Busy`),
+            el('span', '', `${job.technician?.name ?? 'Assigned technician'} · sample position, not live van GPS`),
+          );
+          const point: L.LatLngTuple = [job.vanLocation.lat, job.vanLocation.lng];
+          L.marker(point, { icon: pin('busy', `V${job.van.id}`), title: `${job.van.name} · sample position`, zIndexOffset: 650 })
+            .bindPopup(popup).addTo(g);
+          points.push(point);
+        }
+        if (job.customerSite) {
+          const popup = el('div', 'af-pop');
+          popup.append(
+            el('b', '', `Customer: ${job.customerSite.label}`),
+            el('span', '', 'Saved site for an active dispatch · synthetic coordinates, not GPS'),
+          );
+          const point: L.LatLngTuple = [job.customerSite.lat, job.customerSite.lng];
+          L.marker(point, { icon: pin('customer', `C${job.van.id}`), title: job.customerSite.label, zIndexOffset: 500 })
+            .bindPopup(popup).addTo(g);
+          points.push(point);
+        }
+      }
+      map.current?.fitBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 14, animate: false });
+    } else {
+      const cp = el('div', 'af-pop');
+      cp.append(el('b', '', `Customer: ${customerSite.label}`), el('span', '', 'Not a saved assignment · Synthetic demo coordinates'));
+      L.marker([customerSite.lat, customerSite.lng], { icon: pin('customer', 'C'), title: customerSite.label, zIndexOffset: 500 }).bindPopup(cp).addTo(g);
+    }
+    if (technicianId != null && routePath.length > 1) {
       L.polyline(routePath, { color: '#c84224', weight: 5, opacity: 0.88 }).addTo(g);
       map.current?.fitBounds(L.latLngBounds(routePath), { padding: [48, 48], maxZoom: 15, animate: true });
     }
-  }, [shop, customerSite, routePath]);
+  }, [busyVanJobs, shop, customerSite, routePath, technicianId]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (routePath.length < 2) fit(); }, [customerSiteId, shop.lat, shop.lng]);
+  useEffect(() => { if (technicianId == null || routePath.length < 2) fit(); }, [customerSiteId, shop.lat, shop.lng, technicianId, busyVanJobs, routePath]);
 
   const focusSaved = (id: number) => {
+    const job = busyVanJobs.find((item) => item.entry?.id === id);
+    if (technicianId == null) {
+      if (job) {
+        const points: L.LatLngTuple[] = [[shop.lat, shop.lng]];
+        if (job.vanLocation) points.push([job.vanLocation.lat, job.vanLocation.lng]);
+        if (job.customerSite) points.push([job.customerSite.lat, job.customerSite.lng]);
+        map.current?.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 15 });
+      }
+      return;
+    }
     const site = activity.find((e) => e.id === id)?.dispatch?.customer_site;
     if (site) updateCustomerSite(site.id);
   };
   const saved = activity.filter((e) => e.completion_dispatch_id == null);
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${shop.lat},${shop.lng}&destination=${customerSite.lat},${customerSite.lng}&travelmode=driving`;
+  const unlocatedBusy = busyVanJobs.filter((job) => !job.vanLocation || !job.customerSite).length;
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Field view" title="Technician map" sub="Fixed shop, the selected customer and the route between them. No technician positions are shown.">
-        <select className={cn(fieldClass, 'w-full sm:w-auto')} aria-label="Customer site" data-testid="select-map-site" value={customerSiteId} disabled={writePending} onChange={(e) => updateCustomerSite(e.target.value)}>
+      <PageHead kicker="Field view" title={technicianId == null ? 'Busy van locations' : 'Technician map'} sub={technicianId == null ? 'The fixed workshop, every busy van sample position, and its saved customer site. No route lines or live GPS.' : 'Fixed shop, your selected customer and the Google driving route.'}>
+        {technicianId != null && <select className={cn(fieldClass, 'w-full sm:w-auto')} aria-label="Customer site" data-testid="select-map-site" value={customerSiteId} disabled={writePending} onChange={(e) => updateCustomerSite(e.target.value)}>
           {DEMO_CUSTOMER_SITES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-        </select>
+        </select>}
         <Button type="button" variant="outline" onClick={fit}><Maximize2 size={13} /> Fit all</Button>
       </PageHead>
-      <p className="rounded-lg border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">S is the fixed shop and C is a customer site. Route, distance and time are the Google driving route from the shop to the customer; unavailable routes are never replaced with straight-line estimates. Positions are synthetic samples, not live GPS.</p>
+      <p className="rounded-lg border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">{technicianId == null ? 'S is the fixed workshop, V marks a busy van at its assigned technician’s synthetic sample position, and C marks that dispatch’s saved customer site. These are not live GPS locations; no route is drawn.' : 'S is the fixed shop and C is a customer site. Route, distance and time are the Google driving route from the shop to the customer; unavailable routes are never replaced with straight-line estimates. Positions are synthetic samples, not live GPS.'}</p>
       {hubQ.isError && <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Hub connection lost. Showing last known statuses.</InlineError>}
       {hub.completionError && <InlineError>{hub.completionError}</InlineError>}
       {tileErrors > 0 && <InlineError>Some map tiles could not be loaded. Saved assignments remain available in the list.</InlineError>}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 overflow-hidden rounded-xl border bg-card shadow-sm">
-          <div ref={box} className="h-[52vh] min-h-[320px] w-full lg:h-[640px]" data-testid="map-canvas" aria-label="Map of shop and customer" />
+          <div ref={box} className="h-[52vh] min-h-[320px] w-full lg:h-[640px]" data-testid="map-canvas" aria-label={technicianId == null ? 'Map of workshop, busy van locations and customer sites' : 'Map of shop and customer'} />
           <div className="flex flex-wrap gap-x-4 gap-y-1 border-t px-4 py-2 text-xs text-muted-foreground" aria-label="Legend">
-            <span><i className="af-pin-sm shop" />S shop</span><span><i className="af-pin-sm customer" />C customer</span>
+            <span><i className="af-pin-sm shop" />S shop</span>
+            {technicianId == null ? <><span><i className="af-pin-sm busy" />V busy van sample position</span><span><i className="af-pin-sm customer" />C active customer site</span></> : <span><i className="af-pin-sm customer" />C customer</span>}
           </div>
         </div>
         <div className="min-w-0 space-y-4">
+          {technicianId == null ? (
+            <Card title="Busy van locations" aside={<Mono>{busyVanJobs.length}</Mono>}>
+              {busyVanJobs.length ? (
+                <ul className="space-y-2" data-testid="boss-busy-van-locations">
+                  {busyVanJobs.map((job) => (
+                    <li key={job.van.id} data-testid={`boss-busy-van-${job.van.id}`} className="rounded-lg border px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{job.van.name}</span>
+                        <StatusBadge tone="busy">Busy</StatusBadge>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {job.vanLocation ? `${job.technician?.zone ?? 'Demo area'} · assigned technician sample position` : 'Van location unknown'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{job.customerSite?.label ?? 'Customer location unknown · no saved site'}</p>
+                      {job.entry && <Mono className="mt-1 block text-[11px]">Dispatch #{job.entry.id}</Mono>}
+                    </li>
+                  ))}
+                </ul>
+              ) : <EmptyState icon={<MapPinned size={16} />} title="No busy vans">Busy van positions will appear here while jobs are active.</EmptyState>}
+              {unlocatedBusy > 0 && <p className="mt-3 text-xs text-muted-foreground">{unlocatedBusy} busy van(s) have incomplete location data; no location was inferred.</p>}
+            </Card>
+          ) : (
           <Card title="Shop to customer route" aside={route?.status === 'ready' ? <StatusBadge tone="ok">Route ready</StatusBadge> : undefined}>
             <div className="space-y-2 text-sm" data-testid="technician-route-details">
               <p className="font-medium">{shop.name} <span className="text-muted-foreground">to</span> {customerSite.area}</p>
@@ -136,6 +213,7 @@ export default function MapPage({ hub }: Hub) {
               <p className="text-xs text-muted-foreground">Shop <Mono>{shop.lat.toFixed(4)}, {shop.lng.toFixed(4)}</Mono> · Customer <Mono>{customerSite.lat.toFixed(4)}, {customerSite.lng.toFixed(4)}</Mono></p>
             </div>
           </Card>
+          )}
           <Card title={technicianId == null ? 'Saved dispatches' : 'Your saved dispatches'} aside={<Mono>{saved.length}</Mono>} bodyClassName="p-2 md:p-2">
             <div className="max-h-[420px] space-y-1 overflow-y-auto" data-testid="saved-dispatches">
               {saved.map((entry) => {

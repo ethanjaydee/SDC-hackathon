@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import type { HubData } from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES, distanceKm, getTechnicianLocation } from '../src/components/dispatch/demoLocations';
 import { rankQualifiedTechnicians } from '../src/components/dispatch/matching';
+import { getBusyVanMapLocations } from '../src/components/dispatch/busyVanMapLocations';
 
 function hubData(): HubData {
   return {
@@ -33,6 +34,33 @@ test('every sample site has valid coordinates; unknown technicians do not get fa
     assert.ok(Number.isFinite(site.lat) && Math.abs(site.lat) <= 90);
     assert.ok(Number.isFinite(site.lng) && Math.abs(site.lng) <= 180);
   }
+});
+test('Boss map pairs busy vans only with saved active sites and known sample technician positions', () => {
+  const locations = getBusyVanMapLocations(
+    [
+      { id: 1, name: 'Workshop Van 1', plate: 'DEMO-V01', status: 'Busy', technician_id: 1, technician_name: 'Tech 1', dispatch_id: 11 },
+      { id: 2, name: 'Workshop Van 2', plate: 'DEMO-V02', status: 'Busy', technician_id: null, technician_name: null, dispatch_id: 99 },
+      { id: 3, name: 'Workshop Van 3', plate: 'DEMO-V03', status: 'Available', technician_id: null, technician_name: null, dispatch_id: null },
+    ],
+    [{
+      id: 11,
+      timestamp: '2026-10-23T10:00:00.000Z',
+      completion_dispatch_id: null,
+      action_details: 'Dispatch approved',
+      approved_by: 'Boss',
+      dispatch: {
+        status: 'Active', completed_at: null, tech_id: 1, technician_name: 'Tech 1', van_id: 1,
+        parts: [], customer_site: DEMO_CUSTOMER_SITES[0], conversation_id: 1,
+      },
+    }],
+    [{ id: 1, name: 'Tech 1', status: 'Busy', zone: 'Petaling Jaya', van_id: 1, lat: 3.109, lng: 101.633 }],
+  );
+
+  assert.equal(locations.length, 2, 'available vans are not mapped as busy');
+  assert.deepEqual(locations[0].vanLocation, { lat: 3.109, lng: 101.633 });
+  assert.equal(locations[0].customerSite?.id, 'north');
+  assert.equal(locations[1].vanLocation, null);
+  assert.equal(locations[1].customerSite, null, 'missing active assignment locations remain unknown');
 });
 test('only available technicians with all required parts qualify', () => {
   const hub = hubData();

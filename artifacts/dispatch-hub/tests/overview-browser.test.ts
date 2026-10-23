@@ -10,16 +10,33 @@ const baseUrl = `http://127.0.0.1:${port}`;
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
 
 const hubData = {
+  shop: { name: 'Dispatch Hub Workshop', label: 'Demo workshop · Puchong', area: 'Puchong', lat: 3.0431, lng: 101.6161 },
+  vans: [
+    { id: 2, name: 'Workshop Van 2', plate: 'DEMO-V02', status: 'Busy', technician_id: 2, technician_name: 'Mina Tan', dispatch_id: 7 },
+  ],
   technicians: [
     { id: 1, name: 'Ari Lee', status: 'Available', zone: 'North', van_id: 1 },
-    { id: 2, name: 'Mina Tan', status: 'Busy', zone: 'Central', van_id: 2 },
+    { id: 2, name: 'Mina Tan', status: 'Busy', zone: 'Central', van_id: 2, lat: 3.025, lng: 101.617 },
   ],
   inventory: [
     { id: 1, van_id: 1, part_name: 'Capacitor', quantity: 5 },
     { id: 2, van_id: 1, part_name: 'Fuse', quantity: 1 },
     { id: 3, van_id: 2, part_name: 'Relay', quantity: 3 },
   ],
-  activity_log: [],
+  activity_log: [{
+    id: 7,
+    timestamp: '2026-10-23T10:00:00.000Z',
+    completion_dispatch_id: null,
+    action_details: 'Dispatch approved for Mina Tan',
+    approved_by: 'Boss',
+    dispatch: {
+      status: 'Active', completed_at: null, tech_id: 2, technician_name: 'Mina Tan', van_id: 2,
+      parts: ['Relay'],
+      customer_site: { id: 'south', label: 'Demo customer · Cheras', area: 'Cheras', lat: 3.0993, lng: 101.7428 },
+      shop_location: { name: 'Dispatch Hub Workshop', label: 'Demo workshop · Puchong', area: 'Puchong', lat: 3.0431, lng: 101.6161 },
+      conversation_id: 1,
+    },
+  }],
 };
 
 async function startVite(): Promise<{ process: ChildProcess; output: () => string }> {
@@ -130,6 +147,21 @@ test('overview prioritizes technician availability with unfinished requests, sal
       assert.equal(await page.getByText('Restock planning period', { exact: true }).count(), 0);
       assert.equal(await page.getByLabel('Restock sample year').count(), 0);
       assert.equal(await page.getByLabel('Restock sample month').count(), 0);
+
+      let routeRequests = 0;
+      page.on('request', (request) => {
+        if (/\/api\/technicians\/\d+\/route\//.test(request.url())) routeRequests += 1;
+      });
+      await page.getByRole('link', { name: /Technician map/ }).click();
+      await page.getByTestId('boss-busy-van-2').waitFor();
+      await page.getByRole('heading', { name: 'Busy van locations' }).first().waitFor();
+      assert.equal(await page.getByText('Shop to customer route', { exact: true }).count(), 0);
+      assert.equal(routeRequests, 0, 'the Boss map does not request a shop-to-customer route');
+      const mapPins = await page.locator('.leaflet-marker-pane .af-pin').allTextContents();
+      assert.ok(mapPins.includes('S'), 'shop marker is shown');
+      assert.ok(mapPins.includes('V2'), 'busy van marker is shown at its sample position');
+      assert.ok(mapPins.includes('C2'), 'saved customer site marker is shown');
+      assert.equal(await page.locator('.leaflet-overlay-pane path.leaflet-interactive').count(), 0, 'Boss map draws no route line');
     } finally {
       await desktop.context.close();
     }
