@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import Database from 'better-sqlite3';
 import express from 'express';
 import { demoSites } from '../src/demoSites.js';
+import { SHOP_LOCATION } from '../src/transportPool.js';
 
 test('additive migration preserves legacy history and atomically saves canonical sites and assignments', async () => {
   const cwd = process.cwd();
@@ -54,6 +55,7 @@ test('additive migration preserves legacy history and atomically saves canonical
       tech_id: 1, technician_name: 'Amir Hakim', van_id: 1,
       parts: input.parts, customer_site: demoSites.central,
       status: 'Active', completed_at: null, conversation_id: null,
+      shop_location: SHOP_LOCATION,
     });
     assert.equal(saved.technicians[0].status, 'Busy');
     assert.equal(saved.inventory.find((i) => i.van_id === 1 && i.part_name === '100uF Capacitor').quantity, 7);

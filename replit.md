@@ -1,6 +1,6 @@
 # Field Service Dispatch & Spare-Part Matching Hub
 
-A synthetic-data SME dispatch demo that matches repair notes to available technicians and van spare parts, with human-approved inventory allocation and an immutable audit log.
+A synthetic-data demo for a medium-sized repair shop at one fixed Puchong location. Technicians are dispatched from the shop with a shared transport van, with explicit approval, spare-part allocation and an immutable audit log.
 
 ## Run & Operate
 
@@ -10,11 +10,11 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 - `pnpm --filter @workspace/api-server run dev` — run the API server (use its managed workflow)
 - Dashboard preview: use managed workflow `artifacts/dispatch-preview: web`, which runs the existing `@workspace/dispatch-hub` source.
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm --filter @workspace/dispatch-hub exec tsx --test ../api-server/tests/*.test.ts` — isolated SQLite migration, dispatch, completion, and availability-reset API regressions (does not modify workspace data)
+- `NODE_ENV=test pnpm --filter @workspace/dispatch-hub exec tsx --test ../api-server/tests/*.test.ts` — isolated SQLite migration, dispatch, completion, and transport regressions (does not modify workspace data or call live AI)
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- The dashboard uses a static, non-interactive Boss demo profile rather than real sign-in. Demo API routes are unauthenticated and must expose synthetic data only. Repair-note analysis, catalog-aware conversation triage, and technician recommendations use RunPod when configured, with task-specific validation and explicit rule-based fallbacks.
+- Demo entry uses Boss and Technician buttons, not real sign-in. Technician identity selection controls the demo view only, not server authorization. Demo API routes are unauthenticated and must expose synthetic data only. Repair-note analysis, catalog-aware conversation triage, and technician recommendations use RunPod when configured, with task-specific validation and explicit rule-based fallbacks.
 
 ## Stack
 
@@ -39,7 +39,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 
 - SQLite was explicitly requested for this MVP; do not silently replace it with PostgreSQL.
 - RunPod uses `RUNPOD_API_KEY` and `RUNPOD_ENDPOINT_URL` (Serverless `/runsync`). Repair-note analysis, catalog-aware conversation triage, and technician recommendations share a five-second transport deadline but keep task-specific validators. Conversation analysis must use catalog parts and cannot lower conservative complexity; technician eligibility and junior-first selection remain server-enforced. Review summaries retain their separate AI provider.
-- The Technician Map requests Google driving routes with the server-side `GOOGLE_MAPS_API_KEY` and draws the returned route over its street map. Keep this key out of browser bundles; technician and customer positions are synthetic samples.
+- Maps request Google driving routes with the server-side `GOOGLE_MAPS_API_KEY`. All current routes start at the fixed synthetic Puchong shop and end at the customer sample site, not at technician positions. Keep the key out of browser bundles.
 - The approval name is a demo audit label, not verified authentication.
 - SQLite files are local runtime data and excluded from Git/deployment inputs. Before real operational deployment, decide on durable storage, backups and multi-instance behavior.
 
@@ -47,7 +47,11 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 
 Separate screens for overview, repair intake, post-intake analysis, technician map, technicians, van stock, and append-only dispatch history. Keep the desktop sidebar fixed instead of scrolling the entire dashboard between sections. Keep the interface focused on clear information technicians need in the field; omit store comparison and reorder screens.
 
-The dispatch demo has no real authentication or role-based authorization. Keep the Boss profile non-interactive and do not add real sign-in unless explicitly requested.
+The user wants Boss and Technician demo role buttons, not real authentication. Technician views omit management Analysis and AI review summaries, show customer comments by technician, and restrict Service History to the selected technician's own records and clearly separate illustrative proof examples. Direct frontend routes must respect the selected demo view. These controls are not security boundaries.
+
+The shop has five shared vans rather than permanently assigned technician vans. Approval allocates a free stocked van atomically and marks it Busy; completion releases it without restoring consumed parts. Busy transport uses a subtle red background, and the Inventory section is named Transport. Preserve existing active jobs and audit history during this transition. The legacy technician van field remains only for database compatibility, not assignment authority.
+
+**Why:** The user changed the product concept to a medium shop where technicians depart from one fixed location with shared transport. Technician skills and availability still govern assignments, but route time is the same shop-to-customer journey for all candidates.
 
 Completion-proof examples may use illustrative stock photos and synthetic customer signatures, but must remain separate from actual audit records. Never imply that example evidence proves an existing or legacy dispatch was completed. Customer conversations no longer expose a manual customer/technician message simulator.
 

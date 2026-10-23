@@ -273,6 +273,7 @@ html { view-transition-name: root; }
   border: 2px solid hsl(var(--card)); box-shadow: 0 4px 12px -4px hsl(220 20% 10% / .5);
 }
 .af-pin.customer { background: hsl(var(--primary)); border-radius: 8px; }
+.af-pin.shop { background: hsl(var(--foreground)); border-radius: 8px; }
 .af-pin.ok { background: hsl(var(--st-idle)); }
 .af-pin.best { background: hsl(var(--st-ok)); }
 .af-pin.busy { background: hsl(var(--st-busy)); }

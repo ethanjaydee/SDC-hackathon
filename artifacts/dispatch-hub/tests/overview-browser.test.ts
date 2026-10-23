@@ -57,6 +57,7 @@ async function openOverview(browser: Browser, width: number, height: number) {
   const page = await context.newPage();
   await mockOverviewApi(page);
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('button-role-boss').click();
   await page.getByTestId('overview-readiness').waitFor();
   await page.getByTestId('overview-availability-value').getByText('1').waitFor();
   return { context, page };
@@ -75,7 +76,7 @@ test('overview prioritizes technician readiness with unfinished requests, sales,
     try {
       const page = desktop.page;
       assert.equal(await page.getByRole('note', { name: 'Demo profile: Boss, Dispatch manager' }).count(), 1);
-      assert.equal(await page.getByRole('button', { name: /sign out/i }).count(), 0, 'the mock profile is not an interactive login');
+      assert.equal(await page.getByRole('button', { name: /sign out/i }).count(), 1, 'demo role can be switched back to the chooser');
       const circle = page.getByTestId('overview-availability-circle');
       assert.equal(await circle.getAttribute('aria-expanded'), 'false');
       assert.match(await circle.getAttribute('aria-label') || '', /1 of 2 available/);
@@ -97,7 +98,7 @@ test('overview prioritizes technician readiness with unfinished requests, sales,
       assert.equal(await page.getByTestId('link-overview-requests').getAttribute('href'), '/intake');
       assert.equal(await page.getByTestId('link-overview-sales').getAttribute('href'), '/workshop-analysis');
       assert.equal(await page.getByTestId('link-overview-customer-rating').getAttribute('href'), '/reviews');
-      assert.equal(await page.getByTestId('link-overview-low-stock').getAttribute('href'), '/stock/low');
+      assert.equal(await page.getByTestId('link-overview-low-stock').getAttribute('href'), '/transport');
       assert.equal(await page.getByTestId('link-overview-log').getAttribute('href'), '/log');
 
       await circle.focus();

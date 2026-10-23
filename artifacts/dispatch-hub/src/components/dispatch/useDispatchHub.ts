@@ -8,13 +8,19 @@ import {
   type Analysis, type HubData, type Technician,
 } from '@workspace/api-client-react';
 import { useToast } from '@/hooks/use-toast';
-import { DEMO_CUSTOMER_SITES } from './demoLocations';
+import { DEFAULT_SHOP, DEMO_CUSTOMER_SITES } from './demoLocations';
 import { rankQualifiedTechnicians } from './matching';
 import { canAutoRefresh, pollInterval } from '@/lib/reliability';
 import { intakeSchema, positiveIdSchema } from '@/lib/validation';
 import { WriteGate, performHubWrite, optimisticAvailable, optimisticDispatch } from '@/lib/hub-write';
 
 export const APPROVER = 'Demo Dispatcher';
+
+function allocatedVan(updated: HubData, techId: number) {
+  const latest = [...updated.activity_log].filter((e) => e.dispatch?.tech_id === techId && e.dispatch.status === 'Active').sort((a, b) => b.id - a.id)[0];
+  const id = latest?.dispatch?.van_id;
+  return id == null ? null : updated.vans?.find((v) => v.id === id)?.name ?? `Van ${id}`;
+}
 
 function message(error: unknown) {
   const e = error as { data?: { error?: string }; message?: string };
@@ -48,6 +54,7 @@ export function useDispatchHub() {
   const [approveError, setApproveError] = useState('');
   const requestId = useRef(0);
   const hub = hubQ.data;
+  const shop = hub?.shop ?? DEFAULT_SHOP;
   const connectionLost = hubQ.isError || hubQ.failureCount > 0 || hubQ.fetchStatus === 'paused';
   const customerSite = DEMO_CUSTOMER_SITES.find((site) => site.id === customerSiteId)!;
   const matches = useMemo(
@@ -190,7 +197,7 @@ export function useDispatchHub() {
       requestId.current += 1;
       toast({
         title: 'Job dispatched',
-        description: `${snapshot.tech.name} · Van ${snapshot.tech.van_id} assigned. ${snapshot.parts.length} parts reserved.`,
+        description: `${snapshot.tech.name} · ${allocatedVan(updated, snapshot.tech.id) ?? 'Shared van'} allocated. ${snapshot.parts.length} parts reserved.`,
       });
       return true;
     } catch (error) {
@@ -210,6 +217,7 @@ export function useDispatchHub() {
     result: Analysis,
     siteId: string,
     technician: Technician,
+    approvedBy: string = APPROVER,
   ) => {
     const site = DEMO_CUSTOMER_SITES.find((item) => item.id === siteId);
     if (!site || !positiveIdSchema.safeParse(conversationId).success ||
@@ -227,7 +235,7 @@ export function useDispatchHub() {
             tech_id: snapshot.technician.id,
             van_id: snapshot.technician.van_id,
             parts: snapshot.parts,
-            approved_by: APPROVER,
+            approved_by: approvedBy,
           },
         }));
       if (!updated) return false;
@@ -237,7 +245,7 @@ export function useDispatchHub() {
       void qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
       toast({
         title: 'Job dispatched',
-        description: `${snapshot.technician.name} · Van ${snapshot.technician.van_id} assigned from chat #${conversationId}.`,
+        description: `${snapshot.technician.name} · ${allocatedVan(updated, snapshot.technician.id) ?? 'Shared van'} allocated from chat #${conversationId}.`,
       });
       return true;
     } catch (error) {
@@ -253,7 +261,7 @@ export function useDispatchHub() {
   };
 
   return {
-    hubQ, analyze, approve, notes, analysis, analysisError, approveError,
+    hubQ, shop, analyze, approve, notes, analysis, analysisError, approveError,
     matches, match, technicians, inventory, activity,
     availableCount, lowStockCount, dispatchedToday,
     customerSiteId, customerSite, updateCustomerSite,

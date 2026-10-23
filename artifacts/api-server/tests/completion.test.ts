@@ -155,8 +155,9 @@ test('completion validates assignment, persists atomically, never restores parts
     assert.equal(redispatched.technicians[2].status, 'Busy');
     assert.equal(redispatched.activity_log[0].dispatch.tech_id, 3);
     assert.equal(redispatched.activity_log[0].dispatch.status, 'Active');
-    assert.equal(redispatched.inventory.find((item) => item.van_id === 3 && item.part_name === 'NPN Transistor').quantity,
-      afterReset.inventory.find((item) => item.van_id === 3 && item.part_name === 'NPN Transistor').quantity - 1);
+    const allocatedVan = redispatched.activity_log[0].dispatch.van_id;
+    assert.equal(redispatched.inventory.find((item) => item.van_id === allocatedVan && item.part_name === 'NPN Transistor').quantity,
+      afterReset.inventory.find((item) => item.van_id === allocatedVan && item.part_name === 'NPN Transistor').quantity - 1);
     assert.equal((await reset(3)).status, 409);
     assert.deepEqual(await read(), redispatched);
   } finally {

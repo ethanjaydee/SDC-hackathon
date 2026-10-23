@@ -41,12 +41,17 @@ export function optimisticDispatch(hub: HubData, techId: number, vanId: number, 
   for (const part of parts) required.set(part.toLowerCase(), (required.get(part.toLowerCase()) ?? 0) + 1);
   return {
     ...hub,
-    technicians: hub.technicians.map((tech) => tech.id === techId ? { ...tech, status: 'Busy' as const } : tech),
+    technicians: hub.technicians.map((tech) => tech.id === techId ? { ...tech, status: 'Busy' as const, assigned_van_id: vanId } : tech),
+    vans: hub.vans?.map((van) => van.id === vanId ? { ...van, status: 'Busy' as const, technician_id: techId, technician_name: hub.technicians.find((t) => t.id === techId)?.name ?? null } : van),
     inventory: hub.inventory.map((item) => item.van_id === vanId
       ? { ...item, quantity: Math.max(0, item.quantity - (required.get(item.part_name.toLowerCase()) ?? 0)) } : item),
     // Immutable audit entries only come from the server.
   };
 }
 export function optimisticAvailable(hub: HubData, techId: number): HubData {
-  return { ...hub, technicians: hub.technicians.map((tech) => tech.id === techId ? { ...tech, status: 'Available' as const } : tech) };
+  return {
+    ...hub,
+    technicians: hub.technicians.map((tech) => tech.id === techId ? { ...tech, status: 'Available' as const, assigned_van_id: null } : tech),
+    vans: hub.vans?.map((van) => van.technician_id === techId ? { ...van, status: 'Available' as const, technician_id: null, technician_name: null, dispatch_id: null } : van),
+  };
 }

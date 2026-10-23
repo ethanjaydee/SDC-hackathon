@@ -8,6 +8,8 @@
 
 export interface TechnicianCandidate {
   technician_id: number;
+  /** @nullable */
+  van_id?: number | null;
   eligible: boolean;
   reason: string;
   /** @nullable */

@@ -18,3 +18,13 @@ test('sample customer reviews are clearly synthetic and grouped with a top-rated
     assert.ok(group.reviews.every((review) => review.level === group.level));
   }
 });
+
+import { DEMO_TECHNICIAN_REVIEW_SAMPLES, getDemoReviewsForTechnician } from '../src/components/dispatch/demoReviewSamples';
+test('every demo technician has samples including a negative one', () => {
+  for (let id = 1; id <= 12; id += 1) {
+    const reviews = getDemoReviewsForTechnician(id);
+    assert.ok(reviews.length >= 2);
+    assert.ok(reviews.some((review) => review.rating <= 2));
+  }
+  assert.ok(DEMO_TECHNICIAN_REVIEW_SAMPLES.every((review) => review.technicianId != null));
+});

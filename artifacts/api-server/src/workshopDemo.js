@@ -1,6 +1,7 @@
 // All names, positions, ratings and completed-job counts below are synthetic.
-// Physical stock stays in the original three vans; the legacy unique van key is
-// retained internally so existing SQLite foreign keys and audit rows stay intact.
+// The legacy unique van key is retained internally for SQLite compatibility;
+// current assignments use the independent five-van transport pool.
+import { chooseFreeVan } from "./transportPool.js";
 export const workshopTechnicians = [
   [1, "Amir Hakim", "Petaling Jaya", 1, 1, "Intern · Level 1", 4.5, 14, 3.109, 101.633, "Bulbs and basic replacements"],
   [2, "Mei Tan", "Puchong", 2, 2, "Experienced · Level 2", 4.8, 76, 3.025, 101.617, "AC servicing and drainage"],
@@ -31,6 +32,8 @@ export function experienceRequired(complexity) {
 export function candidateEligibility(hub, technician, parts, complexity) {
   if (technician.status !== "Available") return "Technician is busy";
   if ((technician.level ?? 0) < experienceRequired(complexity)) return `${complexity} work requires a verified Level ${experienceRequired(complexity)} or above`;
+  if (hub.activity_log.some((entry) => entry.dispatch?.status === "Active" && entry.dispatch.tech_id === technician.id)) return "Technician has an active job";
+  if (hub.vans) return chooseFreeVan(hub, parts) ? null : "No free van has all required parts; wait for transport or restock";
   if (hub.activity_log.some((entry) => entry.dispatch?.status === "Active" && entry.dispatch.van_id === technician.van_id)) return `Van ${technician.van_id} is on an active job`;
   if (!parts.length) return "Confirm required parts after expert assessment";
   const demand = new Map();

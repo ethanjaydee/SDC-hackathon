@@ -116,6 +116,8 @@ export interface Technician {
   status: TechnicianStatus;
   zone: string;
   van_id: number;
+  /** @nullable */
+  assigned_van_id?: number | null;
   /**
      * @minimum 1
      * @maximum 3
@@ -154,6 +156,14 @@ export const SavedDispatchStatus = {
   Unknown: 'Unknown',
 } as const;
 
+export interface ShopLocation {
+  name: string;
+  label: string;
+  area: string;
+  lat: number;
+  lng: number;
+}
+
 /**
  * Labeled synthetic coordinates, never live GPS.
  */
@@ -181,6 +191,7 @@ export interface SavedDispatch {
   tech_id: number;
   technician_name: string;
   van_id: number;
+  shop_location?: ShopLocation | null;
   parts: string[];
   customer_site: DemoCustomerSite;
   /**
@@ -203,7 +214,30 @@ export interface Activity {
   dispatch: SavedDispatch | null;
 }
 
+export type TransportVanStatus = typeof TransportVanStatus[keyof typeof TransportVanStatus];
+
+
+export const TransportVanStatus = {
+  Available: 'Available',
+  Busy: 'Busy',
+} as const;
+
+export interface TransportVan {
+  id: number;
+  name: string;
+  plate: string;
+  status: TransportVanStatus;
+  /** @nullable */
+  technician_id: number | null;
+  /** @nullable */
+  technician_name: string | null;
+  /** @nullable */
+  dispatch_id: number | null;
+}
+
 export interface HubData {
+  shop?: ShopLocation;
+  vans?: TransportVan[];
   technicians: Technician[];
   inventory: InventoryItem[];
   activity_log: Activity[];
@@ -274,6 +308,8 @@ export const TechnicianRecommendationsRoutingStatus = {
 
 export interface TechnicianCandidate {
   technician_id: number;
+  /** @nullable */
+  van_id?: number | null;
   eligible: boolean;
   reason: string;
   /** @nullable */
@@ -454,8 +490,12 @@ export interface DispatchInput {
   conversation_id?: number;
   /** @minimum 1 */
   tech_id: number;
-  /** @minimum 1 */
-  van_id: number;
+  /**
+     * Legacy hint only; the server allocates a free stocked van atomically.
+     * @deprecated
+     * @minimum 1
+     */
+  van_id?: number;
   /**
      * @minItems 1
      * @maxItems 50

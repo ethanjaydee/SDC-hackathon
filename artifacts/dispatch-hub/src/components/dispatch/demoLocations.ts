@@ -42,3 +42,6 @@ export function distanceKm(from: DemoLocation, to: DemoLocation): number {
     Math.cos(radians(from.lat)) * Math.cos(radians(to.lat)) * Math.sin(deltaLng / 2) ** 2;
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
 }
+
+/** Fixed dispatch origin; the server's hub.shop is authoritative when present. */
+export const DEFAULT_SHOP = { name: 'Dispatch Hub Workshop', label: 'Dispatch Hub Workshop · Puchong', area: 'Puchong', lat: 3.0431, lng: 101.6161 };

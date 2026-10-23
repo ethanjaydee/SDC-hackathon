@@ -7,9 +7,13 @@
  */
 import type { Activity } from './activity';
 import type { InventoryItem } from './inventoryItem';
+import type { ShopLocation } from './shopLocation';
 import type { Technician } from './technician';
+import type { TransportVan } from './transportVan';
 
 export interface HubData {
+  shop?: ShopLocation;
+  vans?: TransportVan[];
   technicians: Technician[];
   inventory: InventoryItem[];
   activity_log: Activity[];

@@ -71,13 +71,12 @@ export function TechniciansPage({ hub }: Hub) {
     { key: 'level', header: 'Level', sort: (t) => t.level ?? 1, cell: (t) => <LevelBadge tech={t} /> },
     { key: 'rating', header: 'Rating · jobs', sort: (t) => t.rating ?? 0, cell: (t) => <span className="whitespace-nowrap text-xs">★ <Mono>{ratingText(t)}</Mono> · <Mono>{t.demo_completed_jobs ?? 0}</Mono> <span className="text-muted-foreground">demo</span></span> },
     { key: 'zone', header: 'Zone', sort: (t) => t.zone, cell: (t) => <span>{t.zone}{t.specialty && <span className="block text-[11px] text-muted-foreground">{t.specialty}</span>}</span> },
-    { key: 'van', header: 'Van', sort: (t) => t.van_id, cell: (t) => <Mono>V-{t.van_id}</Mono> },
     { key: 'actions', header: 'Assignment', cell: actions },
   ];
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Team" title="Technicians" sub="Level, status and van. Ratings and job counts are demo data; positions are samples.">
+      <PageHead kicker="Team" title="Technicians" sub="Level and status. Vans are shared and allocated per job. Ratings and job counts are demo data; positions are samples.">
         <Button asChild variant="outline"><Link href="/map">Open map <ArrowRight size={13} /></Link></Button>
       </PageHead>
       {hub.completionError && <InlineError>{hub.completionError}</InlineError>}
@@ -85,7 +84,7 @@ export function TechniciansPage({ hub }: Hub) {
       <Card title={<><Users size={15} /> All technicians</>} aside={<Mono>{availableCount}/{technicians.length} available</Mono>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Technician data unavailable.</InlineError> : (
           <DataTable caption="Technicians" rows={rows} columns={columns} rowKey={(t) => t.id} loading={hubQ.isLoading}
-            searchText={(t) => `${t.name} ${t.zone} van ${t.van_id}`} searchLabel="Filter by name, zone or van"
+            searchText={(t) => `${t.name} ${t.zone}`} searchLabel="Filter by name or zone"
             initialSort={{ key: 'name', dir: 'asc' }}
             toolbar={<TechnicianFilters label="Status filter" value={status} onChange={setStatus} options={[{ value: 'all', label: 'All' }, { value: 'Available', label: 'Available' }, { value: 'Busy', label: 'Busy' }]} />}
             empty={<EmptyState icon={<Users size={16} />} title="No technicians match">Try another filter.</EmptyState>}

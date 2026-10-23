@@ -13,8 +13,12 @@ export interface DispatchInput {
   conversation_id?: number;
   /** @minimum 1 */
   tech_id: number;
-  /** @minimum 1 */
-  van_id: number;
+  /**
+     * Legacy hint only; the server allocates a free stocked van atomically.
+     * @deprecated
+     * @minimum 1
+     */
+  van_id?: number;
   /**
      * @minItems 1
      * @maxItems 50

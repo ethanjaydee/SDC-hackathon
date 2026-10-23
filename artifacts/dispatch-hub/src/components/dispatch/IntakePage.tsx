@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { getListConversationsQueryKey, useListConversations } from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
 import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, dateTime } from './shared';
+import { useDemoSession } from './session';
 import { MessagingConnectionNotice } from './MessagingConnectionNotice';
 
 type Level = 'Easy' | 'Normal' | 'Hard';
@@ -27,7 +28,10 @@ export default function IntakePage() {
   });
   const openConversation = (id: number) => navigate(`/analysis/${id}`);
 
-  const conversations = conversationsQ.data?.conversations ?? [];
+  const { technicianId } = useDemoSession();
+  const all = conversationsQ.data?.conversations ?? [];
+  // Technicians see unassigned requests and their own assigned ones only.
+  const conversations = technicianId == null ? all : all.filter((c) => c.technician_id == null || c.technician_id === technicianId);
   const groups = LEVELS.map((meta) => ({ ...meta, items: conversations.filter((c) => complexityOf(c) === meta.level) }));
   return (
     <div className="space-y-5">

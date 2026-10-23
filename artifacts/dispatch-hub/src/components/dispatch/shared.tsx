@@ -84,7 +84,7 @@ export function techTone(status: string): Tone {
   return status === 'Available' ? 'ok' : status === 'Busy' ? 'busy' : 'idle';
 }
 
-export function TechRow({ tech }: { tech: { id: number; name: string; status: string; zone: string; van_id: number } }) {
+export function TechRow({ tech }: { tech: { id: number; name: string; status: string; zone: string; van_id?: number } }) {
   const available = tech.status === 'Available';
   return (
     <div className="flex items-center justify-between gap-3" data-testid={`technician-${tech.id}`}>
@@ -92,7 +92,7 @@ export function TechRow({ tech }: { tech: { id: number; name: string; status: st
         <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full font-mono text-xs font-semibold ${available ? 'border border-ok/35 bg-ok/15 text-ok shadow-[0_0_14px_rgba(34,197,94,0.28)]' : 'bg-secondary'}`}>{initials(tech.name)}</span>
         <div className="min-w-0">
           <div className="truncate font-medium">{tech.name}</div>
-          <div className="flex gap-2 text-xs text-muted-foreground"><span>{tech.zone}</span><Mono>Van {tech.van_id}</Mono></div>
+          <div className="flex gap-2 text-xs text-muted-foreground"><span>{tech.zone}</span></div>
         </div>
       </div>
       <StatusBadge

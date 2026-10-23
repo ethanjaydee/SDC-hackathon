@@ -7,6 +7,7 @@
  */
 import type { DemoCustomerSite } from './demoCustomerSite';
 import type { SavedDispatchStatus } from './savedDispatchStatus';
+import type { ShopLocation } from './shopLocation';
 
 export interface SavedDispatch {
   /** Unknown means an older assignment cannot safely be completed. */
@@ -16,6 +17,7 @@ export interface SavedDispatch {
   tech_id: number;
   technician_name: string;
   van_id: number;
+  shop_location?: ShopLocation | null;
   parts: string[];
   customer_site: DemoCustomerSite;
   /**

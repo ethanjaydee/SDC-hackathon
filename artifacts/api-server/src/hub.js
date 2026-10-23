@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { demoSites } from "./demoSites.js";
+import { SHOP_LOCATION, chooseFreeVan, getTransportVans, seedTransportPool } from "./transportPool.js";
 import { candidateEligibility, classifyRepair, seedWorkshopDemo } from "./workshopDemo.js";
 import { analyzeRepair, googleDrivingRoute, recommendWorkshopTechnicians, summarizeCustomerReviews } from "./dispatchIntelligence.js";
 import { callRunPodModel } from "./runpodAnalysis.js";
@@ -194,6 +195,9 @@ db.transaction(() => {
   if (!columns.some((column) => column.name === "conversation_id")) {
     db.exec("ALTER TABLE dispatches ADD COLUMN conversation_id INTEGER REFERENCES conversation_threads(id)");
   }
+  if (!columns.some((column) => column.name === "shop_location_json")) {
+    db.exec("ALTER TABLE dispatches ADD COLUMN shop_location_json TEXT");
+  }
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS one_active_dispatch_per_tech
       ON dispatches(tech_id) WHERE status = 'Active';
@@ -283,11 +287,15 @@ const seedDemoConversations = db.transaction(() => {
 });
 seedDemoConversations.immediate();
 seedWorkshopDemo(db);
+seedTransportPool(db);
 
 function getHubData() {
   return {
+    shop: SHOP_LOCATION,
+    vans: getTransportVans(db),
     technicians: db.prepare(`
       SELECT t.id, t.name, t.status, t.zone, COALESCE(p.shared_van_id,t.van_id) AS van_id,
+        (SELECT d.van_id FROM dispatches d WHERE d.tech_id=t.id AND d.status='Active' LIMIT 1) AS assigned_van_id,
         p.level, p.experience_label, p.rating, p.demo_completed_jobs, p.specialty, p.lat, p.lng
       FROM technicians t LEFT JOIN technician_profiles p ON p.technician_id = t.id ORDER BY t.id
     `).all().map((tech) => tech.level == null
@@ -295,14 +303,14 @@ function getHubData() {
       : tech),
     inventory: db.prepare("SELECT * FROM inventory ORDER BY van_id, id").all(),
     activity_log: db.prepare(`
-      SELECT a.*, d.tech_id, d.technician_name, d.van_id, d.parts_json, d.customer_site_json, d.conversation_id,
+      SELECT a.*, d.tech_id, d.technician_name, d.van_id, d.parts_json, d.customer_site_json, d.shop_location_json, d.conversation_id,
         d.status AS dispatch_status, completed.timestamp AS completed_at,
         original.activity_id AS completion_dispatch_id
       FROM activity_log a LEFT JOIN dispatches d ON d.activity_id = a.id
       LEFT JOIN activity_log completed ON completed.id = d.completion_activity_id
       LEFT JOIN dispatches original ON original.completion_activity_id = a.id
       ORDER BY a.id DESC
-    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, conversation_id, dispatch_status, completed_at, ...activity }) => ({
+    `).all().map(({ tech_id, technician_name, van_id, parts_json, customer_site_json, shop_location_json, conversation_id, dispatch_status, completed_at, ...activity }) => ({
       ...activity,
       dispatch: tech_id == null ? null : {
         tech_id, technician_name, van_id,
@@ -310,6 +318,7 @@ function getHubData() {
         completed_at,
         parts: JSON.parse(parts_json),
         customer_site: JSON.parse(customer_site_json),
+        shop_location: shop_location_json ? JSON.parse(shop_location_json) : null,
         conversation_id,
       },
     })),
@@ -459,7 +468,7 @@ export async function analyzeConversation(id) {
 
 class DispatchConflict extends Error {}
 
-const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer_site_id, conversation_id }) => {
+const dispatch = db.transaction(({ tech_id, parts, approved_by, customer_site_id, conversation_id }) => {
   let complexity = classifyRepair(parts.join(" "));
   if (conversation_id != null) {
     const source = db.prepare("SELECT * FROM conversation_threads WHERE id = ?").get(conversation_id);
@@ -483,19 +492,22 @@ const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer
     }
   }
   const currentHub = getHubData();
-  const technician = currentHub.technicians.find((tech) => tech.id === tech_id && tech.van_id === van_id);
+  const technician = currentHub.technicians.find((tech) => tech.id === tech_id);
   if (!technician || technician.status !== "Available" ||
     db.prepare("SELECT 1 FROM dispatches WHERE tech_id = ? AND status = 'Active'").get(tech_id)) {
-    throw new DispatchConflict("This technician is no longer available for this van. Refresh and choose another match.");
+    throw new DispatchConflict("This technician is no longer available. Refresh and choose another match.");
   }
   const ineligible = candidateEligibility(currentHub, technician, parts, complexity);
   if (ineligible) throw new DispatchConflict(ineligible);
+  const van = chooseFreeVan(currentHub, parts);
+  if (!van) throw new DispatchConflict("No free stocked transport is available. No job or stock was changed.");
+  const van_id = van.id;
   // Repeated part names represent multiple units; validate aggregated demand.
   const required = new Map();
   for (const part of parts) required.set(part, (required.get(part) ?? 0) + 1);
   for (const [part, quantity] of required) {
     const result = db.prepare(
-      "UPDATE inventory SET quantity = quantity - ? WHERE van_id = ? AND part_name = ? AND quantity >= ?",
+      "UPDATE inventory SET quantity = quantity - ? WHERE van_id = ? AND part_name = ? COLLATE NOCASE AND quantity >= ?",
     ).run(quantity, van_id, part, quantity);
     if (result.changes !== 1) {
       throw new DispatchConflict(`Insufficient stock for ${part} in Van ${van_id}. No inventory was deducted.`);
@@ -510,9 +522,9 @@ const dispatch = db.transaction(({ tech_id, van_id, parts, approved_by, customer
     approved_by,
   );
   db.prepare(`
-    INSERT INTO dispatches (activity_id, tech_id, technician_name, van_id, parts_json, customer_site_json, status, conversation_id)
-    VALUES (?, ?, ?, ?, ?, ?, 'Active', ?)
-  `).run(activity.lastInsertRowid, tech_id, technician.name, van_id, JSON.stringify(parts), JSON.stringify(demoSites[customer_site_id]), conversation_id ?? null);
+    INSERT INTO dispatches (activity_id, tech_id, technician_name, van_id, parts_json, customer_site_json, status, conversation_id, shop_location_json)
+    VALUES (?, ?, ?, ?, ?, ?, 'Active', ?, ?)
+  `).run(activity.lastInsertRowid, tech_id, technician.name, van_id, JSON.stringify(parts), JSON.stringify(demoSites[customer_site_id]), conversation_id ?? null, JSON.stringify(SHOP_LOCATION));
   if (conversation_id != null) {
     db.prepare("UPDATE conversation_threads SET technician_id = ?, updated_at = ? WHERE id = ?")
       .run(tech_id, new Date().toISOString(), conversation_id);
@@ -531,8 +543,10 @@ const completeDispatch = db.transaction(({ dispatch_id, completed_by }) => {
       ? "This dispatch has already been completed. Refresh to see the current state."
       : "This legacy dispatch has no verified active assignment and cannot safely be completed.");
   }
-  const technician = getHubData().technicians.find((tech) => tech.id === job.tech_id);
-  if (!technician || technician.status !== "Busy" || technician.van_id !== job.van_id ||
+  const currentHub = getHubData();
+  const technician = currentHub.technicians.find((tech) => tech.id === job.tech_id);
+  const transport = currentHub.vans.find((van) => van.id === job.van_id);
+  if (!technician || technician.status !== "Busy" || !transport || transport.dispatch_id !== job.activity_id ||
     db.prepare("SELECT 1 FROM dispatches WHERE tech_id = ? AND status = 'Active' AND activity_id != ?").get(job.tech_id, dispatch_id)) {
     throw new DispatchConflict("The technician assignment has changed. Refresh before completing this job.");
   }
@@ -644,18 +658,13 @@ router.get("/technicians/:id/route/:customer_site_id", async (req, res) => {
     res.json(unavailable("not_configured", "Add the server-side GOOGLE_MAPS_API_KEY secret to request Google driving routes."));
     return;
   }
-  if (!Number.isFinite(technician.lat) || !Number.isFinite(technician.lng)) {
-    res.json(unavailable("unavailable", "This technician has no sample position, so a route cannot be calculated."));
-    return;
-  }
-
   try {
     const site = demoSites[params.data.customer_site_id];
-    const route = await googleDrivingRoute(technician, site);
+    const route = await googleDrivingRoute(SHOP_LOCATION, site);
     res.json(GetTechnicianRouteResponse.parse({
       ...base,
       status: "ready",
-      message: "Google driving route between synthetic sample positions.",
+      message: "Google driving route from the fixed demo workshop in Puchong to the customer sample site.",
       ...route,
     }));
   } catch {
@@ -1248,7 +1257,7 @@ router.post("/analyze-request", async (req, res) => {
 router.post("/approve-dispatch", (req, res, next) => {
   const parsed = ApproveDispatchBody.safeParse(req.body);
   if (!parsed.success || !parsed.data.approved_by.trim() || parsed.data.parts.some((part) => !part.trim())) {
-    res.status(400).json({ error: "Provide a valid demo customer site, technician, van, required parts and approver." });
+    res.status(400).json({ error: "Provide a valid demo customer site, technician, required parts and approver. A free stocked van is assigned automatically." });
     return;
   }
   try {

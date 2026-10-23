@@ -208,7 +208,7 @@ export default function OverviewPage({ hub }: Hub) {
               errorMessage="Sales sample unavailable."
             />
             <SummaryLink
-              href="/stock/low"
+              href="/transport"
               title="Low stock"
               value={ready ? lowStockItems.length : null}
               caption="Lines below 5 units"

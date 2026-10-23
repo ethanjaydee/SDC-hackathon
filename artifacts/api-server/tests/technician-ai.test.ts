@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { recommendWorkshopTechnicians } from "../src/dispatchIntelligence.js";
+import { SHOP_LOCATION } from "../src/transportPool.js";
 
 test("RunPod recommends only eligible technicians, preserves junior-first, and safely falls back", async () => {
   const originalFetch = globalThis.fetch;
@@ -89,6 +90,8 @@ test("Google Routes server key returns route polylines for customer-service revi
   globalThis.fetch = async (url, init) => {
     if (String(url) === "https://routes.googleapis.com/directions/v2:computeRoutes") {
       routeCalls++;
+      const routeInput = JSON.parse(String(init!.body));
+      assert.deepEqual(routeInput.origin.location.latLng, { latitude: SHOP_LOCATION.lat, longitude: SHOP_LOCATION.lng });
       assert.equal((init!.headers as Record<string, string>)["X-Goog-Api-Key"], "synthetic-maps-test-key");
       return new Response(JSON.stringify({
         routes: [{ distanceMeters: 2400, duration: "180s", polyline: { encodedPolyline: "sample-google-route" } }],
@@ -126,13 +129,14 @@ test("Google Routes server key returns route polylines for customer-service revi
     };
     const advice = await recommendWorkshopTechnicians(hub, thread, { lat: 3.02, lng: 101.62 });
 
-    assert.equal(routeCalls, 2);
+    assert.equal(routeCalls, 1, "all candidates depart from the same fixed workshop");
     assert.equal(advice.routing_status, "ready");
     assert.equal(advice.recommended_technician_id, 1);
     assert.deepEqual(advice.candidates.find((candidate) => candidate.technician_id === 1), {
       technician_id: 1,
+      van_id: 1,
       eligible: true,
-      reason: "Level 1 · required parts ready",
+      reason: "Level 1 · shared transport and required parts ready",
       distance_meters: 2400,
       duration_seconds: 180,
       polyline: "sample-google-route",

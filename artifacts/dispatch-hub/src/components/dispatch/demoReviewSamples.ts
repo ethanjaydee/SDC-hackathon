@@ -3,6 +3,8 @@ export type ReviewLevel = 'Easy' | 'Normal' | 'Hard';
 export type DemoReviewSample = {
   id: string;
   level: ReviewLevel;
+  /** Stable demo association; see technicianKeyFor. */
+  technicianId?: number;
   job: string;
   rating: number;
   comment: string;
@@ -50,4 +52,34 @@ export function getDemoReviewGroups() {
 
 export function getDemoReviewAverage() {
   return DEMO_REVIEW_SAMPLES.reduce((sum, review) => sum + review.rating, 0) / DEMO_REVIEW_SAMPLES.length;
+}
+
+const TECH_SLOTS = 12;
+/** Maps any hub technician ID onto one of the stable demo review identities. */
+export const technicianKeyFor = (technicianId: number) => ((Math.max(1, technicianId) - 1) % TECH_SLOTS) + 1;
+
+const NEGATIVE: readonly [ReviewLevel, string, number, string][] = [
+  ['Easy', 'Remote battery swap', 2, 'Arrived late and the remote still needed a second try.'],
+  ['Normal', 'AC filter service', 2, 'Filter was cleaned but the cooling barely changed and nothing was explained.'],
+  ['Hard', 'Capacitor replacement', 1, 'The fault returned two days later and the visit felt rushed.'],
+  ['Easy', 'Light bulb change', 2, 'The wrong bulb type was fitted and we had to ask again.'],
+  ['Normal', 'Drain hose clearing', 2, 'Drain cleared, but there was a mess left behind.'],
+  ['Hard', 'AC control board repair', 2, 'Took much longer than quoted with little communication.'],
+  ['Easy', 'LED bulb replacement', 2, 'Job was fine, but no call before arriving.'],
+  ['Normal', 'Routine AC service', 2, 'Skipped the outdoor unit even though it was on the job list.'],
+  ['Hard', 'Electrical fault diagnosis', 2, 'Diagnosis was vague and we were left unsure what was fixed.'],
+  ['Easy', 'Remote battery swap', 2, 'Quick, but left the old batteries on the table.'],
+  ['Normal', 'Drain hose clearing', 1, 'The leak came back the same evening.'],
+  ['Hard', 'Capacitor replacement', 2, 'Part was replaced but the unit stayed noisy afterwards.'],
+];
+
+/** Illustrative only: every technician has at least one negative sample. Never saved reviews. */
+export const DEMO_TECHNICIAN_REVIEW_SAMPLES: readonly DemoReviewSample[] = [
+  ...DEMO_REVIEW_SAMPLES.map((review, i) => ({ ...review, technicianId: (i % TECH_SLOTS) + 1 })),
+  ...NEGATIVE.map(([level, job, rating, comment], i): DemoReviewSample => ({ id: `tech-neg-${i + 1}`, level, job, rating, comment, technicianId: i + 1 })),
+];
+
+export function getDemoReviewsForTechnician(technicianId: number) {
+  const key = technicianKeyFor(technicianId);
+  return DEMO_TECHNICIAN_REVIEW_SAMPLES.filter((review) => review.technicianId === key);
 }

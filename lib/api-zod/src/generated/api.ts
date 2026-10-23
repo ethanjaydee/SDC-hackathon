@@ -28,6 +28,7 @@ export const RecommendTechniciansResponse = zod.object({
   "routing_message": zod.string(),
   "candidates": zod.array(zod.object({
   "technician_id": zod.number().int(),
+  "van_id": zod.number().int().nullish(),
   "eligible": zod.boolean(),
   "reason": zod.string(),
   "distance_meters": zod.number().nullable(),
@@ -185,12 +186,29 @@ export const getHubDataResponseActivityLogItemDispatchOneCustomerSiteLngMax = 18
 
 
 export const GetHubDataResponse = zod.object({
+  "shop": zod.object({
+  "name": zod.string(),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number()
+}).optional(),
+  "vans": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "status": zod.enum(['Available', 'Busy']),
+  "technician_id": zod.number().int().nullable(),
+  "technician_name": zod.string().nullable(),
+  "dispatch_id": zod.number().int().nullable()
+})).optional(),
   "technicians": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "status": zod.enum(['Available', 'Busy']),
   "zone": zod.string(),
   "van_id": zod.number().int(),
+  "assigned_van_id": zod.number().int().nullish(),
   "level": zod.number().int().min(1).max(getHubDataResponseTechniciansItemLevelMax).optional(),
   "experience_label": zod.string().optional(),
   "rating": zod.number().min(getHubDataResponseTechniciansItemRatingMin).max(getHubDataResponseTechniciansItemRatingMax).optional(),
@@ -217,6 +235,13 @@ export const GetHubDataResponse = zod.object({
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),
+  "shop_location": zod.union([zod.object({
+  "name": zod.string(),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number()
+}),zod.null()]).optional(),
   "parts": zod.array(zod.string()),
   "customer_site": zod.object({
   "id": zod.enum(['north', 'central', 'south']),
@@ -709,7 +734,7 @@ export const ApproveDispatchBody = zod.object({
   "customer_site_id": zod.enum(['north', 'central', 'south']),
   "conversation_id": zod.number().int().min(1).optional(),
   "tech_id": zod.number().int().min(1),
-  "van_id": zod.number().int().min(1),
+  "van_id": zod.number().int().min(1).optional().describe('Legacy hint only; the server allocates a free stocked van atomically.'),
   "parts": zod.array(zod.string().min(1).max(approveDispatchBodyPartsItemMax)).min(1).max(approveDispatchBodyPartsMax),
   "approved_by": zod.string().min(1).max(approveDispatchBodyApprovedByMax)
 })
@@ -733,12 +758,29 @@ export const approveDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMax
 
 
 export const ApproveDispatchResponse = zod.object({
+  "shop": zod.object({
+  "name": zod.string(),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number()
+}).optional(),
+  "vans": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "status": zod.enum(['Available', 'Busy']),
+  "technician_id": zod.number().int().nullable(),
+  "technician_name": zod.string().nullable(),
+  "dispatch_id": zod.number().int().nullable()
+})).optional(),
   "technicians": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "status": zod.enum(['Available', 'Busy']),
   "zone": zod.string(),
   "van_id": zod.number().int(),
+  "assigned_van_id": zod.number().int().nullish(),
   "level": zod.number().int().min(1).max(approveDispatchResponseTechniciansItemLevelMax).optional(),
   "experience_label": zod.string().optional(),
   "rating": zod.number().min(approveDispatchResponseTechniciansItemRatingMin).max(approveDispatchResponseTechniciansItemRatingMax).optional(),
@@ -765,6 +807,13 @@ export const ApproveDispatchResponse = zod.object({
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),
+  "shop_location": zod.union([zod.object({
+  "name": zod.string(),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number()
+}),zod.null()]).optional(),
   "parts": zod.array(zod.string()),
   "customer_site": zod.object({
   "id": zod.enum(['north', 'central', 'south']),
@@ -811,12 +860,29 @@ export const completeDispatchResponseActivityLogItemDispatchOneCustomerSiteLngMa
 
 
 export const CompleteDispatchResponse = zod.object({
+  "shop": zod.object({
+  "name": zod.string(),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number()
+}).optional(),
+  "vans": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "status": zod.enum(['Available', 'Busy']),
+  "technician_id": zod.number().int().nullable(),
+  "technician_name": zod.string().nullable(),
+  "dispatch_id": zod.number().int().nullable()
+})).optional(),
   "technicians": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "status": zod.enum(['Available', 'Busy']),
   "zone": zod.string(),
   "van_id": zod.number().int(),
+  "assigned_van_id": zod.number().int().nullish(),
   "level": zod.number().int().min(1).max(completeDispatchResponseTechniciansItemLevelMax).optional(),
   "experience_label": zod.string().optional(),
   "rating": zod.number().min(completeDispatchResponseTechniciansItemRatingMin).max(completeDispatchResponseTechniciansItemRatingMax).optional(),
@@ -843,6 +909,13 @@ export const CompleteDispatchResponse = zod.object({
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),
+  "shop_location": zod.union([zod.object({
+  "name": zod.string(),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number()
+}),zod.null()]).optional(),
   "parts": zod.array(zod.string()),
   "customer_site": zod.object({
   "id": zod.enum(['north', 'central', 'south']),
@@ -890,12 +963,29 @@ export const resetTechnicianAvailabilityResponseActivityLogItemDispatchOneCustom
 
 
 export const ResetTechnicianAvailabilityResponse = zod.object({
+  "shop": zod.object({
+  "name": zod.string(),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number()
+}).optional(),
+  "vans": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "status": zod.enum(['Available', 'Busy']),
+  "technician_id": zod.number().int().nullable(),
+  "technician_name": zod.string().nullable(),
+  "dispatch_id": zod.number().int().nullable()
+})).optional(),
   "technicians": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "status": zod.enum(['Available', 'Busy']),
   "zone": zod.string(),
   "van_id": zod.number().int(),
+  "assigned_van_id": zod.number().int().nullish(),
   "level": zod.number().int().min(1).max(resetTechnicianAvailabilityResponseTechniciansItemLevelMax).optional(),
   "experience_label": zod.string().optional(),
   "rating": zod.number().min(resetTechnicianAvailabilityResponseTechniciansItemRatingMin).max(resetTechnicianAvailabilityResponseTechniciansItemRatingMax).optional(),
@@ -922,6 +1012,13 @@ export const ResetTechnicianAvailabilityResponse = zod.object({
   "tech_id": zod.number().int(),
   "technician_name": zod.string(),
   "van_id": zod.number().int(),
+  "shop_location": zod.union([zod.object({
+  "name": zod.string(),
+  "label": zod.string(),
+  "area": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number()
+}),zod.null()]).optional(),
   "parts": zod.array(zod.string()),
   "customer_site": zod.object({
   "id": zod.enum(['north', 'central', 'south']),

@@ -597,6 +597,7 @@ components:
         status: { type: string, enum: [Available, Busy] }
         zone: { type: string }
         van_id: { type: integer }
+        assigned_van_id: { type: [integer, "null"] }
         level: { type: integer, minimum: 1, maximum: 3 }
         experience_label: { type: string }
         rating: { type: number, minimum: 0, maximum: 5 }
@@ -652,15 +653,43 @@ components:
         tech_id: { type: integer }
         technician_name: { type: string }
         van_id: { type: integer }
+        shop_location:
+          oneOf:
+            - $ref: "#/components/schemas/ShopLocation"
+            - type: "null"
         parts:
           type: array
           items: { type: string }
         customer_site: { $ref: "#/components/schemas/DemoCustomerSite" }
         conversation_id: { type: ["integer", "null"], minimum: 1 }
+    ShopLocation:
+      type: object
+      required: [name, label, area, lat, lng]
+      properties:
+        name: { type: string }
+        label: { type: string }
+        area: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+    TransportVan:
+      type: object
+      required: [id, name, plate, status, technician_id, technician_name, dispatch_id]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        plate: { type: string }
+        status: { type: string, enum: [Available, Busy] }
+        technician_id: { type: [integer, "null"] }
+        technician_name: { type: [string, "null"] }
+        dispatch_id: { type: [integer, "null"] }
     HubData:
       type: object
       required: [technicians, inventory, activity_log]
       properties:
+        shop: { $ref: "#/components/schemas/ShopLocation" }
+        vans:
+          type: array
+          items: { $ref: "#/components/schemas/TransportVan" }
         technicians:
           type: array
           items: { $ref: "#/components/schemas/Technician" }
@@ -710,6 +739,7 @@ components:
       required: [technician_id, eligible, reason, distance_meters, duration_seconds, polyline]
       properties:
         technician_id: { type: integer }
+        van_id: { type: [integer, "null"] }
         eligible: { type: boolean }
         reason: { type: string }
         distance_meters: { type: [number, "null"] }
@@ -790,12 +820,12 @@ components:
                 - type: "null"
     DispatchInput:
       type: object
-      required: [tech_id, van_id, parts, approved_by, customer_site_id]
+      required: [tech_id, parts, approved_by, customer_site_id]
       properties:
         customer_site_id: { $ref: "#/components/schemas/DemoSiteId" }
         conversation_id: { type: integer, minimum: 1 }
         tech_id: { type: integer, minimum: 1 }
-        van_id: { type: integer, minimum: 1 }
+        van_id: { type: integer, minimum: 1, deprecated: true, description: Legacy hint only; the server allocates a free stocked van atomically. }
         parts:
           type: array
           minItems: 1

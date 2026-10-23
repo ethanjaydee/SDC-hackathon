@@ -1,5 +1,6 @@
 import { AnalyzeRequestResponse } from "@workspace/api-zod";
 import { candidateEligibility, classifyRepair } from "./workshopDemo.js";
+import { SHOP_LOCATION, chooseFreeVan } from "./transportPool.js";
 import { requestRunPodJSON } from "./runpodAnalysis.js";
 
 async function aiJSON(system, input, useRunPod = false) {
@@ -107,15 +108,20 @@ export async function googleDrivingRoute(technician, customer) {
 export async function recommendWorkshopTechnicians(hub, thread, site) {
   const complexity = thread.analysis.complexity ?? classifyRepair(thread.subject);
   const configured = Boolean(process.env.GOOGLE_MAPS_API_KEY);
-  const candidates = await Promise.all(hub.technicians.map(async (tech) => {
-    const reason = candidateEligibility(hub, tech, thread.analysis.parts, complexity);
-    const candidate = { technician_id: tech.id, eligible: !reason, reason: reason ?? `${tech.experience_label ?? "Qualified technician"} · required parts ready`,
-      distance_meters: null, duration_seconds: null, polyline: null };
-    if (configured && !reason && Number.isFinite(tech.lat) && Number.isFinite(tech.lng)) {
-      try { Object.assign(candidate, await googleDrivingRoute(tech, site)); } catch { /* No fabricated fallback distance. */ }
-    }
-    return candidate;
-  }));
+  const reasons = new Map(hub.technicians.map((tech) => [tech.id, candidateEligibility(hub, tech, thread.analysis.parts, complexity)]));
+  // Everyone departs from the same workshop; do not rank people by fictional GPS.
+  let shopRoute = null;
+  if (configured && [...reasons.values()].some((reason) => !reason)) {
+    try { shopRoute = await googleDrivingRoute(SHOP_LOCATION, site); } catch { /* Never fabricate a route. */ }
+  }
+  const van = chooseFreeVan(hub, thread.analysis.parts);
+  const candidates = hub.technicians.map((tech) => {
+    const reason = reasons.get(tech.id);
+    return { technician_id: tech.id, van_id: reason ? null : van?.id ?? tech.van_id,
+      eligible: !reason, reason: reason ?? `${tech.experience_label ?? "Qualified technician"} · shared transport and required parts ready`,
+      distance_meters: null, duration_seconds: null, polyline: null,
+      ...(!reason && shopRoute ? shopRoute : {}) };
+  });
   const eligible = candidates.filter((c) => c.eligible);
   const techById = new Map(hub.technicians.map((tech) => [tech.id, tech]));
   eligible.sort((a, b) => {
@@ -126,13 +132,15 @@ export async function recommendWorkshopTechnicians(hub, thread, site) {
   let recommended = eligible[0]?.technician_id ?? null;
   let source = "Rules";
   let summary = recommended == null ? "No technician currently meets experience, availability, van and parts requirements."
-    : complexity === "Easy" ? "Prioritize a qualified junior technician to build experience; compare road time when available." : `Choose a qualified ${complexity === "Hard" ? "expert" : "experienced technician"} with ready stock; compare road time when available.`;
+    : complexity === "Easy" ? "Prioritize a qualified junior technician to build experience. A free stocked van will be allocated at approval."
+      : `Choose a qualified ${complexity === "Hard" ? "expert" : "experienced technician"} with available shared transport and required parts.`;
   if (eligible.length) {
     try {
       // Enforce junior-first for Easy before AI gets to choose a candidate.
       const preferredLevel = techById.get(eligible[0].technician_id).level;
       const pool = complexity === "Easy" ? eligible.filter((c) => techById.get(c.technician_id).level === preferredLevel) : eligible;
-      const result = await aiJSON("Recommend one technician only from the supplied eligible candidates. Return JSON {technician_id:number,summary:string}. Never invent distances or qualifications. Favor suitable experience first; when real Google road times are present compare those, then rating. State if road time is unavailable. Easy work is a learning opportunity for interns. Do not claim live GPS; locations and ratings are synthetic. Keep summary to two short sentences.", {
+      const result = await aiJSON("Recommend one technician only from the supplied eligible candidates. Return JSON {technician_id:number,summary:string}. Never invent distances or qualifications. Favor suitable experience, specialty and rating. All technicians depart from one fixed workshop, so the shop-to-customer road time is the SAME for everyone and must NOT distinguish candidates. A free stocked shared van is allocated at approval. Easy work is a learning opportunity for interns. Do not claim live GPS; locations and ratings are synthetic. Keep summary to two short sentences.", {
+        departure: SHOP_LOCATION,
         complexity, issue: thread.analysis.issue,
         candidates: pool.map((c) => ({ ...c, polyline: undefined, technician: techById.get(c.technician_id) })),
       }, true);
@@ -148,9 +156,9 @@ export async function recommendWorkshopTechnicians(hub, thread, site) {
     recommended_technician_id: recommended, summary, source,
     routing_status: routingStatus,
     routing_message: !configured ? "Google driving routes are unavailable until the server-side Google Maps Routes key is configured. No straight-line substitute is used."
-      : !eligible.length ? "No eligible technicians are available for route comparison."
-        : routed === eligible.length ? "Driving distances and estimated travel times from Google Maps; technician positions are synthetic."
-          : `Google returned ${routed} of ${eligible.length} routes for eligible technicians. Missing routes have no distance or ETA.`,
+      : !eligible.length ? "No technician currently meets experience and transport requirements."
+        : routed === eligible.length ? "Google driving distance and time from the fixed Puchong workshop to the customer. Both locations are synthetic samples."
+          : "The workshop-to-customer route is unavailable. No distance or ETA is substituted.",
     candidates,
   };
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
-import { Activity, BarChart3, Boxes, FlaskConical, History, Inbox, Loader2, Map as MapIcon, Menu, Radio, Star, Users } from 'lucide-react';
+import { Activity, BarChart3, FlaskConical, History, Inbox, Loader2, LogOut, Map as MapIcon, Menu, Radio, Repeat, Star, Truck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -11,11 +11,15 @@ import AnalysisPage from './AnalysisPage';
 import MapPage from './MapPage';
 import WorkshopAnalysisPage from './WorkshopAnalysisPage';
 import ReviewsPage from './ReviewsPage';
-import { LogPage, StockPage, TechniciansPage } from './ListPages';
+import { LogPage, TechniciansPage } from './ListPages';
 import { InlineError, StatusBadge } from './shared';
 import { ConnectionStatus, useConnection } from './ConnectionStatus';
 import { RouteBoundary } from './RouteBoundary';
 import { ThemeToggle } from './theme';
+import { DemoSessionProvider, useDemoSession } from './session';
+import RoleChooser from './RoleChooser';
+import TransportPage from './TransportPage';
+import { TechnicianHistory, TechnicianOverview, TechnicianReviews } from './TechnicianViews';
 import NotFound from '@/pages/not-found';
 
 function Brand() {
@@ -28,6 +32,16 @@ function Brand() {
 }
 
 export default function Dashboard() {
+  return <DemoSessionProvider><SessionGate /></DemoSessionProvider>;
+}
+
+function SessionGate() {
+  const { session } = useDemoSession();
+  return session ? <Workspace /> : <RoleChooser />;
+}
+
+function Workspace() {
+  const { technicianId, isTechnician, signOut } = useDemoSession();
   const hub = useDispatchHub();
   const { hubQ, lowStockCount, pendingAction } = hub;
   const connection = useConnection(hubQ);
@@ -38,19 +52,25 @@ export default function Dashboard() {
 
   useEffect(() => { setMenuOpen(false); window.scrollTo(0, 0); }, [location]);
 
-  const afterApproval = (tech: { name: string; van_id: number }) => {
-    setNotice(`Dispatch recorded for ${tech.name} · Van ${tech.van_id}. Parts were reserved at approval.`);
+  const afterApproval = (tech: { name: string }) => {
+    setNotice(`Dispatch recorded for ${tech.name}. A free van was allocated and parts were reserved at approval.`);
   };
+
+  const me = hub.technicians.find((t) => t.id === technicianId);
+  useEffect(() => {
+    if (isTechnician && hubQ.data && !me) signOut();
+  }, [isTechnician, hubQ.data, me, signOut]);
+  const bossOnly = (path: string) => path.startsWith('/technicians') || path.startsWith('/workshop-analysis') || path.startsWith('/today') || path.startsWith('/suppliers') || path.startsWith('/reorders');
 
   const items = [
     { to: '/', label: 'Overview', Icon: Activity },
     { to: '/intake', label: 'Service Requests', Icon: Inbox },
     { to: '/map', label: 'Technician map', Icon: MapIcon },
-    { to: '/technicians', label: 'Manpower', Icon: Users },
-    { to: '/stock', label: 'Inventory', Icon: Boxes, count: lowStockCount || undefined },
+    ...(isTechnician ? [] : [{ to: '/technicians', label: 'Manpower', Icon: Users }]),
+    { to: '/transport', label: 'Transport', Icon: Truck, count: lowStockCount || undefined },
     { to: '/log', label: 'Service History', Icon: History },
     { to: '/reviews', label: 'Reviews', Icon: Star },
-    { to: '/workshop-analysis', label: 'Analysis', Icon: BarChart3 },
+    ...(isTechnician ? [] : [{ to: '/workshop-analysis', label: 'Analysis', Icon: BarChart3 }]),
   ] as { to: string; label: string; Icon: typeof Activity; badge?: string; count?: number }[];
 
   const nav = (id: string) => (
@@ -72,18 +92,27 @@ export default function Dashboard() {
   );
 
   const isAnalysisRoute = location.startsWith('/analysis/');
+  const profileName = isTechnician ? me?.name ?? 'Technician' : 'Boss';
+  const profileRole = isTechnician ? 'Technician · demo identity' : 'Dispatch manager';
   const sideFooter = (
-    <div role="note" aria-label="Demo profile: Boss, Dispatch manager" className="rounded-lg border border-sidebar-border bg-card/60 p-3">
+    <div className="space-y-2">
+    <div role="note" aria-label={`Demo profile: ${profileName}, ${profileRole}`} className="rounded-lg border border-sidebar-border bg-card/60 p-3">
       <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">B</span>
+        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">{profileName[0]}</span>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center justify-between gap-2">
-            <p className="truncate text-sm font-semibold text-foreground">Boss</p>
+            <p className="truncate text-sm font-semibold text-foreground">{profileName}</p>
             <span className="shrink-0 rounded border border-sidebar-border px-1.5 py-0.5 font-mono text-[9px] font-medium tracking-wider text-muted-foreground">DEMO</span>
           </div>
-          <p className="truncate text-xs text-muted-foreground">Dispatch manager</p>
+          <p className="truncate text-xs text-muted-foreground">{profileRole}</p>
         </div>
       </div>
+      <p className="mt-2 text-[10px] leading-4 text-muted-foreground">Demo role selection, not real security.</p>
+    </div>
+    <div className="grid grid-cols-2 gap-2">
+      <Button type="button" variant="outline" size="sm" onClick={signOut} data-testid="button-switch-role"><Repeat size={12} /> Switch role</Button>
+      <Button type="button" variant="outline" size="sm" onClick={signOut} data-testid="button-sign-out"><LogOut size={12} /> Sign out</Button>
+    </div>
     </div>
   );
 
@@ -138,23 +167,26 @@ export default function Dashboard() {
           )}
           <div key={location} className="dh-rise">
             <RouteBoundary route={location}>
+              {isTechnician && bossOnly(location) ? <Redirect to={location.startsWith('/today') ? '/log' : '/'} replace /> : (
               <Switch>
-                <Route path="/"><OverviewPage hub={hub} /></Route>
+                <Route path="/">{isTechnician ? <TechnicianOverview hub={hub} /> : <OverviewPage hub={hub} />}</Route>
                 <Route path="/intake"><IntakePage /></Route>
                 <Route path="/analysis"><Redirect to="/intake" replace /></Route>
                 <Route path="/analysis/:id">{(params) => <AnalysisPage hub={hub} conversationId={Number(params.id)} onApprove={afterApproval} />}</Route>
                 <Route path="/workshop-analysis"><WorkshopAnalysisPage hub={hub} /></Route>
-                <Route path="/reviews"><ReviewsPage /></Route>
+                <Route path="/reviews">{isTechnician ? <TechnicianReviews hub={hub} /> : <ReviewsPage />}</Route>
+                <Route path="/transport"><TransportPage hub={hub} /></Route>
                 <Route path="/map"><MapPage hub={hub} /></Route>
                 <Route path="/technicians"><TechniciansPage hub={hub} /></Route>
-                <Route path="/stock/low"><StockPage hub={hub} lowOnly /></Route>
-                <Route path="/stock"><StockPage hub={hub} /></Route>
-                <Route path="/suppliers"><Redirect to="/stock" replace /></Route>
-                <Route path="/reorders"><Redirect to="/stock" replace /></Route>
+                <Route path="/stock/low"><Redirect to="/transport" replace /></Route>
+                <Route path="/stock"><Redirect to="/transport" replace /></Route>
+                <Route path="/suppliers"><Redirect to="/transport" replace /></Route>
+                <Route path="/reorders"><Redirect to="/transport" replace /></Route>
                 <Route path="/today"><LogPage hub={hub} notice={notice} todayOnly /></Route>
-                <Route path="/log"><LogPage hub={hub} notice={notice} /></Route>
+                <Route path="/log">{isTechnician ? <TechnicianHistory hub={hub} notice={notice} /> : <LogPage hub={hub} notice={notice} />}</Route>
                 <Route component={NotFound} />
               </Switch>
+              )}
             </RouteBoundary>
           </div>
           <footer className="pt-6 font-mono text-[11px] text-muted-foreground">Dispatch Hub · Synthetic demo data · AI or rule-based source shown per result</footer>

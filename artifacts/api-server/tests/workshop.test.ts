@@ -86,12 +86,15 @@ test('KL workshop examples, junior/expert matching, shared van guard and complet
     assert.equal(approved.status, 200);
     const active = await approved.json();
     assert.equal(active.activity_log[0].dispatch.tech_id, 9);
-    assert.equal((await post('approve-dispatch', { conversation_id: easy.id, customer_site_id: easy.customer_site_id, tech_id: 4, van_id: 1, parts: easyThread.analysis.parts, approved_by: 'Test Dispatcher' })).status, 409);
+    const juniorDispatch = await post('approve-dispatch', { conversation_id: easy.id, customer_site_id: easy.customer_site_id, tech_id: 4, van_id: 1, parts: easyThread.analysis.parts, approved_by: 'Test Dispatcher' });
+    assert.equal(juniorDispatch.status, 200);
+    const bothActive = await juniorDispatch.json();
+    assert.notEqual(bothActive.activity_log[0].dispatch.van_id, active.activity_log[0].dispatch.van_id);
     const auditId = active.activity_log[0].id;
     assert.equal((await post('complete-dispatch', { dispatch_id: auditId, completed_by: 'Test Dispatcher' })).status, 200);
     const completed = await get('hub-data');
     assert.equal(completed.technicians.find((t) => t.id === 9).status, 'Available');
-    assert.deepEqual(completed.inventory, active.inventory);
+    assert.deepEqual(completed.inventory, bothActive.inventory);
     const count = db.prepare('SELECT count(*) AS n FROM conversation_threads').get().n;
     seedWorkshopDemo(db);
     assert.equal(db.prepare('SELECT count(*) AS n FROM conversation_threads').get().n, count);

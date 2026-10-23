@@ -68,7 +68,7 @@ function SampleProof({ tech, activity }: { tech: Technician; activity: Activity[
   );
 }
 
-function BadgeButton({ t, rank, activity, podium }: { t: Technician; rank: number; activity: Activity[]; podium: boolean }) {
+export function BadgeButton({ t, rank, activity, podium }: { t: Technician; rank: number; activity: Activity[]; podium: boolean }) {
   const surface = podium ? badgeSurfaceForRank(rank) : 'border-card-border bg-card';
   return (
     <Dialog>

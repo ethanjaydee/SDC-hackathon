@@ -6,7 +6,9 @@ import { decodeGooglePolyline } from './routeGeometry';
 export type MiniPoint = { id: number; name: string; lat: number; lng: number; selected: boolean; eligible: boolean };
 type Props = {
   customer: { lat: number; lng: number; label: string };
-  technicians: MiniPoint[];
+  technicians?: MiniPoint[];
+  /** Fixed dispatch origin, drawn as marker S. */
+  shop?: { lat: number; lng: number; label?: string };
   /** Google-returned encoded polyline for the selected technician. */
   polyline?: string | null;
   height?: number;
@@ -33,7 +35,7 @@ function loadGoogle(key: string): Promise<Gmaps> {
 
 const abbr = (n: string) => n.split(' ').map((p) => p[0]).join('').replace(/[^a-z0-9]/gi, '').slice(0, 2);
 
-function LeafletMap({ customer, technicians, polyline, height }: Props) {
+function LeafletMap({ customer, technicians = [], shop, polyline, height }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -52,6 +54,7 @@ function LeafletMap({ customer, technicians, polyline, height }: Props) {
     const icon = (cls: string, t: string) => L.divIcon({ className: 'af-pin-wrap', html: `<div class="af-pin ${cls}">${t}</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
     const pts: L.LatLngTuple[] = [[customer.lat, customer.lng]];
     L.marker([customer.lat, customer.lng], { icon: icon('customer', 'C'), title: customer.label }).addTo(g);
+    if (shop) { pts.push([shop.lat, shop.lng]); L.marker([shop.lat, shop.lng], { icon: icon('shop', 'S'), title: shop.label ?? 'Shop' }).addTo(g); }
     technicians.forEach((t) => {
       pts.push([t.lat, t.lng]);
       L.marker([t.lat, t.lng], { icon: icon(t.selected ? 'best' : t.eligible ? 'ok' : 'busy', abbr(t.name)), title: `${t.name}${t.eligible ? '' : ' (not eligible)'}`, opacity: t.eligible || t.selected ? 1 : 0.55 }).addTo(g);
@@ -62,11 +65,11 @@ function LeafletMap({ customer, technicians, polyline, height }: Props) {
       pts.push(...routePath);
     }
     m.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15, animate: false });
-  }, [customer, technicians, polyline]);
-  return <div ref={box} style={{ height }} className="w-full rounded-lg border" role="img" aria-label="Map of customer site, recommended technician, and driving route" />;
+  }, [customer, technicians, shop, polyline]);
+  return <div ref={box} style={{ height }} className="w-full rounded-lg border" role="img" aria-label="Map of the shop, customer site and driving route" />;
 }
 
-function GoogleMap({ customer, technicians, polyline, height }: Props) {
+function GoogleMap({ customer, technicians = [], shop, polyline, height }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState(false);
   useEffect(() => {
@@ -82,6 +85,7 @@ function GoogleMap({ customer, technicians, polyline, height }: Props) {
         void scale;
       };
       add(customer.lat, customer.lng, customer.label, 'C', 1);
+      if (shop) add(shop.lat, shop.lng, shop.label ?? 'Shop', 'S', 1);
       technicians.forEach((t) => add(t.lat, t.lng, t.name, abbr(t.name), 1));
       if (polyline) {
         const path = g.geometry.encoding.decodePath(polyline);
@@ -91,7 +95,7 @@ function GoogleMap({ customer, technicians, polyline, height }: Props) {
       m.fitBounds(bounds, 40);
     }).catch(() => { if (!cancelled) setErr(true); });
     return () => { cancelled = true; overlays.forEach((o) => o.setMap?.(null)); };
-  }, [customer, technicians, polyline]);
+  }, [customer, technicians, shop, polyline]);
   if (err) return <div style={{ height }} className="grid place-items-center rounded-lg border bg-muted/40 p-4 text-center text-xs text-muted-foreground">Google Maps could not be loaded. Use the directions link instead.</div>;
   return <div ref={box} style={{ height }} className="w-full rounded-lg border" role="img" aria-label="Google map of customer site and technicians" />;
 }
@@ -104,8 +108,8 @@ export function MiniRouteMap(props: Props) {
       {google ? <GoogleMap {...props} height={height} /> : <LeafletMap {...props} height={height} />}
       <figcaption className="text-[11px] leading-snug text-muted-foreground">
         {google
-          ? 'Google Maps. Technician positions are synthetic samples, not live GPS. A route line appears only when Google returns one.'
-          : 'OpenStreetMap street map with a Google Routes driving path when available. Technician and customer positions are synthetic samples, not live GPS.'}
+          ? 'Google Maps. S is the fixed shop, C is the customer. Positions are synthetic samples, not live GPS. A route line appears only when Google returns one.'
+          : 'S is the fixed shop and C is the customer. The line is a Google Routes shop-to-customer driving path when available. Positions are synthetic samples, not live GPS.'}
       </figcaption>
     </figure>
   );

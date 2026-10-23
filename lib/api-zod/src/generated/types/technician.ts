@@ -13,6 +13,8 @@ export interface Technician {
   status: TechnicianStatus;
   zone: string;
   van_id: number;
+  /** @nullable */
+  assigned_van_id?: number | null;
   /**
      * @minimum 1
      * @maximum 3
