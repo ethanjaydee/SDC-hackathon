@@ -1,15 +1,11 @@
-import { useState, type FormEvent, type KeyboardEvent } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Check, CircleAlert, Lightbulb, MessageSquareText, RefreshCw, Sparkles, Star } from 'lucide-react';
 import {
   getListWorkshopReviewsQueryKey,
-  useCreateWorkshopReview,
   useListWorkshopReviews,
   useSummarizeWorkshopReviews,
 } from '@workspace/api-client-react';
 import type { CustomerReview, WorkshopReviewSummary } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, EmptyState, errorText, InlineError, PageHead, SkeletonRows, StatusBadge } from './shared';
 import { getDemoReviewGroups } from './demoReviewSamples';
 
@@ -100,55 +96,10 @@ function SummaryPanel({ summary }: { summary: WorkshopReviewSummary }) {
 }
 
 export default function ReviewsPage() {
-  const queryClient = useQueryClient();
   const reviewsQuery = useListWorkshopReviews({
     query: { queryKey: getListWorkshopReviewsQueryKey() },
   });
-  const createReview = useCreateWorkshopReview({
-    mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListWorkshopReviewsQueryKey() }),
-    },
-  });
   const summarizeReviews = useSummarizeWorkshopReviews();
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState('');
-  const [formError, setFormError] = useState('');
-
-  const handleRatingKeys = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      setRating((current) => Math.min(5, (current || 0) + 1));
-      document.getElementById(`review-rating-${Math.min(5, (rating || 0) + 1)}`)?.focus();
-    }
-    if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
-      event.preventDefault();
-      setRating((current) => Math.max(1, (current || 2) - 1));
-      document.getElementById(`review-rating-${Math.max(1, (rating || 2) - 1)}`)?.focus();
-    }
-  };
-
-  const submitReview = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const cleanedComment = comment.trim();
-    if (!rating) {
-      setFormError('Choose a star rating before saving.');
-      return;
-    }
-    if (cleanedComment.length < 3) {
-      setFormError('Add at least 3 characters of feedback.');
-      return;
-    }
-    setFormError('');
-    createReview.mutate(
-      { data: { rating, comment: cleanedComment } },
-      {
-        onSuccess: () => {
-          setRating(0);
-          setComment('');
-        },
-      },
-    );
-  };
 
   const data = reviewsQuery.data;
   const summary = summarizeReviews.data;
@@ -160,109 +111,21 @@ export default function ReviewsPage() {
       <PageHead
         kicker="Workshop · Voice of the customer"
         title="Customer reviews"
-        sub="Capture what customers say, then turn the patterns into practical workshop improvements."
+        sub="Review customer feedback and use AI to identify practical workshop improvements."
       >
         <StatusBadge tone="idle">Staff workspace</StatusBadge>
       </PageHead>
 
       <p role="note" className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/[0.045] px-4 py-3 text-xs leading-5 text-muted-foreground" data-testid="reviews-visibility-notice">
         <CircleAlert size={14} className="mt-0.5 shrink-0 text-primary" />
-        Reviews are entered by staff on behalf of customers and are visible to signed-in workspace accounts. No customer names are collected.
+        Saved reviews are visible to signed-in workspace accounts. No customer names are collected.
       </p>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.78fr)_minmax(0,1.22fr)]">
+      <div className="space-y-4">
         <Card
-          title={<><MessageSquareText size={15} /> Record feedback</>}
-          aside={<span>Private staff entry</span>}
-          className="h-fit"
+          title={<><Sparkles size={15} /> Improvement briefing</>}
+          aside={<span>AI runs only when requested</span>}
         >
-          <form className="space-y-4" onSubmit={submitReview} data-testid="review-entry-form">
-            <fieldset>
-              <legend className="text-sm font-medium">Customer rating <span className="text-err" aria-hidden="true">*</span></legend>
-              <div
-                className="mt-2 flex w-fit items-center gap-1 rounded-md focus-within:outline-none"
-                role="radiogroup"
-                aria-label="Rating from 1 to 5 stars"
-                aria-required="true"
-                onKeyDown={handleRatingKeys}
-                data-testid="review-rating-group"
-              >
-                {Array.from({ length: 5 }, (_, index) => {
-                  const value = index + 1;
-                  const selected = rating === value;
-                  return (
-                    <button
-                      key={value}
-                      id={`review-rating-${value}`}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      aria-label={`${value} ${value === 1 ? 'star' : 'stars'}`}
-                      tabIndex={selected || (!rating && value === 1) ? 0 : -1}
-                      onClick={() => { setRating(value); setFormError(''); }}
-                      className="grid h-10 w-10 place-items-center rounded-md text-pending transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      data-testid={`button-review-rating-${value}`}
-                    >
-                      <Star size={23} strokeWidth={1.8} className={value <= rating ? 'fill-pending text-pending' : 'text-muted-foreground/45'} aria-hidden="true" />
-                    </button>
-                  );
-                })}
-                <span className="ml-2 min-w-16 text-xs text-muted-foreground" aria-live="polite" data-testid="review-rating-value">
-                  {rating ? `${rating} of 5` : 'Not rated'}
-                </span>
-              </div>
-            </fieldset>
-
-            <div>
-              <label htmlFor="review-comment" className="text-sm font-medium">
-                Feedback <span className="text-err" aria-hidden="true">*</span>
-              </label>
-              <Textarea
-                id="review-comment"
-                value={comment}
-                onChange={(event) => { setComment(event.target.value); setFormError(''); }}
-                placeholder="What did the customer say about their service?"
-                required
-                minLength={3}
-                maxLength={1000}
-                rows={6}
-                aria-describedby="review-comment-help review-comment-count"
-                className="mt-2 resize-y bg-card text-sm leading-6"
-                data-testid="input-review-comment"
-              />
-              <div className="mt-1 flex justify-between gap-3 text-[11px] text-muted-foreground">
-                <span id="review-comment-help">Record their words; leave out names and identifying details.</span>
-                <span id="review-comment-count" className="shrink-0 font-mono tabular" aria-live="polite">{comment.length}/1000</span>
-              </div>
-            </div>
-
-            {formError && <p role="alert" className="text-xs text-err" data-testid="review-form-error">{formError}</p>}
-            {createReview.isError && (
-              <InlineError testId="review-submit-error">
-                {errorText(createReview.error, 'Feedback could not be saved. Check your connection and try again.')}
-              </InlineError>
-            )}
-            {createReview.isSuccess && !comment && (
-              <p role="status" className="flex items-center gap-2 text-xs text-ok" data-testid="review-submit-success">
-                <Check size={14} /> Feedback saved to the shared workspace.
-              </p>
-            )}
-            <Button
-              type="submit"
-              disabled={createReview.isPending}
-              className="w-full sm:w-auto"
-              data-testid="button-submit-review"
-            >
-              {createReview.isPending ? <><RefreshCw size={14} className="animate-spin" /> Saving feedback…</> : 'Save feedback'}
-            </Button>
-          </form>
-        </Card>
-
-        <div className="space-y-4">
-          <Card
-            title={<><Sparkles size={15} /> Improvement briefing</>}
-            aside={<span>AI runs only when requested</span>}
-          >
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="max-w-lg text-xs leading-5 text-muted-foreground">
                 Generate a focused read of saved feedback. Recommendations are starting points for staff review, not automatic changes.
@@ -305,16 +168,15 @@ export default function ReviewsPage() {
               <div data-testid="review-summary-empty">
                 <EmptyState
                   icon={<Sparkles size={17} />}
-                  title={data?.review_count ? 'Ready when you are' : 'Save feedback to begin'}
+                  title={data?.review_count ? 'Ready when you are' : 'No saved reviews yet'}
                 >
                   {data?.review_count
                     ? 'Generate a summary when you want recommendations based on saved customer feedback.'
-                    : 'Once reviews are saved, you can ask AI to identify service strengths and improvement opportunities.'}
+                    : 'Customer reviews will appear here when feedback is available.'}
                 </EmptyState>
               </div>
             )}
-          </Card>
-        </div>
+        </Card>
       </div>
 
       <Card
@@ -356,7 +218,7 @@ export default function ReviewsPage() {
                     <li key={review.id} className="rounded-md border border-card-border bg-card px-2.5 py-2" data-testid={`sample-review-${review.id}`}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate text-[11px] font-medium">{review.job}</span>
-                        <span className="shrink-0 font-mono text-[10px] tabular text-muted-foreground">{review.rating}/5</span>
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[10px] tabular ${review.rating <= 2 ? 'bg-err/10 text-err' : review.rating >= 4 ? 'bg-ok/10 text-ok' : 'bg-muted text-muted-foreground'}`}>{review.rating}/5</span>
                       </div>
                       <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{review.comment}</p>
                     </li>
@@ -402,7 +264,7 @@ export default function ReviewsPage() {
           </>
         ) : (
           <EmptyState icon={<MessageSquareText size={17} />} title="No customer feedback yet">
-            Staff can record a rating and comment here after service. Reviews are shared with signed-in workspace accounts.
+            Customer feedback will appear here when it is available.
           </EmptyState>
         )}
       </Card>

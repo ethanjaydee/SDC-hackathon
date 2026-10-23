@@ -284,3 +284,17 @@ html { view-transition-name: root; }
 .af-pin-sm.ok { background: hsl(var(--st-idle)); }
 .af-pin-sm.best { background: hsl(var(--st-ok)); }
 .af-pin-sm.busy { background: hsl(var(--st-busy)); }
+
+/* Dispatched demo conversations use a pale green glass surface in both themes. */
+.dh-dispatched-glass {
+  color: #173d2f;
+  background-color: #eafbf1;
+  background-image:
+    radial-gradient(ellipse at 14% 8%, rgb(255 255 255 / 88%), transparent 36%),
+    radial-gradient(ellipse at 86% 18%, rgb(110 231 183 / 28%), transparent 34%),
+    linear-gradient(135deg, rgb(236 253 245 / 98%), rgb(209 250 229 / 86%) 54%, rgb(240 253 250 / 96%));
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+}
+.dh-dispatched-glass .text-foreground { color: #173d2f; }
+.dh-dispatched-glass .text-muted-foreground { color: #4a6b5d; }

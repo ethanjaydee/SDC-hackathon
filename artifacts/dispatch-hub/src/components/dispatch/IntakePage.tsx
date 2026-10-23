@@ -59,7 +59,9 @@ export default function IntakePage() {
                   const site = DEMO_CUSTOMER_SITES.find((item) => item.id === conversation.customer_site_id);
                   return (
                     <article key={conversation.id} data-testid={`conversation-card-${conversation.id}`}
-                      className="group min-w-0 rounded-xl border border-card-border bg-card p-4 transition-all hover:border-primary/35 hover:shadow-md">
+                      className={`group min-w-0 rounded-xl border p-4 transition-all hover:shadow-md ${conversation.dispatch_activity_id != null
+                        ? 'dh-dispatched-glass border-emerald-300/70 hover:border-emerald-400/80'
+                        : 'border-card-border bg-card hover:border-primary/35'}`}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                            <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">{conversation.source} · Chat <Mono>#{conversation.id}</Mono></p>

@@ -90,8 +90,8 @@ export function SlideToApprove({ onConfirm, disabled, resetKey, idleLabel = 'Sli
     <div className="space-y-1.5">
       <div ref={track} data-testid={testId} data-status={status}
         className={`relative h-14 select-none overflow-hidden rounded-full border p-1 transition-colors duration-300 motion-reduce:transition-none ${status === 'success' ? 'border-ok/40 bg-ok/15' : status === 'failed' ? 'border-err/40 bg-err/[0.07]' : disabled ? 'border-card-border bg-muted/50 opacity-70' : 'border-ok/30 bg-ok/[0.07]'}`}>
-        <div aria-hidden="true" className="absolute inset-0 origin-left bg-ok/20 motion-reduce:!transition-none"
-          style={{ transform: `scaleX(${trackW ? (HANDLE + 4 + pos * maxPx) / trackW : 0})`, transition: dragging ? 'none' : 'transform .5s cubic-bezier(.22,1.2,.36,1)', willChange: 'transform' }} />
+        <div aria-hidden="true" className="absolute inset-y-1 left-1 rounded-full bg-ok/20 motion-reduce:!transition-none"
+          style={{ width: `${Math.max(0, Math.min(trackW - 8, HANDLE + pos * maxPx))}px`, transition: dragging ? 'none' : 'width .5s cubic-bezier(.22,1.2,.36,1)', willChange: 'width' }} />
         <span className="pointer-events-none absolute inset-0 grid place-items-center pl-10 text-sm font-medium text-foreground/80 motion-reduce:!transition-none" aria-live="polite" style={{ opacity: status === 'pending' || status === 'success' ? 1 : Math.max(0, 1 - pos * 1.6), transition: dragging ? 'none' : 'opacity .3s ease' }}>{label}</span>
         <div role="slider" tabIndex={locked ? -1 : 0} aria-label="Slide right to approve dispatch" aria-valuemin={0} aria-valuemax={100}
           aria-valuenow={Math.round(pos * 100)} aria-valuetext={pos >= 0.99 ? 'Ready. Press Enter to confirm.' : `${Math.round(pos * 100)} percent`}

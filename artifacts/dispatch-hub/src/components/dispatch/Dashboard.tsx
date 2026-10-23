@@ -40,7 +40,6 @@ export default function Dashboard() {
 
   const afterApproval = (tech: { name: string; van_id: number }) => {
     setNotice(`Dispatch recorded for ${tech.name} · Van ${tech.van_id}. Parts were reserved at approval.`);
-    navigate('/log');
   };
 
   const items = [

@@ -211,7 +211,8 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
 
       <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(420px,.9fr)] 2xl:gap-7">
         <div className="min-w-0 space-y-4">
-          <Card title={<><MessageSquareText size={15} /> Customer conversation</>} aside={
+          <Card className={dispatchSaved ? 'dh-dispatched-glass border-emerald-300/70 shadow-emerald-950/5' : ''}
+            title={<><MessageSquareText size={15} /> Customer conversation</>} aside={
             <span className="flex flex-wrap items-center justify-end gap-2">
               <StatusBadge tone={isTelegram ? (tgLive ? 'ok' : 'pending') : 'idle'}>{isTelegram ? (tgLive ? 'Telegram connected' : 'Telegram offline') : 'Demo request'}</StatusBadge>
               <Mono>{thread.message_count} messages</Mono>
@@ -368,7 +369,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
         </div>
 
         <div className="min-w-0 space-y-4">
-          {dispatchSaved && <Card title="Dispatch already recorded"><p className="text-sm text-muted-foreground">This request has a saved assignment and cannot be approved again. Open Service History to see its current completion status.</p></Card>}
+          {dispatchSaved && <Card title="Dispatch already recorded"><p className="text-sm text-muted-foreground">This request is assigned and remains here for review. It cannot be approved again. Use Service History to check completion status.</p></Card>}
           {!dispatchSaved && !(analysis && analysisIsCurrent) && (
             <Card title={<><Sparkles size={15} /> Recommended technician</>}>
               <p role="status" className="text-sm text-muted-foreground">A recommendation appears once the analysis is current for the latest messages.</p>

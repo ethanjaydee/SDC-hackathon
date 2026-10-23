@@ -83,7 +83,7 @@ test('overview prioritizes technician readiness with unfinished requests, sales,
       assert.equal(await page.getByTestId('overview-unfinished-count').innerText(), '2');
       assert.match(await page.getByTestId('overview-sales-ytd-value').innerText(), /^RM [\d,]+$/);
       assert.match(await page.getByTestId('overview-sales-ytd').innerText(), /Mock data/i);
-      assert.equal(await page.getByTestId('overview-customer-rating-value').innerText(), '4.2/5');
+      assert.equal(await page.getByTestId('overview-customer-rating-value').innerText(), '3.6/5');
       assert.match(await page.getByTestId('overview-customer-rating').innerText(), /Sample/i);
       assert.equal(await page.getByTestId('overview-low-stock-count-value').innerText(), '2', 'low stock includes only quantities strictly below five');
 
