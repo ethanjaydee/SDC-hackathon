@@ -120,7 +120,8 @@ export const SetConversationSiteResponse = zod.object({
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "urgency": zod.enum(['High', 'Med', 'Medium', 'Low']),
+  "is_fallback": zod.boolean().optional(),
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "rationale": zod.string().optional(),
   "analysis_source": zod.enum(['AI', 'Rules']).optional()
@@ -300,7 +301,8 @@ export const AnalyzeRequestBody = zod.object({
 export const AnalyzeRequestResponse = zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "urgency": zod.enum(['High', 'Med', 'Medium', 'Low']),
+  "is_fallback": zod.boolean().optional(),
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "rationale": zod.string().optional(),
   "analysis_source": zod.enum(['AI', 'Rules']).optional()
@@ -414,7 +416,8 @@ export const GetConversationThreadResponse = zod.object({
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "urgency": zod.enum(['High', 'Med', 'Medium', 'Low']),
+  "is_fallback": zod.boolean().optional(),
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "rationale": zod.string().optional(),
   "analysis_source": zod.enum(['AI', 'Rules']).optional()
@@ -499,7 +502,8 @@ export const SendConversationMessageResponse = zod.object({
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "urgency": zod.enum(['High', 'Med', 'Medium', 'Low']),
+  "is_fallback": zod.boolean().optional(),
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "rationale": zod.string().optional(),
   "analysis_source": zod.enum(['AI', 'Rules']).optional()
@@ -581,7 +585,8 @@ export const SendTelegramReplyResponse = zod.object({
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "urgency": zod.enum(['High', 'Med', 'Medium', 'Low']),
+  "is_fallback": zod.boolean().optional(),
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "rationale": zod.string().optional(),
   "analysis_source": zod.enum(['AI', 'Rules']).optional()
@@ -655,7 +660,8 @@ export const AnalyzeConversationResponse = zod.object({
   "analysis": zod.union([zod.object({
   "issue": zod.string(),
   "parts": zod.array(zod.string()),
-  "urgency": zod.enum(['High', 'Med', 'Low']),
+  "urgency": zod.enum(['High', 'Med', 'Medium', 'Low']),
+  "is_fallback": zod.boolean().optional(),
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "rationale": zod.string().optional(),
   "analysis_source": zod.enum(['AI', 'Rules']).optional()

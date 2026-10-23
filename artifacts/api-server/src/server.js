@@ -82,27 +82,8 @@ function getHubData() {
   };
 }
 
-export async function callRunPodModel(text) {
-  // MOCK ONLY: replace the return below with a fetch to your RunPod vLLM
-  // OpenAI-compatible endpoint, for example:
-  // const response = await fetch(`${endpoint}/v1/chat/completions`, {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json",
-  //     Authorization: `Bearer ${process.env.RUNPOD_API_KEY}` },
-  //   body: JSON.stringify({ model: modelName,
-  //     messages: [{ role: "user", content: text }],
-  //     response_format: { type: "json_object" } }),
-  //   signal: AbortSignal.timeout(30000),
-  // });
-  // Check response.ok, parse choices[0].message.content, and validate the
-  // parsed result with AnalyzeRequestResponse before returning it.
-  void text;
-  return {
-    issue: "Instrument Cluster Power Failure",
-    parts: ["100uF Capacitor", "NPN Transistor"],
-    urgency: "High",
-  };
-}
+import { callRunPodModel } from "./runpodAnalysis.js";
+export { callRunPodModel } from "./runpodAnalysis.js";
 
 class DispatchConflict extends Error {}
 

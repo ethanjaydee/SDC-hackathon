@@ -5,3 +5,4 @@
 - [Clerk test forwarding](clerk-browser-test-forwarding.md) — forwarded test requests can miss programmatic auth; confirm 401s with native browser fetch before changing app auth.
 - [Dispatch demo scope](dispatch-demo-scope.md) — keep demo locations in KL/Klang Valley; use easy jobs for intern experience and hard jobs for experts.
 - [Workshop stock planning](dispatch-stock-planning.md) — monthly usage plus five spare units; flag stock strictly below five, with fleet totals separate from van alerts.
+- [RunPod scope](runpod-scope.md) — vehicle-note fallback rules must not replace catalog-aware conversation triage and technician-complexity safeguards.

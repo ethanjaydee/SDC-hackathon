@@ -5,6 +5,8 @@ import { resolve } from "node:path";
 import { demoSites } from "./demoSites.js";
 import { candidateEligibility, classifyRepair, seedWorkshopDemo } from "./workshopDemo.js";
 import { analyzeRepair, recommendWorkshopTechnicians, summarizeCustomerReviews } from "./dispatchIntelligence.js";
+import { callRunPodModel } from "./runpodAnalysis.js";
+export { callRunPodModel } from "./runpodAnalysis.js";
 import { isOfferStale } from "./offerFreshness.js";
 import { prepareTelegramStorage, createTelegramStorage } from "./telegramStore.js";
 import { sendTelegramMessage, TelegramDeliveryError } from "./telegramTransport.js";
@@ -435,7 +437,9 @@ export async function analyzeConversation(id) {
   }
   const analyzedThrough = messages[messages.length - 1]?.id;
   const transcript = messages.map((message) => `${message.sender_role} (${message.sender_name}): ${message.text}`).join("\n");
-  const result = await callRunPodModel(transcript);
+  // Conversation triage retains catalog and technician-complexity safety checks.
+  const catalog = db.prepare("SELECT DISTINCT part_name FROM inventory").all().map((row) => row.part_name);
+  const result = await analyzeRepair(transcript, catalog);
   const latest = db.prepare(`
     SELECT id FROM conversation_messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1
   `).get(id);
@@ -449,11 +453,6 @@ export async function analyzeConversation(id) {
     WHERE id = ?
   `).run(JSON.stringify(result), analyzedThrough, updatedAt, id);
   return getConversationThread(id);
-}
-
-export async function callRunPodModel(text) {
-  const catalog = db.prepare("SELECT DISTINCT part_name FROM inventory").all().map((row) => row.part_name);
-  return analyzeRepair(text, catalog);
 }
 
 class DispatchConflict extends Error {}

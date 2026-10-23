@@ -18,7 +18,7 @@ import { APPROVER, type DispatchState } from './useDispatchHub';
 import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, initials, fieldClass } from './shared';
 import { MessagingConnectionNotice } from './MessagingConnectionNotice';
 
-const urgencyTone = { High: 'err', Med: 'pending', Low: 'idle' } as const;
+const urgencyTone = { High: 'err', Med: 'pending', Medium: 'pending', Low: 'idle' } as const;
 type Props = { hub: DispatchState; conversationId: number; onApprove: (tech: Technician) => void };
 
 export default function AnalysisPage({ hub, conversationId, onApprove }: Props) {
@@ -337,7 +337,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
               <div className="space-y-4">
                 {!analysisIsCurrent && <p role="status" className="rounded-md border border-pending/30 bg-pending/[0.07] p-3 text-xs">The chat changed after this result. Re-analyze it before dispatching.</p>}
                 <div>
-                  <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Suggested issue · {analysis.analysis_source === 'AI' ? 'AI analysis' : 'Rule-based analysis'}</p>
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Suggested issue · {analysis.is_fallback === false || analysis.analysis_source === 'AI' ? 'AI analysis' : 'Rule-based analysis'}</p>
                   <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
                     <h2 className="text-lg font-semibold">{analysis.issue}</h2>
                     <StatusBadge tone={urgencyTone[analysis.urgency]}>{analysis.urgency} urgency</StatusBadge>

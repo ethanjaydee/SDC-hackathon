@@ -42,7 +42,9 @@ test('completion validates assignment, persists atomically, never restores parts
     const initial = await read();
     assert.equal(initial.technicians[2].status, 'Busy'); // seed Busy has no invented job
     const analyzed = await post('analyze-request', { text: 'Instrument cluster power failure' });
-    assert.equal((await analyzed.json()).issue, 'Instrument Cluster Power Failure');
+    const analysis = await analyzed.json();
+    assert.equal(analysis.issue, 'Dashboard Cluster Malfunction');
+    assert.equal(analysis.is_fallback, true);
     const first = await approve();
     assert.equal(first.status, 200);
     const allocated = await first.json();

@@ -659,7 +659,8 @@ components:
         parts:
           type: array
           items: { type: string }
-        urgency: { type: string, enum: [High, Med, Low] }
+        urgency: { type: string, enum: [High, Med, Medium, Low] }
+        is_fallback: { type: boolean }
         complexity: { $ref: "#/components/schemas/JobComplexity" }
         rationale: { type: string }
         analysis_source: { type: string, enum: [AI, Rules] }

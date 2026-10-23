@@ -12,5 +12,6 @@ export type AnalysisUrgency = typeof AnalysisUrgency[keyof typeof AnalysisUrgenc
 export const AnalysisUrgency = {
   High: 'High',
   Med: 'Med',
+  Medium: 'Medium',
   Low: 'Low',
 } as const;

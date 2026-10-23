@@ -223,6 +223,7 @@ export type AnalysisUrgency = typeof AnalysisUrgency[keyof typeof AnalysisUrgenc
 export const AnalysisUrgency = {
   High: 'High',
   Med: 'Med',
+  Medium: 'Medium',
   Low: 'Low',
 } as const;
 
@@ -247,6 +248,7 @@ export interface Analysis {
   issue: string;
   parts: string[];
   urgency: AnalysisUrgency;
+  is_fallback?: boolean;
   complexity?: JobComplexity;
   rationale?: string;
   analysis_source?: AnalysisAnalysisSource;
