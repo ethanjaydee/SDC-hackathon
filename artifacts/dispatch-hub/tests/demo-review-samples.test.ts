@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DEMO_REVIEW_SAMPLES, filterReviewSamples, getDemoReviewAverage, getDemoReviewGroups } from '../src/components/dispatch/demoReviewSamples';
+import { DEMO_REVIEW_SAMPLES, filterReviewSamples, getDemoReviewAverage, getDemoReviewGroups, getOverallLowRatedReviews } from '../src/components/dispatch/demoReviewSamples';
 import type { Technician } from '@workspace/api-client-react';
 
 test('sample customer reviews are clearly synthetic and grouped with a top-rated example per difficulty', () => {
@@ -32,6 +32,18 @@ test('review filters support technician, exact star rating, combined filters, em
   assert.equal(filterReviewSamples(reviews, '1', '5').length, 1);
   assert.equal(filterReviewSamples(reviews, '2', '1').length, 0);
   assert.equal(filterReviewSamples(reviews, 'all', 'all').length, 3);
+});
+
+test('overall briefing includes every low-rated review across all levels without requiring saved feedback', () => {
+  const groups = getDemoReviewGroups();
+  const expected = groups.flatMap(({ reviews }) => reviews)
+    .filter(({ rating }) => rating <= 2)
+    .map(({ rating, comment }) => ({ rating, comment }));
+  assert.deepEqual(getOverallLowRatedReviews(), expected);
+  assert.ok(getOverallLowRatedReviews().length > 0);
+  assert.ok(groups.every(({ reviews }) => reviews.some(({ rating }) => rating <= 2)));
+  filterReviewSamples(groups[0].reviews, 'all', '5');
+  assert.deepEqual(getOverallLowRatedReviews(), expected, 'display filters do not change overall summary input');
 });
 
 import { DEMO_TECHNICIAN_REVIEW_SAMPLES, getDemoReviewsForTechnician } from '../src/components/dispatch/demoReviewSamples';

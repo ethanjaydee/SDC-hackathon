@@ -1,14 +1,10 @@
 import { useState } from 'react';
 import { ArrowRight, CircleAlert, Lightbulb, RefreshCw, Sparkles, Star } from 'lucide-react';
-import {
-  getListWorkshopReviewsQueryKey,
-  useListWorkshopReviews,
-  useSummarizeWorkshopReviews,
-} from '@workspace/api-client-react';
+import { useSummarizeWorkshopReviews } from '@workspace/api-client-react';
 import type { WorkshopReviewSummary } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, EmptyState, errorText, fieldClass, InlineError, PageHead, StatusBadge, type Hub } from './shared';
-import { filterReviewSamples, getDemoReviewGroups, getDemoReviewSamples } from './demoReviewSamples';
+import { filterReviewSamples, getDemoReviewGroups, getOverallLowRatedReviews } from './demoReviewSamples';
 
 function formatReviewDate(value: string) {
   const date = new Date(value);
@@ -100,14 +96,14 @@ function SummaryPanel({ summary }: { summary: WorkshopReviewSummary }) {
       <div className="rounded-lg border border-primary/20 bg-primary/[0.055] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary">Overview</p>
-          <StatusBadge tone={summary.source === 'sample' ? 'pending' : 'ok'}>
-            {summary.review_count} low-rated {summary.source === 'sample' ? 'sample reviews' : 'saved reviews'} · 1–2 stars
+          <StatusBadge tone="pending">
+            {summary.review_count} low-rated reviews · 1–2 stars
           </StatusBadge>
         </div>
         <p className="mt-2 text-sm leading-6">{summary.overview}</p>
         {summary.source === 'sample' && (
           <p role="note" className="mt-3 rounded-md border border-pending/20 bg-pending/[0.06] px-3 py-2 text-xs text-muted-foreground">
-            This AI summary uses fictional demonstration reviews, not saved customer feedback.
+            This AI summary uses the overall fictional review examples and is illustrative only.
           </p>
         )}
       </div>
@@ -136,24 +132,14 @@ function SummaryPanel({ summary }: { summary: WorkshopReviewSummary }) {
 
 export default function ReviewsPage({ hub }: Hub) {
   const { technicians } = hub;
-  const reviewsQuery = useListWorkshopReviews({
-    query: { queryKey: getListWorkshopReviewsQueryKey() },
-  });
   const summarizeReviews = useSummarizeWorkshopReviews();
 
-  const data = reviewsQuery.data;
   const summary = summarizeReviews.data;
   const sampleGroups = getDemoReviewGroups(technicians);
-  const sampleReviews = getDemoReviewSamples(technicians).filter(({ rating }) => rating <= 2).slice(0, 100)
-    .map(({ rating, comment }) => ({ rating, comment }));
-  const summarySource = data?.review_count ? 'saved' : 'sample';
-  const noLowRatedReviews = summarySource === 'sample'
-    ? sampleReviews.length === 0
-    : data != null && data.review_count <= 100 && !data.reviews.some(({ rating }) => rating <= 2);
+  const overallLowRatedReviews = getOverallLowRatedReviews(technicians);
+  const noLowRatedReviews = overallLowRatedReviews.length === 0;
   const generateSummary = () => summarizeReviews.mutate({
-    data: summarySource === 'sample'
-      ? { source: 'sample', sample_reviews: sampleReviews }
-      : { source: 'saved' },
+    data: { source: 'sample', sample_reviews: overallLowRatedReviews },
   });
 
   return (
@@ -168,7 +154,7 @@ export default function ReviewsPage({ hub }: Hub) {
 
       <p role="note" className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/[0.045] px-4 py-3 text-xs leading-5 text-muted-foreground" data-testid="reviews-visibility-notice">
         <CircleAlert size={14} className="mt-0.5 shrink-0 text-primary" />
-        Saved reviews are visible to signed-in workspace accounts. No customer names are collected.
+        The briefing uses all 1- and 2-star reviews across Easy, Normal and Hard, regardless of the filters below. No saving is required.
       </p>
 
       <div className="space-y-4">
@@ -178,21 +164,19 @@ export default function ReviewsPage({ hub }: Hub) {
         >
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="max-w-lg text-xs leading-5 text-muted-foreground">
-                {summarySource === 'sample'
-                  ? 'AI summarizes only 1- and 2-star fictional sample reviews, focusing on complaints and improvements.'
-                  : 'AI summarizes only 1- and 2-star saved reviews, focusing on complaints and improvements. Higher ratings are excluded.'}
+                AI summarizes the overall 1- and 2-star reviews across all technicians and job levels, focusing on complaints and improvements.
               </p>
               <Button
                 type="button"
                 variant="secondary"
                 onClick={generateSummary}
-                disabled={summarizeReviews.isPending || reviewsQuery.isLoading || noLowRatedReviews}
+                disabled={summarizeReviews.isPending || noLowRatedReviews || hub.hubQ.isLoading}
                 className="shrink-0"
                 data-testid="button-generate-review-summary"
               >
                 {summarizeReviews.isPending
                   ? <><RefreshCw size={14} className="animate-spin" /> Reading feedback…</>
-                  : <><Lightbulb size={14} /> {summarySource === 'sample' ? 'Generate AI sample summary' : 'Generate AI summary'}</>}
+                  : <><Lightbulb size={14} /> Generate AI summary</>}
               </Button>
             </div>
             {summarizeReviews.isPending ? (
@@ -212,7 +196,7 @@ export default function ReviewsPage({ hub }: Hub) {
                 retrying={summarizeReviews.isPending}
                 retryLabel="Try again"
               >
-                {errorText(summarizeReviews.error, 'AI summary is unavailable right now. Your saved feedback is safe; try again shortly.')}
+                {errorText(summarizeReviews.error, 'AI summary is unavailable right now. Try again shortly.')}
               </InlineError>
             ) : summary ? (
               <SummaryPanel summary={summary} />
@@ -236,7 +220,7 @@ export default function ReviewsPage({ hub }: Hub) {
         aside={<StatusBadge tone="pending">Illustrative only</StatusBadge>}
       >
         <p className="mb-4 rounded-lg border border-pending/20 bg-pending/[0.045] px-3 py-2 text-xs leading-5 text-muted-foreground" role="note" data-testid="review-samples-notice">
-          These examples are fictional. They are not saved customer reviews and are excluded from AI summaries and saved-review totals.
+          These examples are fictional. The AI improvement briefing includes all 1- and 2-star reviews shown here; no review is saved when generating a summary.
         </p>
         <div className="grid gap-3 xl:grid-cols-3" data-testid="review-sample-levels">
           {sampleGroups.map((group) => <ReviewLevelPanel key={group.level} group={group} />)}

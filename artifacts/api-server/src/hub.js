@@ -1053,7 +1053,7 @@ router.post("/workshop-reviews/summary", async (req, res) => {
     }));
   } catch (error) {
     req.log?.warn({ source, err: error }, "Workshop review summary generation failed");
-    res.status(503).json({ error: "AI review summary is unavailable. Your saved reviews are unchanged; try again later." });
+    res.status(503).json({ error: "AI review summary is unavailable. Try again later." });
   }
 });
 router.post("/sample-e-invoices/generate", async (req, res) => {
