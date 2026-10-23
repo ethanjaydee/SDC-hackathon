@@ -144,5 +144,8 @@ export async function createSampleInvoicePdf(invoice: SampleEInvoice, logoPng: U
     'This AI-generated example uses fictional business and customer details. It is not payable, not an issued invoice, and not a compliant Malaysian e-Invoice.',
     38, 88, regular, 7.5, 515, 10,
   );
+  page.drawText('This document is computer-generated; no signature is required.', {
+    x: 38, y: 55, font: regular, size: 8, color: muted,
+  });
   return pdf.save();
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DEMO_REVIEW_SAMPLES, getDemoReviewAverage, getDemoReviewGroups } from '../src/components/dispatch/demoReviewSamples';
+import { DEMO_REVIEW_SAMPLES, filterReviewSamples, getDemoReviewAverage, getDemoReviewGroups } from '../src/components/dispatch/demoReviewSamples';
 import type { Technician } from '@workspace/api-client-react';
 
 test('sample customer reviews are clearly synthetic and grouped with a top-rated example per difficulty', () => {
@@ -18,6 +18,20 @@ test('sample customer reviews are clearly synthetic and grouped with a top-rated
     assert.ok(group.otherReviews.some((review) => review.rating <= 2));
     assert.ok(group.reviews.every((review) => review.level === group.level));
   }
+});
+
+test('review filters support technician, exact star rating, combined filters, empty matches and clearing', () => {
+  const reviews = [
+    { ...DEMO_REVIEW_SAMPLES[0], technicianId: 1, rating: 5 },
+    { ...DEMO_REVIEW_SAMPLES[1], technicianId: 2, rating: 5 },
+    { ...DEMO_REVIEW_SAMPLES[2], technicianId: 1, rating: 2 },
+  ];
+  assert.equal(filterReviewSamples(reviews).length, 3);
+  assert.equal(filterReviewSamples(reviews, '1').length, 2);
+  assert.equal(filterReviewSamples(reviews, 'all', '5').length, 2);
+  assert.equal(filterReviewSamples(reviews, '1', '5').length, 1);
+  assert.equal(filterReviewSamples(reviews, '2', '1').length, 0);
+  assert.equal(filterReviewSamples(reviews, 'all', 'all').length, 3);
 });
 
 import { DEMO_TECHNICIAN_REVIEW_SAMPLES, getDemoReviewsForTechnician } from '../src/components/dispatch/demoReviewSamples';

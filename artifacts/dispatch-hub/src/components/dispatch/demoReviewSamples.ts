@@ -13,6 +13,16 @@ export type DemoReviewSample = {
   comment: string;
 };
 
+export function filterReviewSamples(
+  reviews: readonly DemoReviewSample[],
+  technicianId: string = 'all',
+  rating: string = 'all',
+) {
+  return reviews.filter((review) =>
+    (technicianId === 'all' || String(review.technicianId) === technicianId) &&
+    (rating === 'all' || review.rating === Number(rating)));
+}
+
 export const DEMO_REVIEW_LEVELS: readonly { level: ReviewLevel; note: string }[] = [
   { level: 'Easy', note: 'Quick swaps such as bulbs and remote batteries.' },
   { level: 'Normal', note: 'Routine servicing such as filter and drain work.' },
@@ -57,6 +67,7 @@ export function getDemoReviewSamples(technicians?: readonly Technician[]) {
   return technicians.flatMap((technician) =>
     getDemoReviewsForTechnician(technician.id, technician.level).map((review) => ({
       ...review,
+      technicianId: technician.id,
       technicianName: technician.name,
     })),
   );

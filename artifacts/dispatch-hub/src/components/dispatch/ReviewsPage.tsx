@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowRight, Check, CircleAlert, Lightbulb, RefreshCw, Sparkles, Star } from 'lucide-react';
 import {
   getListWorkshopReviewsQueryKey,
@@ -6,8 +7,8 @@ import {
 } from '@workspace/api-client-react';
 import type { WorkshopReviewSummary } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { Card, EmptyState, errorText, InlineError, PageHead, StatusBadge, type Hub } from './shared';
-import { getDemoReviewGroups } from './demoReviewSamples';
+import { Card, EmptyState, errorText, fieldClass, InlineError, PageHead, StatusBadge, type Hub } from './shared';
+import { filterReviewSamples, getDemoReviewGroups } from './demoReviewSamples';
 
 function formatReviewDate(value: string) {
   const date = new Date(value);
@@ -28,6 +29,68 @@ function Stars({ rating, label }: { rating: number; label?: string }) {
         />
       ))}
     </span>
+  );
+}
+
+function ReviewLevelPanel({ group }: { group: ReturnType<typeof getDemoReviewGroups>[number] }) {
+  const [technician, setTechnician] = useState('all');
+  const [rating, setRating] = useState('all');
+  const technicians = Array.from(new Map(group.reviews
+    .filter((review) => review.technicianId != null)
+    .map((review) => [String(review.technicianId), review.technicianName ?? `Technician ${review.technicianId}`])).entries());
+  const reviews = filterReviewSamples(group.reviews, technician, rating);
+  const average = reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : null;
+
+  return (
+    <section className="min-w-0 rounded-xl border border-card-border bg-muted/20 p-3.5" aria-labelledby={`sample-review-${group.level}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 id={`sample-review-${group.level}`} className="font-display text-base font-semibold">{group.level}</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{group.note}</p>
+        </div>
+        <div className="shrink-0 text-right" aria-live="polite">
+          <p className="font-mono text-sm font-semibold tabular">{average?.toFixed(1) ?? '—'}<span className="text-muted-foreground">/5</span></p>
+          <p className="text-[10px] text-muted-foreground">{reviews.length} of {group.count} samples</p>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <label className="min-w-0 text-xs text-muted-foreground">
+          Technician
+          <select className={`${fieldClass} mt-1 w-full`} value={technician} onChange={(event) => setTechnician(event.target.value)}
+            aria-label={`${group.level} technician filter`} data-testid={`review-technician-filter-${group.level}`}>
+            <option value="all">All technicians</option>
+            {technicians.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </select>
+        </label>
+        <label className="min-w-0 text-xs text-muted-foreground">
+          Star rating
+          <select className={`${fieldClass} mt-1 w-full`} value={rating} onChange={(event) => setRating(event.target.value)}
+            aria-label={`${group.level} star rating filter`} data-testid={`review-rating-filter-${group.level}`}>
+            <option value="all">All ratings</option>
+            {[5, 4, 3, 2, 1].map((stars) => <option key={stars} value={stars}>{stars} {stars === 1 ? 'star' : 'stars'}</option>)}
+          </select>
+        </label>
+      </div>
+      {reviews.length ? (
+        <ul className="mt-3 max-h-[520px] space-y-2 overflow-y-auto" aria-label={`${group.level} sample reviews`}>
+          {reviews.map((review) => (
+            <li key={`${review.technicianId}-${review.id}`} className="rounded-md border border-card-border bg-card px-2.5 py-2" data-testid={`sample-review-${review.id}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold">{review.technicianName ?? 'Sample technician'}</span>
+                <Stars rating={review.rating} />
+              </div>
+              <p className="mt-1 text-[11px] font-medium text-foreground/85">{review.job}</p>
+              <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{review.comment}</p>
+            </li>
+          ))}
+        </ul>
+      ) : <p role="status" className="mt-3 rounded-md border border-dashed p-3 text-xs text-muted-foreground">No reviews match these filters.</p>}
+      {(technician !== 'all' || rating !== 'all') && (
+        <Button type="button" size="sm" variant="ghost" className="mt-2" onClick={() => { setTechnician('all'); setRating('all'); }}>
+          Clear filters
+        </Button>
+      )}
+    </section>
   );
 }
 
@@ -170,32 +233,7 @@ export default function ReviewsPage({ hub }: Hub) {
           These examples are fictional. They are not saved customer reviews and are excluded from AI summaries and saved-review totals.
         </p>
         <div className="grid gap-3 xl:grid-cols-3" data-testid="review-sample-levels">
-          {sampleGroups.map((group) => (
-            <section key={group.level} className="min-w-0 rounded-xl border border-card-border bg-muted/20 p-3.5" aria-labelledby={`sample-review-${group.level}`}>
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <h3 id={`sample-review-${group.level}`} className="font-display text-base font-semibold">{group.level}</h3>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{group.note}</p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="font-mono text-sm font-semibold tabular">{group.averageRating?.toFixed(1)}<span className="text-muted-foreground">/5</span></p>
-                  <p className="text-[10px] text-muted-foreground">{group.count} samples</p>
-                </div>
-              </div>
-              <ul className="mt-3 max-h-[520px] space-y-2 overflow-y-auto" aria-label={`${group.level} sample reviews`}>
-                {group.reviews.map((review) => (
-                  <li key={review.id} className="rounded-md border border-card-border bg-card px-2.5 py-2" data-testid={`sample-review-${review.id}`}>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold">{review.technicianName ?? 'Sample technician'}</span>
-                      <Stars rating={review.rating} label={`${review.rating} out of 5 stars`} />
-                    </div>
-                    <p className="mt-1 text-[11px] font-medium text-foreground/85">{review.job}</p>
-                    <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{review.comment}</p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+          {sampleGroups.map((group) => <ReviewLevelPanel key={group.level} group={group} />)}
         </div>
       </Card>
 

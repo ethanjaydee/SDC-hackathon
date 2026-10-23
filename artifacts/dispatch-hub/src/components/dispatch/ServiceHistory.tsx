@@ -91,6 +91,7 @@ function SampleInvoiceAction({ technician, job }: { technician: Technician; job:
             <Download size={13} /> {pdfPending ? 'Preparing PDF…' : 'Download sample PDF'}
           </Button>
           <p className="font-medium">{invoice.line_description}</p>
+          <p className="text-muted-foreground">This document is computer-generated; no signature is required.</p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
             <dt className="text-muted-foreground">Job</dt><dd className="font-mono">{invoice.job_number}</dd>
             <dt className="text-muted-foreground">Technician</dt><dd>{invoice.technician_name}</dd>

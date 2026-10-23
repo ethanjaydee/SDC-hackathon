@@ -47,7 +47,7 @@ export function TechnicianHistory({ hub, notice }: Hub & { notice: string }) {
       </Card>
       {me && (
         <Card title={<><UserRound size={15} /> Sample completed work</>} aside={<StatusBadge tone="pending">Illustrative · not audit</StatusBadge>}>
-          <p className="mb-3 text-xs text-muted-foreground">Mock completed-job values with a sample photo, signature and invoice. Separate from your saved assignments above.</p>
+          <p className="mb-3 text-xs text-muted-foreground">Mock completed-job values with a sample photo and invoice. Separate from your saved assignments above.</p>
           <div className="mb-3 grid gap-3 sm:grid-cols-[minmax(0,220px)_1fr]" data-testid="sample-work-preview">
             <div className="relative overflow-hidden rounded-lg border">
               <img src={`${import.meta.env.BASE_URL}completion-proofs/${me.id % 2 ? 'filter-service.jpg' : 'window-ac-service.jpg'}`} alt="Illustrative service photo" className="h-32 w-full object-cover" />
