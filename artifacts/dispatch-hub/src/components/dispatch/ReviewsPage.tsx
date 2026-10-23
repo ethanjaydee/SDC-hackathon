@@ -39,12 +39,12 @@ function ReviewLevelPanel({ group }: { group: ReturnType<typeof getDemoReviewGro
 
   return (
     <section className="min-w-0 rounded-xl border border-card-border bg-muted/20 p-3.5" aria-labelledby={`sample-review-${group.level}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <h3 id={`sample-review-${group.level}`} className="font-display text-base font-semibold">{group.level}</h3>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">{group.note}</p>
         </div>
-        <div className="shrink-0 text-right" aria-live="polite">
+        <div className="ml-auto shrink-0 text-right" aria-live="polite">
           <p className="font-mono text-sm font-semibold tabular">{average?.toFixed(1) ?? '—'}<span className="text-muted-foreground">/5</span></p>
           <p className="text-[10px] text-muted-foreground">{reviews.length} of {group.count} samples</p>
         </div>
