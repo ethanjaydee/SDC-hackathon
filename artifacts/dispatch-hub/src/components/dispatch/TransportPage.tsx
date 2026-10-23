@@ -3,7 +3,7 @@ import { Boxes, ChevronDown, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, type Hub } from './shared';
 import { RestockSuggestion } from './RestockSuggestion';
-import { ANALYTICS_YEARS, MONTHS } from './workshopAnalytics';
+import { ANALYTICS_YEARS } from './workshopAnalytics';
 import { cn } from '@/lib/utils';
 
 export default function TransportPage({ hub }: Hub) {
@@ -11,19 +11,14 @@ export default function TransportPage({ hub }: Hub) {
   const vans = hubQ.data?.vans ?? [];
   const [lowOnly, setLowOnly] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
-  const [year, setYear] = useState<number>(ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1]);
-  const [month, setMonth] = useState(1);
+  const year = ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1];
+  const month = 1;
   const free = vans.filter((v) => v.status === 'Available').length;
   return (
     <div className="space-y-5">
       <PageHead kicker="Fleet" title="Transport" sub="Five shared vans. A free van is allocated to a technician when a job is approved, then released on completion.">
         <Button type="button" variant={lowOnly ? 'default' : 'outline'} aria-pressed={lowOnly} onClick={() => setLowOnly((v) => !v)} data-testid="button-low-stock-only">{lowOnly ? 'Show all stock' : 'Low stock only'}</Button>
       </PageHead>
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
-        <span className="text-sm font-medium">Restock planning period</span>
-        <label className="text-xs">Year <select aria-label="Restock sample year" className="ml-1 rounded-md border bg-background p-2" value={year} onChange={(e) => setYear(Number(e.target.value))}>{ANALYTICS_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select></label>
-        <label className="text-xs">Month <select aria-label="Restock sample month" className="ml-1 rounded-md border bg-background p-2" value={month} onChange={(e) => setMonth(Number(e.target.value))}>{MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select></label>
-      </div>
       <Card title={<><Truck size={15} /> Shared vans</>} aside={<Mono>{free}/{vans.length} free</Mono>}>
         {hubQ.isError && !hubQ.data ? <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Transport data unavailable.</InlineError>
           : hubQ.isLoading ? <SkeletonRows rows={5} label="Loading vans" />

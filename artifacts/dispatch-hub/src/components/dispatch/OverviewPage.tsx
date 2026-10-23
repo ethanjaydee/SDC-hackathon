@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { ArrowRight, Boxes, History, Inbox, Star, Wallet, UserRound } from 'lucide-react';
 import {
@@ -32,7 +32,6 @@ export default function OverviewPage({ hub }: Hub) {
       refetchOnWindowFocus: canAutoRefresh,
     },
   });
-  const [rosterOpen, setRosterOpen] = useState(false);
   const ready = !!hubQ.data;
   const availableCount = technicians.filter((tech) => tech.status === 'Available').length;
   const requestsReady = ready && !!requestsQ.data;
@@ -83,14 +82,11 @@ export default function OverviewPage({ hub }: Hub) {
           ) : (
             <div className="grid min-w-0 gap-5 sm:grid-cols-[minmax(14rem,0.9fr)_minmax(0,1fr)] sm:items-center" data-testid="overview-readiness" aria-busy={hubQ.isFetching}>
               <div className="flex justify-center">
-                <button
-                  type="button"
-                  aria-label={`${ready ? `Technician availability: ${availableCount} of ${technicians.length} available.` : 'Technician availability data unavailable.'} ${rosterOpen ? 'Hide' : 'Show'} roster details.`}
-                  aria-expanded={rosterOpen}
-                  aria-controls="overview-technician-details"
+                <div
+                  role="img"
+                  aria-label={ready ? `Technician availability: ${availableCount} of ${technicians.length} available.` : 'Technician availability data unavailable.'}
                   data-testid="overview-availability-circle"
-                  onClick={() => setRosterOpen((open) => !open)}
-                  className="group relative grid aspect-square w-full max-w-[17.5rem] place-items-center rounded-full border border-card-border bg-[radial-gradient(circle_at_50%_42%,hsl(var(--card)),hsl(var(--muted))_105%)] text-center shadow-[0_16px_44px_-30px_hsl(var(--foreground)/.4)] transition-transform duration-300 hover:scale-[1.015] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-card motion-reduce:transition-none"
+                  className="relative grid aspect-square w-full max-w-[17.5rem] place-items-center rounded-full border border-card-border bg-[radial-gradient(circle_at_50%_42%,hsl(var(--card)),hsl(var(--muted))_105%)] text-center shadow-[0_16px_44px_-30px_hsl(var(--foreground)/.4)]"
                 >
                   <svg viewBox="0 0 220 220" aria-hidden="true" className="absolute inset-0 h-full w-full -rotate-90 p-3">
                     <circle cx="110" cy="110" r="99" fill="none" stroke="hsl(var(--border))" strokeWidth="2" />
@@ -109,12 +105,8 @@ export default function OverviewPage({ hub }: Hub) {
                       <span className="ml-1 text-2xl font-medium tracking-normal text-muted-foreground sm:text-3xl">{ready ? `/ ${technicians.length}` : ''}</span>
                     </span>
                     <span className="mt-3 text-sm font-medium text-foreground">technicians available</span>
-                    <span className="mt-2 inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-primary">
-                      {rosterOpen ? 'Hide details' : 'View readiness'}
-                      <ArrowRight size={12} className={`transition-transform duration-300 motion-reduce:transition-none ${rosterOpen ? 'rotate-90' : ''}`} />
-                    </span>
                   </span>
-                </button>
+                </div>
               </div>
 
               <div className="min-w-0">
@@ -151,12 +143,6 @@ export default function OverviewPage({ hub }: Hub) {
                   </ul>
                 ) : (
                   <EmptyState icon={<UserRound size={17} />} title="No technicians on roster">Availability will appear here when the workshop roster is connected.</EmptyState>
-                )}
-                {rosterOpen && (
-                  <div id="overview-technician-details" role="region" aria-label="Technician readiness details" className="dh-rise mt-3 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2.5">
-                    <p className="text-xs leading-relaxed text-muted-foreground">Only technicians marked <strong className="font-semibold text-foreground">Available</strong> can be assigned a new dispatch. Busy and other statuses remain visible in muted rows.</p>
-                    <Link href="/technicians" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">Review technician roster <ArrowRight size={12} /></Link>
-                  </div>
                 )}
               </div>
             </div>

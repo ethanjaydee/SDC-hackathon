@@ -26,6 +26,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 TLG_API = "8849894105:AAFI5OXUOwAMZvOmZqZjsDP_Xv2Xc-kCFio"
-GOOGLE_MAP_API_KEY = "AIzaSyBnjHEMXIHDSsZSkavwLmQag6KbmeyHJzI"
 RUNPOD_ENDPOINT_URL = "https://api.runpod.ai/v2/b1dd8hy2hqo1nb/runsync"
-MAPS_DEMO_KEY = "AIzaSyBnjHEMXIHDSsZSkavwLmQag6KbmeyHJzI"

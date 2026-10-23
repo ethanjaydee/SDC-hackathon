@@ -299,3 +299,15 @@ html { view-transition-name: root; }
 }
 .dh-dispatched-glass .text-foreground { color: #173d2f; }
 .dh-dispatched-glass .text-muted-foreground { color: #4a6b5d; }
+
+.dark .dh-dispatched-glass {
+  color: #d1fae5;
+  border-color: rgb(52 211 153 / 28%);
+  background-color: #052e23;
+  background-image:
+    radial-gradient(ellipse at 14% 8%, rgb(16 70 50 / 82%), transparent 36%),
+    radial-gradient(ellipse at 86% 18%, rgb(16 185 129 / 18%), transparent 34%),
+    linear-gradient(135deg, rgb(4 32 25 / 98%), rgb(6 60 43 / 92%) 54%, rgb(4 47 46 / 96%));
+}
+.dark .dh-dispatched-glass .text-foreground { color: #ecfdf5; }
+.dark .dh-dispatched-glass .text-muted-foreground { color: #a7c9b8; }

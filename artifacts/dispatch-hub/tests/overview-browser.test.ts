@@ -63,7 +63,7 @@ async function openOverview(browser: Browser, width: number, height: number) {
   return { context, page };
 }
 
-test('overview prioritizes technician readiness with unfinished requests, sales, and sample customer rating', {
+test('overview prioritizes technician availability with unfinished requests, sales, and sample customer rating', {
   timeout: 120_000,
 }, async () => {
   assert.ok(existsSync(chromiumPath), `Chromium executable not found at ${chromiumPath}; set CHROMIUM_PATH to a local Chromium binary.`);
@@ -78,8 +78,9 @@ test('overview prioritizes technician readiness with unfinished requests, sales,
       assert.equal(await page.getByRole('note', { name: 'Demo profile: Boss, Dispatch manager' }).count(), 1);
       assert.equal(await page.getByRole('button', { name: /sign out/i }).count(), 1, 'demo role can be switched back to the chooser');
       const circle = page.getByTestId('overview-availability-circle');
-      assert.equal(await circle.getAttribute('aria-expanded'), 'false');
+      assert.equal(await circle.getAttribute('role'), 'img');
       assert.match(await circle.getAttribute('aria-label') || '', /1 of 2 available/);
+      assert.equal(await page.getByText('View readiness', { exact: true }).count(), 0);
       assert.equal(await page.getByTestId('overview-availability-value').innerText(), '1/ 2');
       assert.equal(await page.getByTestId('overview-unfinished-count').innerText(), '2');
       assert.match(await page.getByTestId('overview-sales-ytd-value').innerText(), /^RM [\d,]+$/);
@@ -101,18 +102,34 @@ test('overview prioritizes technician readiness with unfinished requests, sales,
       assert.equal(await page.getByTestId('link-overview-low-stock').getAttribute('href'), '/transport');
       assert.equal(await page.getByTestId('link-overview-log').getAttribute('href'), '/log');
 
-      await circle.focus();
-      await page.keyboard.press('Enter');
-      await assert.equal(await circle.getAttribute('aria-expanded'), 'true', 'availability details are keyboard operable');
-      await page.getByRole('region', { name: 'Technician readiness details' }).waitFor({ state: 'visible' });
-      await page.keyboard.press('Enter');
-      await assert.equal(await circle.getAttribute('aria-expanded'), 'false');
-
       const circleBox = await circle.boundingBox();
       const stockBox = await page.getByTestId('overview-unfinished-requests').boundingBox();
       assert.ok(circleBox && stockBox);
       assert.ok(circleBox.width > 220, 'the availability circle remains the dominant visual element');
       assert.ok(stockBox.x > circleBox.x, 'stock summaries sit in the secondary right-side column');
+
+      const dispatchedColors = await page.evaluate(() => {
+        const theme = document.createElement('div');
+        theme.className = 'dark';
+        const card = document.createElement('div');
+        card.className = 'dh-dispatched-glass';
+        const text = document.createElement('span');
+        text.className = 'text-foreground';
+        card.append(text);
+        theme.append(card);
+        document.body.append(theme);
+        const colors = { background: getComputedStyle(card).backgroundColor, text: getComputedStyle(text).color };
+        theme.remove();
+        return colors;
+      });
+      assert.equal(dispatchedColors.background, 'rgb(5, 46, 35)');
+      assert.equal(dispatchedColors.text, 'rgb(236, 253, 245)');
+
+      await page.getByRole('link', { name: /Transport/ }).click();
+      await page.getByRole('heading', { name: 'Transport' }).waitFor();
+      assert.equal(await page.getByText('Restock planning period', { exact: true }).count(), 0);
+      assert.equal(await page.getByLabel('Restock sample year').count(), 0);
+      assert.equal(await page.getByLabel('Restock sample month').count(), 0);
     } finally {
       await desktop.context.close();
     }
