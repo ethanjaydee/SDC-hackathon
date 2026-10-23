@@ -11,6 +11,7 @@ import type { CustomerReview, WorkshopReviewSummary } from '@workspace/api-clien
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, EmptyState, errorText, InlineError, PageHead, SkeletonRows, StatusBadge } from './shared';
+import { getDemoReviewGroups } from './demoReviewSamples';
 
 function formatReviewDate(value: string) {
   const date = new Date(value);
@@ -152,6 +153,7 @@ export default function ReviewsPage() {
   const data = reviewsQuery.data;
   const summary = summarizeReviews.data;
   const visibleReviews = data?.reviews ?? [];
+  const sampleGroups = getDemoReviewGroups();
 
   return (
     <div className="space-y-5" data-testid="reviews-page">
@@ -314,6 +316,57 @@ export default function ReviewsPage() {
           </Card>
         </div>
       </div>
+
+      <Card
+        title="Sample reviews by job level"
+        aside={<StatusBadge tone="pending">Illustrative only</StatusBadge>}
+      >
+        <p className="mb-4 rounded-lg border border-pending/20 bg-pending/[0.045] px-3 py-2 text-xs leading-5 text-muted-foreground" role="note" data-testid="review-samples-notice">
+          These examples are fictional. They are not saved customer reviews and are excluded from AI summaries and saved-review totals.
+        </p>
+        <div className="grid gap-3 xl:grid-cols-3" data-testid="review-sample-levels">
+          {sampleGroups.map((group) => (
+            <section key={group.level} className="min-w-0 rounded-xl border border-card-border bg-muted/20 p-3.5" aria-labelledby={`sample-review-${group.level}`}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 id={`sample-review-${group.level}`} className="font-display text-base font-semibold">{group.level}</h3>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{group.note}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-mono text-sm font-semibold tabular">{group.averageRating?.toFixed(1)}<span className="text-muted-foreground">/5</span></p>
+                  <p className="text-[10px] text-muted-foreground">{group.count} samples</p>
+                </div>
+              </div>
+              {group.bestReview && (
+                <article className="mt-3 rounded-lg border border-pending/25 bg-card p-3 shadow-sm" aria-label={`Top-rated ${group.level} sample review`} data-testid={`best-sample-review-${group.level}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-pending">Best sample</p>
+                      <p className="mt-1 text-xs font-semibold">{group.bestReview.job}</p>
+                    </div>
+                    <Stars rating={group.bestReview.rating} label={`${group.bestReview.rating} out of 5 stars`} />
+                  </div>
+                  <blockquote className="mt-2 text-xs leading-5 text-muted-foreground">“{group.bestReview.comment}”</blockquote>
+                </article>
+              )}
+              <div className="mt-3">
+                <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">More examples</p>
+                <ul className="mt-1.5 space-y-2">
+                  {group.otherReviews.map((review) => (
+                    <li key={review.id} className="rounded-md border border-card-border bg-card px-2.5 py-2" data-testid={`sample-review-${review.id}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-[11px] font-medium">{review.job}</span>
+                        <span className="shrink-0 font-mono text-[10px] tabular text-muted-foreground">{review.rating}/5</span>
+                      </div>
+                      <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{review.comment}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          ))}
+        </div>
+      </Card>
 
       <Card
         title="Saved reviews"

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { getUnfinishedRequests } from '../src/components/dispatch/overviewMetrics';
-import { getSalaryYtd, getSalaryMonthly } from '../src/components/dispatch/workshopAnalytics';
+import { getSalesYtd, getSalesMonthly } from '../src/components/dispatch/workshopAnalytics';
 
 test('unfinished requests include pending and active jobs, not completed or unknown history', () => {
   const requests = [null, 1, 2, 3, 4, 99].map((dispatch_activity_id) => ({ dispatch_activity_id }));
@@ -16,11 +16,11 @@ test('unfinished requests include pending and active jobs, not completed or unkn
   assert.deepEqual(getUnfinishedRequests([], []), { unfinished: 0, awaitingDispatch: 0, inProgress: 0, unknown: 0 });
 });
 
-test('salary YTD sums only January through the displayed month', () => {
-  assert.equal(getSalaryYtd(2026, 1), 33000);
-  assert.equal(getSalaryYtd(2026, 10), getSalaryMonthly(2026).slice(0, 10).reduce((sum, row) => sum + row.salaryMyr, 0));
-  assert.equal(getSalaryYtd(2026, 12), getSalaryMonthly(2026).reduce((sum, row) => sum + row.salaryMyr, 0));
-  assert.throws(() => getSalaryYtd(2026, 0), RangeError);
-  assert.throws(() => getSalaryYtd(2026, 13), RangeError);
-  assert.throws(() => getSalaryYtd(2030, 1), RangeError);
+test('sales YTD sums only January through the displayed month', () => {
+  assert.equal(getSalesYtd(2026, 1), 91000);
+  assert.equal(getSalesYtd(2026, 10), getSalesMonthly(2026).slice(0, 10).reduce((sum, row) => sum + row.salesMyr, 0));
+  assert.equal(getSalesYtd(2026, 12), getSalesMonthly(2026).reduce((sum, row) => sum + row.salesMyr, 0));
+  assert.throws(() => getSalesYtd(2026, 0), RangeError);
+  assert.throws(() => getSalesYtd(2026, 13), RangeError);
+  assert.throws(() => getSalesYtd(2030, 1), RangeError);
 });

@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ANALYTICS_YEARS, getInventoryRestockSuggestion, getPartsMonthlyUsage, getSalaryMonthly, getSalaryYearly, getStockPlan } from '../src/components/dispatch/workshopAnalytics';
+import { ANALYTICS_YEARS, getInventoryRestockSuggestion, getPartsMonthlyUsage, getSalesMonthly, getSalesYearly, getStockPlan } from '../src/components/dispatch/workshopAnalytics';
 
-test('sample yearly payroll is the exact sum of twelve monthly MYR costs', () => {
+test('sample sales revenue is the exact sum of twelve monthly MYR values', () => {
   for (const year of ANALYTICS_YEARS) {
-    const monthly = getSalaryMonthly(year);
+    const monthly = getSalesMonthly(year);
     assert.equal(monthly.length, 12);
-    assert.equal(getSalaryYearly().find((row) => row.year === year)!.salaryMyr, monthly.reduce((s, row) => s + row.salaryMyr, 0));
-    assert.ok(monthly.every((row) => row.salaryMyr > 0));
+    assert.equal(getSalesYearly().find((row) => row.year === year)!.salesMyr, monthly.reduce((s, row) => s + row.salesMyr, 0));
+    assert.ok(monthly.every((row) => row.salesMyr > 0));
   }
 });
 test('January capacitor example uses 15, targets 20, and purchases only the shortage', () => {
@@ -31,7 +31,7 @@ test('low-stock alert is strictly below five; unknown inventory is never reporte
   assert.equal(getStockPlan('AC Capacitor 35uF', 2026, 1).stockOnHand, null);
   assert.equal(getStockPlan('AC Capacitor 35uF', 2026, 1).suggestedPurchase, null);
   assert.equal(getPartsMonthlyUsage(2026, 'AC Capacitor 35uF').length, 12);
-  assert.throws(() => getSalaryMonthly(2030), RangeError);
+  assert.throws(() => getSalesMonthly(2030), RangeError);
   assert.throws(() => getStockPlan('AC Capacitor 35uF', 2026, 13), RangeError);
 });
 test('inventory restock suggestions share one fleet purchase and separate van top-ups', () => {

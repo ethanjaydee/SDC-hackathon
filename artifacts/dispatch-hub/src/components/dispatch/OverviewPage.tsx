@@ -13,7 +13,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, EmptyState, InlineError, Mono, PageHead, StatusBadge, dateTime, type Hub } from './shared';
 import { canAutoRefresh, pollInterval } from '@/lib/reliability';
 import { getUnfinishedRequests } from './overviewMetrics';
-import { ANALYTICS_YEARS, MONTHS, getSalaryYtd } from './workshopAnalytics';
+import { getDemoReviewAverage, DEMO_REVIEW_SAMPLES } from './demoReviewSamples';
+import { ANALYTICS_YEARS, MONTHS, getSalesYtd } from './workshopAnalytics';
 
 export default function OverviewPage({ hub }: Hub) {
   const { hubQ, technicians, inventory, activity } = hub;
@@ -40,9 +41,15 @@ export default function OverviewPage({ hub }: Hub) {
   const requestCounts = getUnfinishedRequests(requestsQ.data?.conversations ?? [], activity);
   const dateParts = new Intl.DateTimeFormat('en', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: 'numeric' }).formatToParts(new Date());
   const currentYear = Number(dateParts.find((part) => part.type === 'year')!.value);
-  const salaryYear = ANALYTICS_YEARS.find((year) => year === currentYear) ?? ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1];
-  const salaryMonth = salaryYear === currentYear ? Number(dateParts.find((part) => part.type === 'month')!.value) : 12;
-  const salaryYtd = getSalaryYtd(salaryYear, salaryMonth);
+  const salesYear = ANALYTICS_YEARS.find((year) => year === currentYear) ?? ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1];
+  const salesMonth = salesYear === currentYear ? Number(dateParts.find((part) => part.type === 'month')!.value) : 12;
+  const salesYtd = getSalesYtd(salesYear, salesMonth);
+  const useSampleRating = !reviewsQ.isError && reviewsQ.data?.review_count === 0;
+  const demoRating = getDemoReviewAverage();
+  const overviewRating = useSampleRating ? demoRating : reviewsQ.data?.average_rating;
+  const ratingCaption = useSampleRating
+    ? `Sample · ${DEMO_REVIEW_SAMPLES.length} examples`
+    : reviewsQ.data?.review_count ? `${reviewsQ.data.review_count} reviews · all time` : 'No reviews yet';
   const lowStockItems = inventory.filter((line) => line.quantity < 5);
   const latest = activity.slice(0, 4);
   const displayName = user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'Technician';
@@ -188,19 +195,19 @@ export default function OverviewPage({ hub }: Hub) {
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
             <SummaryLink
               href="/workshop-analysis"
-              title="Salary · YTD"
-              value={`RM ${salaryYtd.toLocaleString('en-MY')}`}
-              caption={`Jan–${MONTHS[salaryMonth - 1]} ${salaryYear} · Sample`}
+              title="Sales · YTD"
+              value={`RM ${salesYtd.toLocaleString('en-MY')}`}
+              caption={`Jan–${MONTHS[salesMonth - 1]} ${salesYear} · Sample`}
               icon={<Wallet size={16} />}
-              testId="overview-salary-ytd"
-              linkTestId="link-overview-salary"
+              testId="overview-sales-ytd"
+              linkTestId="link-overview-sales"
               loading={false}
               error={false}
               cached={false}
               badge="Mock data"
               retry={() => void hubQ.refetch()}
               retrying={hubQ.isFetching}
-              errorMessage="Salary sample unavailable."
+              errorMessage="Sales sample unavailable."
             />
             <SummaryLink
               href="/stock/low"
@@ -221,8 +228,8 @@ export default function OverviewPage({ hub }: Hub) {
             <SummaryLink
               href="/reviews"
               title="Customer rating"
-              value={reviewsQ.data?.average_rating == null ? null : `${reviewsQ.data.average_rating.toFixed(1)}/5`}
-              caption={reviewsQ.data?.review_count ? `${reviewsQ.data.review_count} reviews · all time` : 'No reviews yet'}
+              value={overviewRating == null ? null : `${overviewRating.toFixed(1)}/5`}
+              caption={ratingCaption}
               icon={<Star size={16} />}
               testId="overview-customer-rating"
               linkTestId="link-overview-customer-rating"
@@ -232,7 +239,8 @@ export default function OverviewPage({ hub }: Hub) {
               retry={() => void reviewsQ.refetch()}
               retrying={reviewsQ.isFetching}
               errorMessage="Customer rating is unavailable right now."
-              ratingStars={reviewsQ.data?.average_rating}
+              badge={useSampleRating ? 'Sample' : undefined}
+              ratingStars={overviewRating}
             />
           </div>
         </div>

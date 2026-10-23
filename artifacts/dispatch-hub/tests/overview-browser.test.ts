@@ -63,7 +63,7 @@ async function openOverview(browser: Browser, width: number, height: number) {
   return { context, page };
 }
 
-test('overview prioritizes technician readiness with unfinished requests and salary summaries', {
+test('overview prioritizes technician readiness with unfinished requests, sales, and sample customer rating', {
   timeout: 120_000,
   skip: authStorageState ? false : 'Requires DISPATCH_TEST_AUTH_STATE with a Clerk-authenticated Playwright storage state for the test-server origin.',
 }, async () => {
@@ -81,8 +81,10 @@ test('overview prioritizes technician readiness with unfinished requests and sal
       assert.match(await circle.getAttribute('aria-label') || '', /1 of 2 available/);
       assert.equal(await page.getByTestId('overview-availability-value').innerText(), '1/ 2');
       assert.equal(await page.getByTestId('overview-unfinished-count').innerText(), '2');
-      assert.match(await page.getByTestId('overview-salary-ytd-value').innerText(), /^RM [\d,]+$/);
-      assert.match(await page.getByTestId('overview-salary-ytd').innerText(), /Mock data/i);
+      assert.match(await page.getByTestId('overview-sales-ytd-value').innerText(), /^RM [\d,]+$/);
+      assert.match(await page.getByTestId('overview-sales-ytd').innerText(), /Mock data/i);
+      assert.equal(await page.getByTestId('overview-customer-rating-value').innerText(), '4.2/5');
+      assert.match(await page.getByTestId('overview-customer-rating').innerText(), /Sample/i);
       assert.equal(await page.getByTestId('overview-low-stock-count-value').innerText(), '2', 'low stock includes only quantities strictly below five');
 
       const availableRow = page.getByTestId('overview-technician-1');
@@ -92,7 +94,8 @@ test('overview prioritizes technician readiness with unfinished requests and sal
       assert.equal(await busyRow.locator('svg').count(), 1, 'unavailable technicians retain an icon alongside their status label');
       assert.equal(await page.getByTestId('link-overview-technicians').getAttribute('href'), '/technicians');
       assert.equal(await page.getByTestId('link-overview-requests').getAttribute('href'), '/intake');
-      assert.equal(await page.getByTestId('link-overview-salary').getAttribute('href'), '/workshop-analysis');
+      assert.equal(await page.getByTestId('link-overview-sales').getAttribute('href'), '/workshop-analysis');
+      assert.equal(await page.getByTestId('link-overview-customer-rating').getAttribute('href'), '/reviews');
       assert.equal(await page.getByTestId('link-overview-low-stock').getAttribute('href'), '/stock/low');
       assert.equal(await page.getByTestId('link-overview-log').getAttribute('href'), '/log');
 

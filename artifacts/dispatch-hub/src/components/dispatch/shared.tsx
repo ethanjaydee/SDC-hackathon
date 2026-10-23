@@ -81,20 +81,27 @@ export function StatusBadge({ tone, children, pulse, className, ...rest }: { ton
 }
 
 export function techTone(status: string): Tone {
-  return status === 'Busy' ? 'busy' : 'idle';
+  return status === 'Available' ? 'ok' : status === 'Busy' ? 'busy' : 'idle';
 }
 
 export function TechRow({ tech }: { tech: { id: number; name: string; status: string; zone: string; van_id: number } }) {
+  const available = tech.status === 'Available';
   return (
     <div className="flex items-center justify-between gap-3" data-testid={`technician-${tech.id}`}>
       <div className="flex min-w-0 items-center gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary font-mono text-xs font-semibold">{initials(tech.name)}</span>
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full font-mono text-xs font-semibold ${available ? 'border border-ok/35 bg-ok/15 text-ok shadow-[0_0_14px_rgba(34,197,94,0.28)]' : 'bg-secondary'}`}>{initials(tech.name)}</span>
         <div className="min-w-0">
           <div className="truncate font-medium">{tech.name}</div>
           <div className="flex gap-2 text-xs text-muted-foreground"><span>{tech.zone}</span><Mono>Van {tech.van_id}</Mono></div>
         </div>
       </div>
-      <StatusBadge tone={techTone(tech.status)} pulse={tech.status === 'Busy'}>{tech.status}</StatusBadge>
+      <StatusBadge
+        tone={techTone(tech.status)}
+        pulse={available || tech.status === 'Busy'}
+        className={available ? 'border-ok/40 bg-ok/15 text-ok shadow-[0_0_12px_rgba(34,197,94,0.22)]' : undefined}
+      >
+        {tech.status}
+      </StatusBadge>
     </div>
   );
 }

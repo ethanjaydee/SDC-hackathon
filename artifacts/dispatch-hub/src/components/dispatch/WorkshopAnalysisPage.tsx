@@ -3,7 +3,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContai
 import { BarChart3, Boxes, FlaskConical, Wallet } from 'lucide-react';
 import { Card, Mono, PageHead, StatusBadge, fieldClass, type Hub } from './shared';
 import {
-  ANALYTICS_YEARS, LOW_STOCK_THRESHOLD, MONTHS, USAGE_PARTS, getPartsMonthlyUsage, getSalaryMonthly, getSalaryYearly, getStockPlan, type UsagePart,
+  ANALYTICS_YEARS, LOW_STOCK_THRESHOLD, MONTHS, USAGE_PARTS, getPartsMonthlyUsage, getSalesMonthly, getSalesYearly, getStockPlan, type UsagePart,
 } from './workshopAnalytics';
 
 const C1 = '#61A9BD', C2 = '#CED14E', C3 = '#44986D';
@@ -15,8 +15,8 @@ export default function WorkshopAnalysisPage({ hub }: Hub) {
   const [year, setYear] = useState<number>(ANALYTICS_YEARS[ANALYTICS_YEARS.length - 1]);
   const [part, setPart] = useState<UsagePart>(USAGE_PARTS[0]);
   const [month, setMonth] = useState(1);
-  const monthly = useMemo(() => getSalaryMonthly(year), [year]);
-  const yearly = useMemo(() => getSalaryYearly(), []);
+  const monthly = useMemo(() => getSalesMonthly(year), [year]);
+  const yearly = useMemo(() => getSalesYearly(), []);
   const usage = useMemo(() => getPartsMonthlyUsage(year, part), [year, part]);
   const inv = hub.hubQ.data?.inventory;
   const plan = useMemo(() => getStockPlan(part, year, month, inv), [part, year, month, inv]);
@@ -26,40 +26,40 @@ export default function WorkshopAnalysisPage({ hub }: Hub) {
 
   return (
     <div className="space-y-5">
-      <PageHead kicker="Workshop" title="Workshop analysis" sub="Payroll cost and accessory usage trends, with a restock plan against live van stock.">
+      <PageHead kicker="Workshop" title="Workshop analysis" sub="Sample sales revenue and accessory usage trends, with a restock plan against live van stock.">
         <label className="sr-only" htmlFor="wa-year">Sample year</label>
         <select id="wa-year" className={`${fieldClass} w-auto`} value={year} onChange={(e) => setYear(Number(e.target.value))}>
           {ANALYTICS_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
       </PageHead>
       <p className="flex items-start gap-2 rounded-lg border bg-muted/40 px-4 py-2 text-xs text-muted-foreground" role="note">
-        <FlaskConical size={13} className="mt-0.5 shrink-0" /> Fictional payroll and usage figures for demonstration. Stock on hand comes from the hub inventory when available. Nothing here changes inventory.
+        <FlaskConical size={13} className="mt-0.5 shrink-0" /> Fictional workshop sales and usage figures for demonstration, not accounting records. Stock on hand comes from the hub inventory when available. Nothing here changes inventory.
       </p>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <Card title={<><Wallet size={15} /> Monthly salary cost · {year}</>} aside={<StatusBadge tone="pending">Fictional</StatusBadge>}>
-          <div className="h-64 w-full" role="img" aria-label={`Area chart of fictional monthly salary cost in MYR for ${year}`}>
+        <Card title={<><Wallet size={15} /> Monthly sales revenue · {year}</>} aside={<StatusBadge tone="pending">Sample data</StatusBadge>}>
+          <div className="h-64 w-full" role="img" aria-label={`Area chart of fictional monthly sales revenue in MYR for ${year}`}>
             <ResponsiveContainer>
               <AreaChart data={monthly} margin={{ left: 4, right: 8, top: 8 }}>
-                <defs><linearGradient id="salFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C1} stopOpacity={0.55} /><stop offset="100%" stopColor={C1} stopOpacity={0.05} /></linearGradient></defs>
+                <defs><linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C1} stopOpacity={0.55} /><stop offset="100%" stopColor={C1} stopOpacity={0.05} /></linearGradient></defs>
                 <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.25} vertical={false} />
                 <XAxis dataKey="monthLabel" tick={axis} tickLine={false} />
                 <YAxis domain={[0, 'auto']} tick={axis} tickLine={false} width={56} tickFormatter={(v) => `${Math.round(v / 1000)}k`} label={{ value: 'MYR', angle: -90, position: 'insideLeft', fontSize: 10 }} />
-                <Tooltip contentStyle={tip} formatter={(v: number) => [myr(v), 'Salary cost']} />
-                <Area type="monotone" dataKey="salaryMyr" name="Salary cost (MYR)" stroke={C1} strokeWidth={2} fill="url(#salFill)" isAnimationActive={false} />
+                <Tooltip contentStyle={tip} formatter={(v: number) => [myr(v), 'Sales revenue']} />
+                <Area type="monotone" dataKey="salesMyr" name="Sales revenue (MYR)" stroke={C1} strokeWidth={2} fill="url(#salesFill)" isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </Card>
-        <Card title="Annual salary cost" aside={<StatusBadge tone="pending">Fictional</StatusBadge>}>
-          <div className="h-64 w-full" role="img" aria-label="Column chart of fictional annual salary cost in MYR">
+        <Card title="Annual sales revenue" aside={<StatusBadge tone="pending">Sample data</StatusBadge>}>
+          <div className="h-64 w-full" role="img" aria-label="Column chart of fictional annual sales revenue in MYR">
             <ResponsiveContainer>
               <BarChart data={yearly} margin={{ left: 4, right: 8, top: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.25} vertical={false} />
                 <XAxis dataKey="year" tick={axis} tickLine={false} />
                 <YAxis domain={[0, 'auto']} tick={axis} tickLine={false} width={56} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-                <Tooltip contentStyle={tip} formatter={(v: number) => [myr(v), 'Salary cost']} />
-                <Bar dataKey="salaryMyr" name="Salary cost (MYR)" fill={C3} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Tooltip contentStyle={tip} formatter={(v: number) => [myr(v), 'Sales revenue']} />
+                <Bar dataKey="salesMyr" name="Sales revenue (MYR)" fill={C3} radius={[4, 4, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>

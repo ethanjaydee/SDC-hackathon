@@ -1,15 +1,9 @@
-import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, FlaskConical, Inbox, MessageSquareText, ScanSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  getGetConversationThreadQueryKey, getListConversationsQueryKey,
-  useAnalyzeConversation, useListConversations,
-} from '@workspace/api-client-react';
+import { getListConversationsQueryKey, useListConversations } from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
-import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, dateTime, errorText } from './shared';
-import { useToast } from '@/hooks/use-toast';
+import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, dateTime } from './shared';
 import { MessagingConnectionNotice } from './MessagingConnectionNotice';
 
 type Level = 'Easy' | 'Normal' | 'Hard';
@@ -28,50 +22,20 @@ const complexityOf = (c: { complexity?: string; subject: string; mock_summary: s
 
 export default function IntakePage() {
   const [, navigate] = useLocation();
-  const qc = useQueryClient();
-  const { toast } = useToast();
   const conversationsQ = useListConversations({
     query: { queryKey: getListConversationsQueryKey(), refetchInterval: 5_000, refetchOnWindowFocus: true },
   });
-  const analyze = useAnalyzeConversation();
-  const [openingId, setOpeningId] = useState<number | null>(null);
-
-  const openConversation = async (id: number) => {
-    if (analyze.isPending) return;
-    const selected = conversations.find((item) => item.id === id);
-    if (selected?.dispatch_activity_id != null) {
-      navigate(`/analysis/${id}`);
-      return;
-    }
-    setOpeningId(id);
-    try {
-      const thread = await analyze.mutateAsync({ id });
-      qc.setQueryData(getGetConversationThreadQueryKey(id), thread);
-      void qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-      toast({ title: 'Conversation ready', description: 'Only this selected chat was sent to the mock analyzer.' });
-      navigate(`/analysis/${id}`);
-    } catch {
-      // The mutation error is shown inline so the dispatcher can retry.
-    } finally {
-      setOpeningId(null);
-    }
-  };
+  const openConversation = (id: number) => navigate(`/analysis/${id}`);
 
   const conversations = conversationsQ.data?.conversations ?? [];
   const groups = LEVELS.map((meta) => ({ ...meta, items: conversations.filter((c) => complexityOf(c) === meta.level) }));
   return (
     <div className="space-y-5">
-      <PageHead large kicker="Step 1 · Customer conversations" title="Service Requests" sub="Review what the customer and technician said. Open one conversation to analyze it and prepare a dispatch.">
+      <PageHead large kicker="Step 1 · Customer conversations" title="Service Requests" sub="Open a request to read its conversation. Analysis starts in the background as the review loads.">
         <StatusBadge tone="pending"><FlaskConical size={10} /> Mock summaries</StatusBadge>
       </PageHead>
 
       <MessagingConnectionNotice />
-
-      {analyze.error && (
-        <InlineError onRetry={() => openingId != null && void openConversation(openingId)} retrying={analyze.isPending} retryLabel="Retry analysis">
-          {errorText(analyze.error, 'The selected conversation could not be analyzed.')}
-        </InlineError>
-      )}
 
       <Card title={<><Inbox size={15} /> Requests by difficulty</>} aside={<span className="font-mono">{conversations.length} saved chats</span>}>
         {conversationsQ.isLoading ? <SkeletonRows rows={4} label="Loading saved conversations" />
@@ -93,7 +57,6 @@ export default function IntakePage() {
                     <div className="grid gap-3 lg:grid-cols-2">
                 {group.items.map((conversation) => {
                   const site = DEMO_CUSTOMER_SITES.find((item) => item.id === conversation.customer_site_id);
-                  const isOpening = openingId === conversation.id && analyze.isPending;
                   return (
                     <article key={conversation.id} data-testid={`conversation-card-${conversation.id}`}
                       className="group min-w-0 rounded-xl border border-card-border bg-card p-4 transition-all hover:border-primary/35 hover:shadow-md">
@@ -128,9 +91,9 @@ export default function IntakePage() {
 
                       <div className="mt-4 flex items-center justify-between gap-2 border-t border-card-border pt-3">
                         <span className="font-mono text-[10px] text-muted-foreground">{conversation.message_count} messages</span>
-                        <Button type="button" size="sm" onClick={() => void openConversation(conversation.id)}
-                          disabled={analyze.isPending} data-testid={`button-review-conversation-${conversation.id}`}>
-                          <ScanSearch size={13} /> {isOpening ? 'Analyzing…' : conversation.dispatch_activity_id != null ? 'View conversation' : 'Review & analyze'} <ArrowRight size={13} />
+                        <Button type="button" size="sm" onClick={() => openConversation(conversation.id)}
+                          data-testid={`button-review-conversation-${conversation.id}`}>
+                          <ScanSearch size={13} /> {conversation.dispatch_activity_id != null ? 'View conversation' : 'Open request'} <ArrowRight size={13} />
                         </Button>
                       </div>
                     </article>
@@ -141,7 +104,7 @@ export default function IntakePage() {
                 ))}
               </div>}
       </Card>
-      <p className="text-xs text-muted-foreground">Telegram text messages can be live; summaries and analysis still use deterministic mock logic, not an external AI service. Incoming requests never dispatch automatically.</p>
+      <p className="text-xs text-muted-foreground">Open a chat to start its analysis while you read. Suggestions are advisory; a dispatcher must still approve every dispatch.</p>
     </div>
   );
 }

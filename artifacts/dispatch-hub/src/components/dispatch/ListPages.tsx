@@ -48,9 +48,26 @@ export function TechniciansPage({ hub }: Hub) {
   };
 
   const columns: Column<Technician>[] = [
-    { key: 'name', header: 'Technician', sort: (t) => t.name, cell: (t) => (
-      <span className="flex items-center gap-2" data-testid={`technician-${t.id}`}><span className="grid h-7 w-7 place-items-center rounded-full bg-secondary font-mono text-[11px]">{initials(t.name)}</span><span className="font-medium">{t.name}</span></span>) },
-    { key: 'status', header: 'Status', sort: (t) => t.status, cell: (t) => <StatusBadge tone={techTone(t.status)} pulse={t.status === 'Busy'}>{t.status}</StatusBadge> },
+    { key: 'name', header: 'Technician', sort: (t) => t.name, cell: (t) => {
+      const available = t.status === 'Available';
+      return (
+        <span className="flex items-center gap-2" data-testid={`technician-${t.id}`}>
+          <span className={`grid h-7 w-7 place-items-center rounded-full font-mono text-[11px] ${available ? 'border border-ok/35 bg-ok/15 text-ok shadow-[0_0_14px_rgba(34,197,94,0.28)]' : 'bg-secondary'}`}>
+            {initials(t.name)}
+          </span>
+          <span className="font-medium">{t.name}</span>
+        </span>
+      );
+    } },
+    { key: 'status', header: 'Status', sort: (t) => t.status, cell: (t) => (
+      <StatusBadge
+        tone={techTone(t.status)}
+        pulse={t.status === 'Available' || t.status === 'Busy'}
+        className={t.status === 'Available' ? 'border-ok/40 bg-ok/15 text-ok shadow-[0_0_12px_rgba(34,197,94,0.22)]' : undefined}
+      >
+        {t.status}
+      </StatusBadge>
+    ) },
     { key: 'level', header: 'Level', sort: (t) => t.level ?? 1, cell: (t) => <LevelBadge tech={t} /> },
     { key: 'rating', header: 'Rating · jobs', sort: (t) => t.rating ?? 0, cell: (t) => <span className="whitespace-nowrap text-xs">★ <Mono>{ratingText(t)}</Mono> · <Mono>{t.demo_completed_jobs ?? 0}</Mono> <span className="text-muted-foreground">demo</span></span> },
     { key: 'zone', header: 'Zone', sort: (t) => t.zone, cell: (t) => <span>{t.zone}{t.specialty && <span className="block text-[11px] text-muted-foreground">{t.specialty}</span>}</span> },

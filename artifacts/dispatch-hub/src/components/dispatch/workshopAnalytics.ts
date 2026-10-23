@@ -1,4 +1,4 @@
-/** Fictional full-year workshop planning examples, never payroll or usage records. */
+/** Fictional workshop sales and inventory planning examples, not accounting or usage records. */
 export const ANALYTICS_YEARS = [2024, 2025, 2026] as const;
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 export const SAFETY_STOCK = 5;
@@ -7,10 +7,10 @@ export const USAGE_PARTS = ['AC Capacitor 35uF', 'LED Bulb E27', 'AC Filter', 'D
 export type UsagePart = typeof USAGE_PARTS[number];
 export type StockLine = { van_id: number; part_name: string; quantity: number };
 
-const salary: Record<number, readonly number[]> = {
-  2024: [24500, 24500, 25000, 25000, 25800, 25800, 26500, 26500, 27000, 27000, 27800, 29000],
-  2025: [28500, 28500, 29200, 29200, 30000, 30000, 31000, 31000, 31800, 31800, 32500, 34000],
-  2026: [33000, 33000, 33800, 33800, 34600, 34600, 35500, 35500, 36400, 36400, 37200, 39000],
+const salesRevenueMyr: Record<number, readonly number[]> = {
+  2024: [65000, 68000, 72000, 74000, 78000, 82000, 85000, 89000, 86000, 91000, 97000, 105000],
+  2025: [79000, 82000, 87000, 89000, 94000, 98000, 102000, 108000, 105000, 112000, 118000, 128000],
+  2026: [91000, 95000, 99000, 103000, 108000, 111000, 115000, 119000, 117000, 124000, 133000, 148000],
 };
 const usage: Record<UsagePart, readonly number[]> = {
   'AC Capacitor 35uF': [15, 14, 16, 15, 17, 14, 16, 15, 15, 14, 16, 13],
@@ -24,16 +24,16 @@ const usage: Record<UsagePart, readonly number[]> = {
 function checkYear(year: number) {
   if (!ANALYTICS_YEARS.some((y) => y === year)) throw new RangeError('Choose a supported sample year.');
 }
-export function getSalaryMonthly(year: number) {
+export function getSalesMonthly(year: number) {
   checkYear(year);
-  return salary[year].map((salaryMyr, index) => ({ year, month: index + 1, monthLabel: MONTHS[index], salaryMyr }));
+  return salesRevenueMyr[year].map((salesMyr, index) => ({ year, month: index + 1, monthLabel: MONTHS[index], salesMyr }));
 }
-export function getSalaryYearly() {
-  return ANALYTICS_YEARS.map((year) => ({ year, salaryMyr: salary[year].reduce((sum, value) => sum + value, 0) }));
+export function getSalesYearly() {
+  return ANALYTICS_YEARS.map((year) => ({ year, salesMyr: salesRevenueMyr[year].reduce((sum, value) => sum + value, 0) }));
 }
-export function getSalaryYtd(year: number, throughMonth: number) {
+export function getSalesYtd(year: number, throughMonth: number) {
   if (!Number.isInteger(throughMonth) || throughMonth < 1 || throughMonth > 12) throw new RangeError('Choose month 1–12.');
-  return getSalaryMonthly(year).slice(0, throughMonth).reduce((sum, row) => sum + row.salaryMyr, 0);
+  return getSalesMonthly(year).slice(0, throughMonth).reduce((sum, row) => sum + row.salesMyr, 0);
 }
 export function getPartsMonthlyUsage(year: number, partName: UsagePart) {
   checkYear(year);
