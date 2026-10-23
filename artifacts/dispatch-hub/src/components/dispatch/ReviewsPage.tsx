@@ -8,7 +8,7 @@ import {
 import type { WorkshopReviewSummary } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, EmptyState, errorText, fieldClass, InlineError, PageHead, StatusBadge, type Hub } from './shared';
-import { filterReviewSamples, getDemoReviewGroups } from './demoReviewSamples';
+import { filterReviewSamples, getDemoReviewGroups, getDemoReviewSamples } from './demoReviewSamples';
 
 function formatReviewDate(value: string) {
   const date = new Date(value);
@@ -100,9 +100,16 @@ function SummaryPanel({ summary }: { summary: WorkshopReviewSummary }) {
       <div className="rounded-lg border border-primary/20 bg-primary/[0.055] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary">Overview</p>
-          <StatusBadge tone="ok">{summary.review_count} reviews considered</StatusBadge>
+          <StatusBadge tone={summary.source === 'sample' ? 'pending' : 'ok'}>
+            {summary.review_count} {summary.source === 'sample' ? 'sample reviews' : 'saved reviews'} considered
+          </StatusBadge>
         </div>
         <p className="mt-2 text-sm leading-6">{summary.overview}</p>
+        {summary.source === 'sample' && (
+          <p role="note" className="mt-3 rounded-md border border-pending/20 bg-pending/[0.06] px-3 py-2 text-xs text-muted-foreground">
+            This AI summary uses fictional demonstration reviews, not saved customer feedback.
+          </p>
+        )}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <section className="rounded-lg border border-card-border bg-card p-4" aria-labelledby="review-strengths-title">
@@ -151,6 +158,14 @@ export default function ReviewsPage({ hub }: Hub) {
   const data = reviewsQuery.data;
   const summary = summarizeReviews.data;
   const sampleGroups = getDemoReviewGroups(technicians);
+  const sampleReviews = getDemoReviewSamples(technicians).slice(0, 100)
+    .map(({ rating, comment }) => ({ rating, comment }));
+  const summarySource = data?.review_count ? 'saved' : 'sample';
+  const generateSummary = () => summarizeReviews.mutate({
+    data: summarySource === 'sample'
+      ? { source: 'sample', sample_reviews: sampleReviews }
+      : { source: 'saved' },
+  });
 
   return (
     <div className="space-y-5" data-testid="reviews-page">
@@ -174,19 +189,21 @@ export default function ReviewsPage({ hub }: Hub) {
         >
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="max-w-lg text-xs leading-5 text-muted-foreground">
-                Generate a focused read of saved feedback. Recommendations are starting points for staff review, not automatic changes.
+                {summarySource === 'sample'
+                  ? 'No saved reviews yet. Generate an AI summary from the fictional sample reviews below.'
+                  : 'Generate a focused read of saved feedback. Recommendations are starting points for staff review, not automatic changes.'}
               </p>
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => summarizeReviews.mutate()}
-                disabled={summarizeReviews.isPending || !data?.review_count}
+                onClick={generateSummary}
+                disabled={summarizeReviews.isPending || reviewsQuery.isLoading || (summarySource === 'sample' && sampleReviews.length === 0)}
                 className="shrink-0"
                 data-testid="button-generate-review-summary"
               >
                 {summarizeReviews.isPending
                   ? <><RefreshCw size={14} className="animate-spin" /> Reading feedback…</>
-                  : <><Lightbulb size={14} /> Generate AI summary</>}
+                  : <><Lightbulb size={14} /> {summarySource === 'sample' ? 'Generate AI sample summary' : 'Generate AI summary'}</>}
               </Button>
             </div>
             {summarizeReviews.isPending ? (
@@ -202,7 +219,7 @@ export default function ReviewsPage({ hub }: Hub) {
             ) : summarizeReviews.isError ? (
               <InlineError
                 testId="review-summary-error"
-                onRetry={() => summarizeReviews.mutate()}
+                onRetry={generateSummary}
                 retrying={summarizeReviews.isPending}
                 retryLabel="Try again"
               >
@@ -218,7 +235,7 @@ export default function ReviewsPage({ hub }: Hub) {
                 >
                   {data?.review_count
                     ? 'Generate a summary when you want recommendations based on saved customer feedback.'
-                    : 'Customer reviews will appear here when feedback is available.'}
+                    : 'The AI summary button uses the fictional sample reviews below until saved customer reviews are available.'}
                 </EmptyState>
               </div>
             )}

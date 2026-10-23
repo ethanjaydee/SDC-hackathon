@@ -46,6 +46,14 @@ export interface WorkshopReviewList {
   average_rating: number | null;
 }
 
+export type WorkshopReviewSummarySource = typeof WorkshopReviewSummarySource[keyof typeof WorkshopReviewSummarySource];
+
+
+export const WorkshopReviewSummarySource = {
+  saved: 'saved',
+  sample: 'sample',
+} as const;
+
 export interface WorkshopReviewSummary {
   /**
      * @minLength 1
@@ -69,7 +77,38 @@ export interface WorkshopReviewSummary {
      * @maximum 100
      */
   review_count: number;
+  source: WorkshopReviewSummarySource;
   generated_at: string;
+}
+
+export type WorkshopReviewSummaryInputSource = typeof WorkshopReviewSummaryInputSource[keyof typeof WorkshopReviewSummaryInputSource];
+
+
+export const WorkshopReviewSummaryInputSource = {
+  saved: 'saved',
+  sample: 'sample',
+} as const;
+
+export interface WorkshopReviewSummarySample {
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+  /**
+     * @minLength 3
+     * @maxLength 1000
+     */
+  comment: string;
+}
+
+export interface WorkshopReviewSummaryInput {
+  source: WorkshopReviewSummaryInputSource;
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  sample_reviews?: WorkshopReviewSummarySample[];
 }
 
 export interface SampleEInvoiceInput {

@@ -55,7 +55,8 @@ import type {
   TelegramStatus,
   WorkshopReviewInput,
   WorkshopReviewList,
-  WorkshopReviewSummary
+  WorkshopReviewSummary,
+  WorkshopReviewSummaryInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -901,14 +902,28 @@ export const getSummarizeWorkshopReviewsUrl = () => {
 /**
  * @summary Generate improvement and strength themes from saved reviews using AI
  */
-export const summarizeWorkshopReviews = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkshopReviewSummary> => {
+export const summarizeWorkshopReviews = async (workshopReviewSummaryInput: WorkshopReviewSummaryInput, options?: Parameters<typeof customFetch>[1]): Promise<WorkshopReviewSummary> => {
 
-  return customFetch<WorkshopReviewSummary>(getSummarizeWorkshopReviewsUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WorkshopReviewSummary>(getSummarizeWorkshopReviewsUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(workshopReviewSummaryInput)
   }
 );}
 
@@ -919,8 +934,8 @@ export const summarizeWorkshopReviews = async ( options?: Parameters<typeof cust
 export const getSummarizeWorkshopReviewsMutationKey = () => ['summarizeWorkshopReviews'] as const;
 
 export const getSummarizeWorkshopReviewsMutationOptions = <TError = ErrorType<InvalidRequestResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, TError,SummarizeWorkshopReviewsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, TError,SummarizeWorkshopReviewsMutationVariables, TContext> => {
 
 const mutationKey = getSummarizeWorkshopReviewsMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -932,10 +947,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, SummarizeWorkshopReviewsMutationVariables> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  summarizeWorkshopReviews(requestOptions)
+          return  summarizeWorkshopReviews(data,requestOptions)
         }
 
 
@@ -946,19 +961,19 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SummarizeWorkshopReviewsMutationResult = NonNullable<Awaited<ReturnType<typeof summarizeWorkshopReviews>>>
-
+    export type SummarizeWorkshopReviewsMutationBody = BodyType<WorkshopReviewSummaryInput>
     export type SummarizeWorkshopReviewsMutationError = ErrorType<InvalidRequestResponse>
-
+    export type SummarizeWorkshopReviewsMutationVariables = {data: BodyType<WorkshopReviewSummaryInput>}
 
     /**
  * @summary Generate improvement and strength themes from saved reviews using AI
  */
 export const useSummarizeWorkshopReviews = <TError = ErrorType<InvalidRequestResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof summarizeWorkshopReviews>>, TError,SummarizeWorkshopReviewsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof summarizeWorkshopReviews>>,
         TError,
-        void,
+        SummarizeWorkshopReviewsMutationVariables,
         TContext
       > => {
       return useMutation(getSummarizeWorkshopReviewsMutationOptions(options));

@@ -35,9 +35,15 @@ test('customer reviews validate and persist, aggregate safely, and only summariz
     assert.equal((await postReview({ rating: 6, comment: 'Invalid rating' })).status, 400);
     assert.equal((await postReview({ rating: 5, comment: '   ' })).status, 400);
 
-    const emptySummary = await fetch(`${base}/summary`, { method: 'POST' });
+    const postSummary = (data: unknown) => fetch(`${base}/summary`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const emptySummary = await postSummary({ source: 'saved' });
     assert.equal(emptySummary.status, 400);
-    assert.equal((await emptySummary.json()).error, 'Save at least one customer review before requesting an AI summary.');
+    assert.equal((await emptySummary.json()).error, 'Save at least one customer review before requesting a saved-review summary.');
+    assert.equal((await postSummary({ source: 'sample' })).status, 400);
 
     const firstResponse = await postReview({ rating: 5, comment: 'Quick service and friendly team.' });
     assert.equal(firstResponse.status, 201);
@@ -54,7 +60,7 @@ test('customer reviews validate and persist, aggregate safely, and only summariz
     assert.equal(updated.average_rating, 4);
     assert.deepEqual(updated.reviews.map((review: { id: number }) => review.id), [second.id, first.id]);
 
-    const requestedSummary = await fetch(`${base}/summary`, { method: 'POST' });
+    const requestedSummary = await postSummary({ source: 'saved' });
     assert.equal(requestedSummary.status, 503);
     assert.match((await requestedSummary.json()).error, /AI review summary is unavailable/);
 
@@ -71,7 +77,10 @@ test('customer reviews validate and persist, aggregate safely, and only summariz
       if (new URL(String(input)).hostname === '127.0.0.1') return originalFetch(input, init);
       assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer test-runpod-key');
       const body = JSON.parse(String(init?.body));
-      assert.match(body.input.prompt, /Quick service and friendly team/);
+      assert.match(body.input.prompt, /Quick service and friendly team|Synthetic sample review/);
+      if (body.input.prompt.includes('Synthetic sample review')) {
+        assert.match(body.input.prompt, /fictional demonstration reviews/i);
+      }
       return new Response(JSON.stringify({
         status: 'COMPLETED',
         output: {
@@ -82,14 +91,28 @@ test('customer reviews validate and persist, aggregate safely, and only summariz
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     };
     try {
-      const liveSummary = await fetch(`${base}/summary`, { method: 'POST' });
+      const liveSummary = await postSummary({ source: 'saved' });
       assert.equal(liveSummary.status, 200);
       const summary = await liveSummary.json();
       assert.equal(summary.overview, 'Customers value the friendly, quick service.');
       assert.deepEqual(summary.improvements, ['Reduce arrival delays.']);
       assert.deepEqual(summary.strengths, ['Friendly team.']);
       assert.equal(summary.review_count, 2);
+      assert.equal(summary.source, 'saved');
       assert.ok(Number.isFinite(Date.parse(summary.generated_at)));
+
+      const sampleResponse = await postSummary({
+        source: 'sample',
+        sample_reviews: [
+          { rating: 5, comment: 'Synthetic sample review: quick response and tidy work.' },
+          { rating: 2, comment: 'Synthetic sample review: the appointment started late.' },
+        ],
+      });
+      assert.equal(sampleResponse.status, 200);
+      const sampleSummary = await sampleResponse.json();
+      assert.equal(sampleSummary.source, 'sample');
+      assert.equal(sampleSummary.review_count, 2);
+      assert.equal(sampleSummary.overview, 'Customers value the friendly, quick service.');
     } finally {
       globalThis.fetch = originalFetch;
       for (const [key, value] of Object.entries(originalEnv)) {

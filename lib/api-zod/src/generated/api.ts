@@ -369,6 +369,23 @@ export const CreateWorkshopReviewResponse = zod.object({
 /**
  * @summary Generate improvement and strength themes from saved reviews using AI
  */
+export const summarizeWorkshopReviewsBodySampleReviewsItemRatingMax = 5;
+
+export const summarizeWorkshopReviewsBodySampleReviewsItemCommentMin = 3;
+export const summarizeWorkshopReviewsBodySampleReviewsItemCommentMax = 1000;
+
+export const summarizeWorkshopReviewsBodySampleReviewsMax = 100;
+
+
+
+export const SummarizeWorkshopReviewsBody = zod.object({
+  "source": zod.enum(['saved', 'sample']),
+  "sample_reviews": zod.array(zod.object({
+  "rating": zod.number().int().min(1).max(summarizeWorkshopReviewsBodySampleReviewsItemRatingMax),
+  "comment": zod.string().min(summarizeWorkshopReviewsBodySampleReviewsItemCommentMin).max(summarizeWorkshopReviewsBodySampleReviewsItemCommentMax)
+})).min(1).max(summarizeWorkshopReviewsBodySampleReviewsMax).optional()
+})
+
 export const summarizeWorkshopReviewsResponseOverviewMax = 400;
 
 export const summarizeWorkshopReviewsResponseImprovementsItemMax = 300;
@@ -388,6 +405,7 @@ export const SummarizeWorkshopReviewsResponse = zod.object({
   "improvements": zod.array(zod.string().min(1).max(summarizeWorkshopReviewsResponseImprovementsItemMax)).max(summarizeWorkshopReviewsResponseImprovementsMax),
   "strengths": zod.array(zod.string().min(1).max(summarizeWorkshopReviewsResponseStrengthsItemMax)).max(summarizeWorkshopReviewsResponseStrengthsMax),
   "review_count": zod.number().int().min(1).max(summarizeWorkshopReviewsResponseReviewCountMax),
+  "source": zod.enum(['saved', 'sample']),
   "generated_at": zod.coerce.date()
 })
 
