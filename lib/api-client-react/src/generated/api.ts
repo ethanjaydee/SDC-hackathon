@@ -45,6 +45,7 @@ import type {
   SupplierQuoteList,
   TechnicianRecommendations,
   TechnicianResetInput,
+  TechnicianRoute,
   TelegramReplyInput,
   TelegramStatus,
   WorkshopReviewInput,
@@ -152,6 +153,88 @@ export const useRecommendTechnicians = <TError = ErrorType<InvalidRequestRespons
       > => {
       return useMutation(getRecommendTechniciansMutationOptions(options));
     }
+
+export const getGetTechnicianRouteUrl = (id: number,
+    customerSiteId: 'north' | 'central' | 'south',) => {
+
+
+
+
+  return `/api/technicians/${id}/route/${customerSiteId}`
+}
+
+/**
+ * @summary Get the Google driving route from a technician sample position to a customer sample site
+ */
+export const getTechnicianRoute = async (id: number,
+    customerSiteId: 'north' | 'central' | 'south', options?: Parameters<typeof customFetch>[1]): Promise<TechnicianRoute> => {
+
+  return customFetch<TechnicianRoute>(getGetTechnicianRouteUrl(id,customerSiteId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTechnicianRouteQueryKey = (id: number,
+    customerSiteId: 'north' | 'central' | 'south',) => {
+    return [
+    `/api/technicians/${id}/route/${customerSiteId}`
+    ] as const;
+    }
+
+
+export const getGetTechnicianRouteQueryOptions = <TData = Awaited<ReturnType<typeof getTechnicianRoute>>, TError = ErrorType<InvalidRequestResponse | void>>(id: number,
+    customerSiteId: 'north' | 'central' | 'south', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTechnicianRoute>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTechnicianRouteQueryKey(id,customerSiteId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTechnicianRoute>>> = ({ signal }) => getTechnicianRoute(id,customerSiteId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && customerSiteId !== null && customerSiteId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTechnicianRoute>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTechnicianRouteQueryResult = NonNullable<Awaited<ReturnType<typeof getTechnicianRoute>>>
+export type GetTechnicianRouteQueryError = ErrorType<InvalidRequestResponse | void>
+
+
+/**
+ * @summary Get the Google driving route from a technician sample position to a customer sample site
+ */
+
+export function useGetTechnicianRoute<TData = Awaited<ReturnType<typeof getTechnicianRoute>>, TError = ErrorType<InvalidRequestResponse | void>>(
+ id: number,
+    customerSiteId: 'north' | 'central' | 'south', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTechnicianRoute>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTechnicianRouteQueryOptions(id,customerSiteId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetTelegramStatusUrl = () => {
 

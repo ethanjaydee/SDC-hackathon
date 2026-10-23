@@ -33,6 +33,30 @@ paths:
           description: Conversation not found
         "409":
           description: Analyze the latest messages and choose a customer site first
+  /technicians/{id}/route/{customer_site_id}:
+    get:
+      operationId: getTechnicianRoute
+      tags: [hub]
+      summary: Get the Google driving route from a technician sample position to a customer sample site
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: customer_site_id
+          in: path
+          required: true
+          schema: { type: string, enum: [north, central, south] }
+      responses:
+        "200":
+          description: Google driving route, or an explicit unavailable status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TechnicianRoute" }
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "404":
+          description: Technician not found
   /messaging/telegram:
     get:
       operationId: getTelegramStatus
@@ -688,6 +712,17 @@ components:
         technician_id: { type: integer }
         eligible: { type: boolean }
         reason: { type: string }
+        distance_meters: { type: [number, "null"] }
+        duration_seconds: { type: [number, "null"] }
+        polyline: { type: [string, "null"] }
+    TechnicianRoute:
+      type: object
+      required: [technician_id, customer_site_id, status, message, distance_meters, duration_seconds, polyline]
+      properties:
+        technician_id: { type: integer, minimum: 1 }
+        customer_site_id: { type: string, enum: [north, central, south] }
+        status: { type: string, enum: [ready, not_configured, unavailable] }
+        message: { type: string }
         distance_meters: { type: [number, "null"] }
         duration_seconds: { type: [number, "null"] }
         polyline: { type: [string, "null"] }

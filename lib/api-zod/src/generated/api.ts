@@ -38,6 +38,31 @@ export const RecommendTechniciansResponse = zod.object({
 
 
 /**
+ * @summary Get the Google driving route from a technician sample position to a customer sample site
+ */
+
+
+
+export const GetTechnicianRouteParams = zod.object({
+  "id": zod.coerce.number().int().min(1),
+  "customer_site_id": zod.enum(['north', 'central', 'south'])
+})
+
+
+
+
+export const GetTechnicianRouteResponse = zod.object({
+  "technician_id": zod.number().int().min(1),
+  "customer_site_id": zod.enum(['north', 'central', 'south']),
+  "status": zod.enum(['ready', 'not_configured', 'unavailable']),
+  "message": zod.string(),
+  "distance_meters": zod.number().nullable(),
+  "duration_seconds": zod.number().nullable(),
+  "polyline": zod.string().nullable()
+})
+
+
+/**
  * @summary Authenticated Telegram receiver status and verified bot link
  */
 export const GetTelegramStatusResponse = zod.object({

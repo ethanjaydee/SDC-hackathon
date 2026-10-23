@@ -296,6 +296,38 @@ export interface TechnicianRecommendations {
   candidates: TechnicianCandidate[];
 }
 
+export type TechnicianRouteCustomerSiteId = typeof TechnicianRouteCustomerSiteId[keyof typeof TechnicianRouteCustomerSiteId];
+
+
+export const TechnicianRouteCustomerSiteId = {
+  north: 'north',
+  central: 'central',
+  south: 'south',
+} as const;
+
+export type TechnicianRouteStatus = typeof TechnicianRouteStatus[keyof typeof TechnicianRouteStatus];
+
+
+export const TechnicianRouteStatus = {
+  ready: 'ready',
+  not_configured: 'not_configured',
+  unavailable: 'unavailable',
+} as const;
+
+export interface TechnicianRoute {
+  /** @minimum 1 */
+  technician_id: number;
+  customer_site_id: TechnicianRouteCustomerSiteId;
+  status: TechnicianRouteStatus;
+  message: string;
+  /** @nullable */
+  distance_meters: number | null;
+  /** @nullable */
+  duration_seconds: number | null;
+  /** @nullable */
+  polyline: string | null;
+}
+
 export type ConversationMessageSenderRole = typeof ConversationMessageSenderRole[keyof typeof ConversationMessageSenderRole];
 
 

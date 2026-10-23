@@ -4,7 +4,7 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { demoSites } from "./demoSites.js";
 import { candidateEligibility, classifyRepair, seedWorkshopDemo } from "./workshopDemo.js";
-import { analyzeRepair, recommendWorkshopTechnicians, summarizeCustomerReviews } from "./dispatchIntelligence.js";
+import { analyzeRepair, googleDrivingRoute, recommendWorkshopTechnicians, summarizeCustomerReviews } from "./dispatchIntelligence.js";
 import { callRunPodModel } from "./runpodAnalysis.js";
 export { callRunPodModel } from "./runpodAnalysis.js";
 import { isOfferStale } from "./offerFreshness.js";
@@ -14,6 +14,8 @@ import {
   AnalyzeRequestBody,
   AnalyzeRequestResponse,
   RecommendTechniciansResponse,
+  GetTechnicianRouteParams,
+  GetTechnicianRouteResponse,
   ApproveDispatchBody,
   ApproveDispatchResponse,
   CompleteDispatchBody,
@@ -610,6 +612,54 @@ router.post("/conversations/:id/recommendations", async (req, res, next) => {
   } catch (error) {
     recommendationCache.delete(key);
     next(error);
+  }
+});
+
+router.get("/technicians/:id/route/:customer_site_id", async (req, res) => {
+  const params = GetTechnicianRouteParams.safeParse({
+    id: Number(req.params.id),
+    customer_site_id: req.params.customer_site_id,
+  });
+  if (!params.success) {
+    res.status(400).json({ error: "Choose a valid technician and customer site." });
+    return;
+  }
+
+  const technician = getHubData().technicians.find((item) => item.id === params.data.id);
+  if (!technician) {
+    res.status(404).json({ error: "Technician not found." });
+    return;
+  }
+
+  const base = {
+    technician_id: technician.id,
+    customer_site_id: params.data.customer_site_id,
+    distance_meters: null,
+    duration_seconds: null,
+    polyline: null,
+  };
+  const unavailable = (status, message) => GetTechnicianRouteResponse.parse({ ...base, status, message });
+
+  if (!process.env.GOOGLE_MAPS_API_KEY) {
+    res.json(unavailable("not_configured", "Add the server-side GOOGLE_MAPS_API_KEY secret to request Google driving routes."));
+    return;
+  }
+  if (!Number.isFinite(technician.lat) || !Number.isFinite(technician.lng)) {
+    res.json(unavailable("unavailable", "This technician has no sample position, so a route cannot be calculated."));
+    return;
+  }
+
+  try {
+    const site = demoSites[params.data.customer_site_id];
+    const route = await googleDrivingRoute(technician, site);
+    res.json(GetTechnicianRouteResponse.parse({
+      ...base,
+      status: "ready",
+      message: "Google driving route between synthetic sample positions.",
+      ...route,
+    }));
+  } catch {
+    res.json(unavailable("unavailable", "Google Maps could not calculate this route. No straight-line distance is substituted."));
   }
 });
 

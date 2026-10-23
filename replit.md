@@ -39,6 +39,7 @@ A synthetic-data SME dispatch demo that matches repair notes to available techni
 
 - SQLite was explicitly requested for this MVP; do not silently replace it with PostgreSQL.
 - RunPod uses `RUNPOD_API_KEY` and `RUNPOD_ENDPOINT_URL` (Serverless `/runsync`). Repair-note analysis, catalog-aware conversation triage, and technician recommendations share a five-second transport deadline but keep task-specific validators. Conversation analysis must use catalog parts and cannot lower conservative complexity; technician eligibility and junior-first selection remain server-enforced. Review summaries retain their separate AI provider.
+- The Technician Map requests Google driving routes with the server-side `GOOGLE_MAPS_API_KEY` and draws the returned route over its street map. Keep this key out of browser bundles; technician and customer positions are synthetic samples.
 - The approval name is a demo audit label, not verified authentication.
 - SQLite files are local runtime data and excluded from Git/deployment inputs. Before real operational deployment, decide on durable storage, backups and multi-instance behavior.
 
@@ -62,7 +63,7 @@ Keep map tiles light in both app themes. Theme switching should reveal the new t
 
 For the main overview, the user approved the Xiaomi-inspired design with circular progress/status indicators instead of the existing summary-card layout. Keep the fixed sidebar and separate workflow screens.
 
-Analysis should appear only after repair intake is submitted, not as a permanent panel on the main page. The user chose sample locations for the technician/customer map; label positions as synthetic demo coordinates, not live GPS. Distances are straight-line estimates, not road routes or arrival times.
+Analysis should appear only after repair intake is submitted, not as a permanent panel on the main page. The user chose sample locations for the technician/customer map; label positions as synthetic demo coordinates, not live GPS. Only Google Routes output may be shown as a driving route or distance; if unavailable, show no straight-line substitute or ETA.
 Three-column dispatch dashboard: repair notes, mock analysis with inventory-aware technician matching and approval, and current van stock with append-only approval history.
 
 ## User preferences

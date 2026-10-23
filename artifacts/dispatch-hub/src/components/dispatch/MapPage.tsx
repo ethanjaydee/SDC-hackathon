@@ -2,16 +2,27 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Maximize2, MapPinned } from 'lucide-react';
+import { getGetTechnicianRouteQueryKey, useGetTechnicianRoute } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { DEMO_CUSTOMER_SITES, getTechnicianLocation } from './demoLocations';
 import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, fieldClass, techTone, type Hub, type Tone } from './shared';
 import { CompletionControl } from './CompletionControl';
 import { cn } from '@/lib/utils';
 import { LEVEL_NAME, LevelBadge, levelText } from './techMeta';
+import { decodeGooglePolyline } from './routeGeometry';
 
 type Readiness = 'Parts not checked' | 'Stock ready' | 'Missing parts';
 const readinessTone: Record<Readiness, Tone> = { 'Parts not checked': 'idle', 'Stock ready': 'ok', 'Missing parts': 'err' };
 const dispatchTone = { Active: 'busy', Completed: 'ok', Unknown: 'idle' } as const;
+
+function formatRouteDistance(meters: number) {
+  return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+}
+
+function formatRouteDuration(seconds: number) {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
+}
 
 function el(tag: string, cls: string, text?: string) {
   const e = document.createElement(tag); e.className = cls; if (text) e.textContent = text; return e;
@@ -25,6 +36,21 @@ export default function MapPage({ hub }: Hub) {
   const markers = useRef<Record<string, L.Marker>>({});
   const [selected, setSelected] = useState<number | null>(null);
   const [tileErrors, setTileErrors] = useState(0);
+  const routeQ = useGetTechnicianRoute(selected ?? 0, customerSiteId, {
+    query: {
+      queryKey: getGetTechnicianRouteQueryKey(selected ?? 0, customerSiteId),
+      enabled: selected !== null,
+      staleTime: 5 * 60 * 1000,
+    },
+  });
+  const selectedRoute = routeQ.data?.technician_id === selected &&
+    routeQ.data.customer_site_id === customerSiteId ? routeQ.data : null;
+  const routePath = useMemo(
+    () => selectedRoute?.status === 'ready' && selectedRoute.polyline
+      ? decodeGooglePolyline(selectedRoute.polyline)
+      : [],
+    [selectedRoute],
+  );
   const intakeCondition = analysis
     ? `Analysis ready · ${analysis.result.urgency} urgency`
     : hub.notes.trim() ? 'Draft intake · awaiting analysis' : 'No active repair intake';
@@ -99,17 +125,26 @@ export default function MapPage({ hub }: Hub) {
       mk.bindPopup(pop, { maxHeight: 280 }).addTo(g);
       markers.current[`s${key}`] = mk;
     });
+    if (routePath.length > 1) {
+      L.polyline(routePath, { color: '#c84224', weight: 5, opacity: 0.88 }).addTo(g);
+      map.current?.fitBounds(L.latLngBounds(routePath), { padding: [48, 48], maxZoom: 15, animate: true });
+    }
     rows.forEach((r) => {
       if (!r.loc) return;
       const busy = r.t.status !== 'Available';
       const mk = L.marker([r.loc.lat, r.loc.lng], { icon: pin(busy ? 'busy' : r.nearest ? 'best' : 'ok', r.t.name.split(' ').map((p) => p[0]).join('').slice(0, 2)), title: r.t.name });
       const pop = el('div', 'af-pop');
-      pop.append(el('b', '', r.t.name), el('span', '', `${r.t.zone} · ${r.t.status}`), el('span', '', levelText(r.t)), el('span', '', `Van ${r.t.van_id} · ${r.readiness}`), el('span', '', 'Sample position · road distance not calculated'));
+      const routeNote = r.t.id === selected
+        ? selectedRoute?.status === 'ready' && selectedRoute.distance_meters != null && selectedRoute.duration_seconds != null
+          ? `Google route · ${formatRouteDistance(selectedRoute.distance_meters)} · ${formatRouteDuration(selectedRoute.duration_seconds)}`
+          : routeQ.isFetching ? 'Calculating Google driving route…' : selectedRoute?.message ?? 'Google route is not available.'
+        : 'Select this technician to show the Google driving route.';
+      pop.append(el('b', '', r.t.name), el('span', '', `${r.t.zone} · ${r.t.status}`), el('span', '', levelText(r.t)), el('span', '', `Van ${r.t.van_id} · ${r.readiness}`), el('span', '', `Sample position · ${routeNote}`));
       mk.bindPopup(pop).on('click', () => setSelected(r.t.id)).addTo(g);
       markers.current[`t${r.t.id}`] = mk;
     });
     if (openPopup) markers.current[openPopup]?.openPopup();
-  }, [rows, customerSite, intakeCondition, analysis, savedSites]);
+  }, [rows, customerSite, intakeCondition, analysis, savedSites, selected, selectedRoute, routePath, routeQ.isFetching]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (rows.length || savedSites.length) fit(); }, [customerSiteId, rows.length, savedSites.length]);
@@ -135,7 +170,7 @@ export default function MapPage({ hub }: Hub) {
         </select>
         <Button type="button" variant="outline" onClick={fit}><Maximize2 size={13} /> Fit all</Button>
       </PageHead>
-      <p className="rounded-lg border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">Synthetic demo coordinates, not live GPS. No distances or ETAs are shown here; road distance appears only in the dispatch review when Google routing is configured. Status and stock come from the live hub.</p>
+      <p className="rounded-lg border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">Select a technician to draw a Google driving route to the current customer site. Technician and customer positions are synthetic samples, not live GPS; unavailable routes are never replaced with straight-line estimates.</p>
       {hubQ.isError && <InlineError onRetry={() => void hubQ.refetch()} retrying={hubQ.isFetching}>Hub connection lost. Showing last known statuses.</InlineError>}
       {hub.completionError && <InlineError>{hub.completionError}</InlineError>}
       {tileErrors > 0 && <InlineError>Some map tiles could not be loaded. Sample locations and last-known statuses remain available in the list.</InlineError>}
@@ -149,6 +184,36 @@ export default function MapPage({ hub }: Hub) {
           </div>
         </div>
         <div className="min-w-0 space-y-4">
+          <Card title="Google driving route" aside={selectedRoute?.status === 'ready' ? <StatusBadge tone="ok">Route ready</StatusBadge> : undefined}>
+            {selected === null ? (
+              <p className="text-sm text-muted-foreground">Select a technician below to show the route to {customerSite.area}.</p>
+            ) : (
+              <div className="space-y-2 text-sm" data-testid="technician-route-details">
+                <p className="font-medium">{sel?.t.name ?? 'Selected technician'} <span className="text-muted-foreground">to</span> {customerSite.area}</p>
+                {routeQ.isFetching && <p role="status" className="text-muted-foreground">Calculating Google driving route…</p>}
+                {routeQ.isError && <InlineError onRetry={() => void routeQ.refetch()} retrying={routeQ.isFetching}>Could not load the route.</InlineError>}
+                {selectedRoute?.status === 'ready' && selectedRoute.distance_meters != null && selectedRoute.duration_seconds != null && (
+                  <div className="flex flex-wrap gap-2">
+                    <StatusBadge tone="ok">{formatRouteDistance(selectedRoute.distance_meters)}</StatusBadge>
+                    <StatusBadge tone="ok">About {formatRouteDuration(selectedRoute.duration_seconds)}</StatusBadge>
+                  </div>
+                )}
+                {selectedRoute && selectedRoute.status !== 'ready' && (
+                  <>
+                    <p role="status" className="text-xs text-muted-foreground">
+                      {selectedRoute.status === 'not_configured'
+                        ? 'Add the server-side GOOGLE_MAPS_API_KEY secret to enable Google driving routes.'
+                        : selectedRoute.message}
+                    </p>
+                    <Button type="button" variant="outline" size="sm" disabled={routeQ.isFetching} onClick={() => void routeQ.refetch()}>
+                      Retry route
+                    </Button>
+                  </>
+                )}
+                <p className="text-xs text-muted-foreground">Route data from Google Maps Routes. Map pins use sample positions; not live GPS.</p>
+              </div>
+            )}
+          </Card>
           <Card title="Technicians" aside={<Mono>{rows.length}</Mono>} bodyClassName="p-2 md:p-2">
             {hubQ.isLoading ? <div className="p-2"><SkeletonRows rows={3} /></div> : rows.length ? (
               <div className="space-y-1">
