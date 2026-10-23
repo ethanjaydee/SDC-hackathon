@@ -74,12 +74,12 @@ export default function Dashboard() {
 
   const isAnalysisRoute = location.startsWith('/analysis/');
   const sideFooter = (
-    <div role="note" aria-label="Demo profile: John Doe, Dispatch manager" className="rounded-lg border border-sidebar-border bg-card/60 p-3">
+    <div role="note" aria-label="Demo profile: Boss, Dispatch manager" className="rounded-lg border border-sidebar-border bg-card/60 p-3">
       <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">JD</span>
+        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">B</span>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center justify-between gap-2">
-            <p className="truncate text-sm font-semibold text-foreground">John Doe</p>
+            <p className="truncate text-sm font-semibold text-foreground">Boss</p>
             <span className="shrink-0 rounded border border-sidebar-border px-1.5 py-0.5 font-mono text-[9px] font-medium tracking-wider text-muted-foreground">DEMO</span>
           </div>
           <p className="truncate text-xs text-muted-foreground">Dispatch manager</p>

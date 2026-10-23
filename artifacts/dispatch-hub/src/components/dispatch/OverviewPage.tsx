@@ -50,7 +50,7 @@ export default function OverviewPage({ hub }: Hub) {
     : reviewsQ.data?.review_count ? `${reviewsQ.data.review_count} reviews · all time` : 'No reviews yet';
   const lowStockItems = inventory.filter((line) => line.quantity < 5);
   const latest = activity.slice(0, 4);
-  const displayName = 'John Doe';
+  const displayName = 'Boss';
   const readinessTone = !ready ? 'pending' : hubQ.isError ? 'err' : 'ok';
 
   return (

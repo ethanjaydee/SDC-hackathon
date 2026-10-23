@@ -74,7 +74,7 @@ test('overview prioritizes technician readiness with unfinished requests, sales,
     const desktop = await openOverview(browser, 1440, 960);
     try {
       const page = desktop.page;
-      assert.equal(await page.getByRole('note', { name: 'Demo profile: John Doe, Dispatch manager' }).count(), 1);
+      assert.equal(await page.getByRole('note', { name: 'Demo profile: Boss, Dispatch manager' }).count(), 1);
       assert.equal(await page.getByRole('button', { name: /sign out/i }).count(), 0, 'the mock profile is not an interactive login');
       const circle = page.getByTestId('overview-availability-circle');
       assert.equal(await circle.getAttribute('aria-expanded'), 'false');
