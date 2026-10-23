@@ -2,11 +2,11 @@
 name: RunPod integration scope
 description: Why Serverless repair-note analysis stays separate from conversation triage
 ---
-The three prescribed vehicle-note fallback rules apply only to repair-note analysis, not conversation triage or technician selection. Technician recommendations use the same RunPod transport with a separate candidate-selection prompt and validator.
+The three prescribed vehicle-note fallback rules apply only to repair-note analysis; do not reuse them in conversation triage or technician selection. These flows may share RunPod transport, but retain separate prompts and task-specific validators.
 
-**Why:** Conversation triage has broader workshop catalog coverage and conservative technician-complexity checks. Replacing it with the vehicle-only fallback removes those safeguards.
+**Why:** The user asked to route customer conversation triage through RunPod. It still needs the broader workshop catalog checks and conservative complexity safeguards; replacing those with vehicle-only rules would weaken them.
 
-**How to apply:** Preserve catalog-aware conversation analysis unless explicitly extending RunPod to that flow with equivalent safeguards.
+**How to apply:** Use the configured RunPod transport for conversation triage while requiring every suggested part to match the workshop catalog and preventing AI from lowering rule-based difficulty.
 
 Technician recommendations must choose only from the server-validated candidate pool, including junior-first selection for Easy work.
 
