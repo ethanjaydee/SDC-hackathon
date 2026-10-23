@@ -21,6 +21,15 @@ test("accepts direct JSON worker output", async () => {
   }) });
   assert.equal(result.is_fallback, false);
 });
+test("accepts nested result arrays from the configured Serverless worker", async () => {
+  const result = await callRunPodModel("cluster fault", { ...options, fetchImpl: async () => ({
+    ok: true, json: async () => ({ status: "COMPLETED", output: [{
+      result: { choices: [{ message: { content: '{"issue":"Cluster fault","parts":["100uF Capacitor"],"urgency":"High"}' } }] },
+    }] }),
+  }) });
+  assert.equal(result.is_fallback, false);
+  assert.equal(result.issue, "Cluster fault");
+});
 test("falls back for HTTP errors, invalid JSON, invalid schema, and unfinished jobs", async () => {
   for (const response of [
     { ok: false },

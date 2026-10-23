@@ -12,6 +12,12 @@ function parseOutput(payload) {
   // Serverless wraps worker responses in output; vLLM workers may return choices.
   if (payload?.status && payload.status !== "COMPLETED") throw new Error("RunPod job is not completed");
   let output = payload?.output ?? payload;
+  // This worker returns one result per input in an array.
+  if (Array.isArray(output)) {
+    if (output.length !== 1) throw new Error("Unexpected RunPod output count");
+    output = output[0];
+  }
+  if (output?.result) output = output.result;
   if (output?.choices) output = output.choices[0]?.message?.content ?? output.choices[0]?.text;
   if (typeof output === "string") {
     output = JSON.parse(output.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
