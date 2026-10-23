@@ -286,7 +286,7 @@ html { view-transition-name: root; }
 .af-pin-sm.best { background: hsl(var(--st-ok)); }
 .af-pin-sm.busy { background: hsl(var(--st-busy)); }
 
-/* Dispatched demo conversations use a pale green glass surface in both themes. */
+/* Dispatched demo conversations use light green in light mode and deep green in dark mode. */
 .dh-dispatched-glass {
   color: #173d2f;
   background-color: #eafbf1;
