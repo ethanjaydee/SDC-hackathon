@@ -245,7 +245,7 @@ export function WorkBadges({ technicians }: { technicians: Technician[] }) {
         <span className="sr-only">Search service history</span>
         <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search any technician or job detail…" className={`${fieldClass} pl-9`}
+          placeholder="Search any technician…" className={`${fieldClass} pl-9`}
           data-testid="service-history-search" />
       </label>
       {ranked.length === 0 ? <EmptyState icon={<Award size={16} />} title="No technicians yet">Badges appear when the roster loads.</EmptyState>
