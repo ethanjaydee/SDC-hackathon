@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, EmptyState, Mono, StatusBadge, initials } from './shared';
 import { LevelBadge, ratingText } from './techMeta';
+import { badgeSurfaceForRank, rankBadges } from './serviceHistoryUtils';
 
 const PHOTOS = ['filter-service.jpg', 'window-ac-service.jpg'];
 const SIGS = [
@@ -19,12 +20,6 @@ const LINES = [
   { item: 'Replacement part (sample)', qty: 1, price: 38.5 },
 ];
 const myr = (n: number) => `MYR ${n.toFixed(2)}`;
-
-/** Strongest combined demo activity and rating first. */
-export function rankBadges(techs: Technician[]) {
-  return [...techs].sort((a, b) =>
-    ((b.demo_completed_jobs ?? 0) * (b.rating ?? 0)) - ((a.demo_completed_jobs ?? 0) * (a.rating ?? 0)) || a.id - b.id);
-}
 
 function SampleProof({ tech, activity }: { tech: Technician; activity: Activity[] }) {
   const assetBase = `${import.meta.env.BASE_URL}completion-proofs/`;
@@ -73,26 +68,22 @@ function SampleProof({ tech, activity }: { tech: Technician; activity: Activity[
   );
 }
 
-const PLACE = ['First', 'Second', 'Third'];
-const PODIUM_H = ['sm:h-[268px]', 'sm:h-[232px]', 'sm:h-[200px]'];
-
-function BadgeButton({ t, rank, activity, podium }: { t: Technician; rank: number; activity: Activity[]; podium?: boolean }) {
+function BadgeButton({ t, rank, activity, podium }: { t: Technician; rank: number; activity: Activity[]; podium: boolean }) {
+  const surface = podium ? badgeSurfaceForRank(rank) : 'border-card-border bg-card';
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button type="button" data-testid={`work-badge-${t.id}`} aria-label={`${podium ? PLACE[rank] + ' place, ' : 'Rank ' + (rank + 1) + ', '}${t.name}. Open work badge`}
-          className={`group flex h-full w-full min-w-0 items-center gap-3 rounded-xl border bg-card p-3 text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${podium ? `flex-col justify-end text-center sm:items-center ${PODIUM_H[rank]} ${rank === 0 ? 'border-primary/50 bg-primary/[0.06]' : 'border-card-border'}` : 'border-card-border'}`}>
-          {podium && <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-primary">{PLACE[rank]}</span>}
+        <button type="button" data-testid={`work-badge-${t.id}`} aria-label={`Open work badge for ${t.name}`}
+          className={`group flex w-full min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition-[border-color,transform,background-color] duration-200 hover:-translate-y-0.5 hover:border-primary/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${surface}`}>
           <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-xs font-semibold text-primary">
             {initials(t.name)}
-            <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-0.5 text-[9px] text-primary-foreground">{rank + 1}</span>
           </span>
           <span className="min-w-0 flex-1 sm:flex-none">
             <span className="block truncate text-sm font-medium">{t.name}</span>
-            <span className={`mt-1 flex flex-wrap items-center gap-1.5 ${podium ? 'sm:justify-center' : ''}`}><LevelBadge tech={t} /></span>
+            <span className="mt-1 flex flex-wrap items-center gap-1.5"><LevelBadge tech={t} /></span>
             <span className="mt-1 block text-xs text-muted-foreground"><Mono>{t.demo_completed_jobs ?? 0}</Mono> jobs · rating <Mono>{ratingText(t)}</Mono> · score <Mono>{((t.demo_completed_jobs ?? 0) * (t.rating ?? 0)).toFixed(0)}</Mono></span>
           </span>
-          {!podium && <Camera size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />}
+          <Camera size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
       </DialogTrigger>
       <SampleProof tech={t} activity={activity} />
@@ -102,22 +93,13 @@ function BadgeButton({ t, rank, activity, podium }: { t: Technician; rank: numbe
 
 export function WorkBadges({ technicians, activity = [] }: { technicians: Technician[]; activity?: Activity[] }) {
   const ranked = useMemo(() => rankBadges(technicians), [technicians]);
-  const top = ranked.slice(0, 3);
-  const rest = ranked.slice(3);
   return (
     <Card title={<><Award size={15} /> Technician work badges</>} aside={<StatusBadge tone="pending">Demo ratings</StatusBadge>}>
       <p className="mb-3 text-xs text-muted-foreground">Ranked by demo score (completed jobs x rating). Open a badge to see actual saved assignments, separate from an illustrative photo, signature and sample invoice.</p>
       {ranked.length === 0 ? <EmptyState icon={<Award size={16} />} title="No technicians yet">Badges appear when the roster loads.</EmptyState> : (
-        <div className="space-y-3">
-          <ol className="grid items-end gap-2.5 sm:grid-cols-3" aria-label="Top three technicians">
-            {top.map((t, i) => <li key={t.id} className={`min-w-0 ${["sm:order-2", "sm:order-1", "sm:order-3"][i]}`}><BadgeButton t={t} rank={i} activity={activity} podium /></li>)}
-          </ol>
-          {rest.length > 0 && (
-            <ol start={4} className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3" aria-label="Other technicians">
-              {rest.map((t, i) => <li key={t.id} className="min-w-0"><BadgeButton t={t} rank={i + 3} activity={activity} /></li>)}
-            </ol>
-          )}
-        </div>
+        <ol className="space-y-2" aria-label="Technicians ranked by demo work score" data-testid="service-history-ranking">
+          {ranked.map((t, i) => <li key={t.id} className="min-w-0"><BadgeButton t={t} rank={i} activity={activity} podium={i < 3} /></li>)}
+        </ol>
       )}
     </Card>
   );
