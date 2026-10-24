@@ -118,10 +118,10 @@ function Workspace() {
 
   return (
     <div className="min-h-[100dvh] lg:grid lg:grid-cols-[256px_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-5 border-r border-sidebar-border bg-sidebar p-4 lg:flex" aria-label="Dispatch Hub navigation">
+      <aside className="sticky top-0 hidden h-[100dvh] self-start flex-col gap-5 border-r border-sidebar-border bg-sidebar p-4 lg:flex" aria-label="Dispatch Hub navigation">
         <Brand />
         <p className="px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Workshop</p>
-        <div className="-mt-3 flex-1 overflow-y-auto">{nav('dispatch-navigation-desktop')}</div>
+        <div className="sidebar-nav-scroll -mt-3 min-h-0 flex-1 overflow-y-auto">{nav('dispatch-navigation-desktop')}</div>
         {sideFooter}
       </aside>
 
@@ -130,7 +130,7 @@ function Workspace() {
           onCloseAutoFocus={(event) => { event.preventDefault(); menuButton.current?.focus(); }}>
           <SheetTitle asChild><div><Brand /></div></SheetTitle>
           <SheetDescription className="sr-only">Navigate between Dispatch Hub sections</SheetDescription>
-          <div className="flex-1 overflow-y-auto">{nav('dispatch-navigation-mobile')}</div>
+          <div className="sidebar-nav-scroll min-h-0 flex-1 overflow-y-auto">{nav('dispatch-navigation-mobile')}</div>
           {sideFooter}
         </SheetContent>
       </Sheet>

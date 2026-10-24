@@ -215,6 +215,8 @@
 @layer utilities {
   input[type='search']::-webkit-search-cancel-button { @apply hidden; }
   .tabular { font-variant-numeric: tabular-nums; }
+  .sidebar-nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+  .sidebar-nav-scroll::-webkit-scrollbar { display: none; }
   .hover-elevate:not(.no-default-hover-elevate),
   .active-elevate-2:not(.no-default-active-elevate) { position: relative; z-index: 0; }
   .hover-elevate:not(.no-default-hover-elevate)::after,
