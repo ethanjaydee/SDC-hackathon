@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "FsOgv2dvPAdO26ei--zGb"
+uri = "file://artifacts/dispatch-demo-video/public/audio/bg_music.mp3"
+type = "audio"
+title = "Dispatch Hub demo background music"
+description = "Generated music: Corporate motivational electronic instrumental scoring a product tour of a dispatch operations workspace. 120 BPM, tactile low kick, dry handclaps, restrained analog bass, bright mar…"

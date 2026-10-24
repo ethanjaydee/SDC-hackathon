@@ -1,0 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+:root {
+  --paper: #f2eee5;
+  --paper-bright: #fbf8f1;
+  --ink: #202522;
+  --ink-soft: #303a35;
+  --muted: #85877d;
+  --line: #d8d1c5;
+  --orange: #d64b2a;
+  --orange-deep: #a9321c;
+  --green: #5b9c7e;
+  --sea: #a7d4c2;
+  --gold: #d7ad57;
+  --font-display: 'Bricolage Grotesque', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body {
+  color: var(--ink);
+  background: var(--paper);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+.video-media-frame { box-sizing: border-box; height: 100%; min-height: 0; min-width: 0; overflow: hidden; width: 100%; }
+.video-media-frame > :is(img, video) { display: block; height: 100%; object-fit: cover; width: 100%; }
+
+.film {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+.film::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  opacity: .12;
+  background-image: radial-gradient(rgba(34, 38, 34, .3) .55px, transparent .8px);
+  background-size: 3px 3px;
+  mix-blend-mode: multiply;
+}
+.film-paper { background: var(--paper); }
+.film-ink { color: var(--paper-bright); background: var(--ink); }
+.film-rust { background: var(--orange); color: var(--paper-bright); }
+.film-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -.065em;
+  line-height: .84;
+}
+.film-mono {
+  font-family: var(--font-mono);
+  font-size: 1.45vmin;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.film-tag {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: .7vmin 1.25vmin;
+  font-family: var(--font-mono);
+  font-size: 1.25vmin;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.frame {
+  border: 1px solid rgba(32, 37, 34, .15);
+  border-radius: 1.35vmin;
+  background: var(--paper-bright);
+  box-shadow: 0 2.8vmin 7vmin rgba(35, 35, 29, .12), 0 1px 0 rgba(255,255,255,.8) inset;
+}
+.frame-dark {
+  color: var(--paper-bright);
+  background: #262d29;
+  border-color: rgba(255,255,255,.12);
+  box-shadow: 0 3vmin 7vmin rgba(15, 19, 16, .25);
+}
+.frame-top {
+  height: 4.5vmin;
+  display: flex;
+  align-items: center;
+  gap: 1.15vmin;
+  padding: 0 1.6vmin;
+  border-bottom: 1px solid rgba(32,37,34,.11);
+}
+.frame-dark .frame-top { border-color: rgba(255,255,255,.12); }
+.dot { width: .7vmin; height: .7vmin; border-radius: 50%; background: #9a9a8e; }
+.dot-orange { background: var(--orange); }
+.dot-green { background: var(--green); }
+.tiny-label {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 1.18vmin;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.frame-dark .tiny-label { color: #adb4ab; }
+.muted-copy { color: #85877d; }
+.frame-dark .muted-copy { color: #a1aaa1; }
+.rule { height: 1px; background: var(--line); }
+.frame-dark .rule { background: rgba(255,255,255,.14); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .65vmin;
+  border: 1px solid rgba(32,37,34,.12);
+  border-radius: 999px;
+  padding: .65vmin 1vmin;
+  background: rgba(255,255,255,.5);
+  font-size: 1.45vmin;
+  font-weight: 600;
+}
+.chip-orange { color: var(--orange-deep); background: rgba(214,75,42,.08); border-color: rgba(214,75,42,.2); }
+.chip-green { color: #347657; background: rgba(91,156,126,.13); border-color: rgba(91,156,126,.25); }
+.message {
+  max-width: 83%;
+  border: 1px solid rgba(35,43,38,.1);
+  border-radius: 1.3vmin 1.3vmin 1.3vmin .35vmin;
+  background: #ebe7de;
+  padding: 1.25vmin 1.5vmin;
+  font-size: 1.65vmin;
+  line-height: 1.4;
+}
+.message-out {
+  margin-left: auto;
+  border-color: rgba(214,75,42,.18);
+  border-radius: 1.3vmin 1.3vmin .35vmin 1.3vmin;
+  background: rgba(214,75,42,.08);
+}
+.route-dash { stroke-dasharray: 11 10; animation: route-flow 1.4s linear infinite; }
+@keyframes route-flow { to { stroke-dashoffset: -42; } }
+.draw-line { stroke-dasharray: 900; stroke-dashoffset: 900; animation: draw 1.15s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.bar-fill { transform-origin: bottom; animation: rise-bar .72s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes rise-bar { from { transform: scaleY(.05); opacity: .3; } to { transform: scaleY(1); opacity: 1; } }
+.rise { animation: rise-in .55s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes rise-in { from { opacity: 0; transform: translateY(1.4vmin); } to { opacity: 1; transform: translateY(0); } }
+.soft-pulse { animation: soft-pulse 1.8s ease-in-out infinite; transform-origin: center; }
+@keyframes soft-pulse { 50% { opacity: .55; transform: scale(1.08); } }
+.controls-sensor { position: absolute; inset-inline: 0; bottom: 0; height: 25%; z-index: 60; display: flex; flex-direction: column; justify-content: flex-end; }
+.control-bar {
+  display: flex; align-items: center; gap: 1.1vmin; padding: 1.1vmin 1.5vmin;
+  color: white; background: rgba(24,29,26,.82); backdrop-filter: blur(12px);
+  transition: transform .22s ease, opacity .22s ease;
+}
+.control-button {
+  display: grid; width: 4vmin; height: 4vmin; flex: none; place-items: center;
+  border: 0; border-radius: .65vmin; background: transparent; color: rgba(255,255,255,.78); cursor: pointer;
+}
+.control-button:hover, .control-button[aria-pressed="true"] { background: rgba(255,255,255,.15); color: white; }
+.control-button svg { width: 2vmin; height: 2vmin; }
+.control-divider { height: 3vmin; width: 1px; background: rgba(255,255,255,.2); }
+.control-progress { flex: 1; display: flex; gap: .4vmin; }
+.control-segment { position: relative; overflow: hidden; flex: 1; min-width: 0; height: .55vmin; padding: 0; border: 0; border-radius: 999px; background: rgba(255,255,255,.2); cursor: pointer; }
+.control-segment-fill { position: absolute; inset: 0 auto 0 0; background: #f4e9d5; }
+.control-readout { color: rgba(255,255,255,.72); font-family: var(--font-mono); font-size: 1.15vmin; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}

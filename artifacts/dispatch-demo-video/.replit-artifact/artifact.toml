@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "16:9"
+previewPath = "/dispatch-demo-video/"
+title = "Dispatch Hub Demo Video"
+description = "A guided demo film covering the existing Dispatch Hub website and its Boss and Technician functions."
+version = "1.0.0"
+id = "artifacts/dispatch-demo-video"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/dispatch-demo-video/" ]
+localPort = 25702
+
+[services.development]
+run = "pnpm --filter @workspace/dispatch-demo-video run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/dispatch-demo-video", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/dispatch-demo-video/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25702"
+BASE_PATH = "/dispatch-demo-video/"
