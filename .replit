@@ -25,7 +25,6 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-TLG_API = "8849894105:AAFI5OXUOwAMZvOmZqZjsDP_Xv2Xc-kCFio"
 RUNPOD_ENDPOINT_URL = "https://api.runpod.ai/v2/b1dd8hy2hqo1nb/runsync"
 
 [userenv.development]
