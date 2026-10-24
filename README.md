@@ -8,7 +8,7 @@
 
 | Field                  | Details                                     |
 | ---------------------- | ------------------------------------------- |
-| **Team Name**          | Kebangaan UM (KUM) Name                              |
+| **Team Name**          | Kebangaan UM (KUM)                              |
 | **Team Domain**        | Domain 2         |
 | **SDG Track (1–17)**   | SDG 8 — Decent Work and Economic Growth, SDG 9 Industry, Innovation and Infrastructure |
 | **Team Leader**        | Leader Name                                 |
