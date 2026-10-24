@@ -73,6 +73,13 @@ export function getDemoReviewSamples(technicians?: readonly Technician[]) {
   );
 }
 
+/** Overall briefing input is independent of each level's display filters; never saved. */
+export function getOverallLowRatedReviews(technicians?: readonly Technician[]) {
+  return getDemoReviewSamples(technicians)
+    .filter(({ rating }) => rating === 1 || rating === 2)
+    .map(({ rating, comment }) => ({ rating, comment }));
+}
+
 export function getDemoReviewGroups(technicians?: readonly Technician[]) {
   const samples = getDemoReviewSamples(technicians);
   return DEMO_REVIEW_LEVELS.map(({ level, note }) => {

@@ -94,13 +94,13 @@ export function useDispatchHub() {
     });
   };
 
-  const completeJob = async (dispatchId: number) => {
+  const completeJob = async (dispatchId: number, completedBy = APPROVER) => {
     if (!positiveIdSchema.safeParse(dispatchId).success || gate.current.busy) return false;
     setCompletionError('');
     try {
       const techId = activity.find((entry) => entry.id === dispatchId)?.dispatch?.tech_id;
       const updated = await writeHub('Completing job', (current) => techId ? optimisticAvailable(current, techId) : current,
-        () => complete.mutateAsync({ data: { dispatch_id: dispatchId, completed_by: APPROVER } }));
+        () => complete.mutateAsync({ data: { dispatch_id: dispatchId, completed_by: completedBy.trim() || APPROVER } }));
       if (!updated) return false;
       toast({ title: 'Job completed', description: `Dispatch #${dispatchId} completed. Technician available again; consumed stock unchanged.` });
       return true;

@@ -9,6 +9,7 @@ import {
 } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TechnicianAvatar } from './TechnicianAvatar';
 import { Card, EmptyState, InlineError, Mono, PageHead, StatusBadge, dateTime, type Hub } from './shared';
 import { canAutoRefresh, pollInterval } from '@/lib/reliability';
 import { getUnfinishedRequests } from './overviewMetrics';
@@ -129,13 +130,10 @@ export default function OverviewPage({ hub }: Hub) {
                       const available = tech.status === 'Available';
                       const busy = tech.status === 'Busy';
                       const cardTone = available ? 'border-ok/20 bg-ok/[0.045]' : busy ? 'border-err/25 bg-err/[0.045]' : 'border-border/70 bg-muted/45';
-                      const iconTone = available ? 'border-ok/25 bg-ok/10 text-ok' : busy ? 'border-err/25 bg-err/10 text-err' : 'border-border bg-muted text-muted-foreground';
                       const statusTone = available ? 'border-ok/25 bg-ok/10 text-ok' : busy ? 'border-err/25 bg-err/10 text-err' : 'border-border bg-muted text-muted-foreground';
                       return (
                         <li key={tech.id} aria-label={`${tech.name}, ${tech.status}`} className={`flex min-w-0 items-start gap-2 rounded-lg border px-2 py-2 ${cardTone}`} data-testid={`overview-technician-${tech.id}`}>
-                          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${iconTone}`}>
-                            <UserRound size={16} strokeWidth={1.8} aria-hidden="true" />
-                          </span>
+                          <TechnicianAvatar id={tech.id} name={tech.name} className="h-8 w-8" />
                           <span className="min-w-0 flex-1">
                             <span className="block break-words text-xs font-semibold leading-tight">{tech.name}</span>
                             <span className={`mt-1 block w-fit rounded-full border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] ${statusTone}`}>

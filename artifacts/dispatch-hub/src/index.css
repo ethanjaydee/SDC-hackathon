@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import './components/dispatch/theme-styles.css';
 @layer theme, base, components, utilities;
 @import 'tailwindcss';
 @import 'tw-animate-css';
@@ -215,6 +216,8 @@
 @layer utilities {
   input[type='search']::-webkit-search-cancel-button { @apply hidden; }
   .tabular { font-variant-numeric: tabular-nums; }
+  .sidebar-nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+  .sidebar-nav-scroll::-webkit-scrollbar { display: none; }
   .hover-elevate:not(.no-default-hover-elevate),
   .active-elevate-2:not(.no-default-active-elevate) { position: relative; z-index: 0; }
   .hover-elevate:not(.no-default-hover-elevate)::after,

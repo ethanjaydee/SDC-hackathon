@@ -57,6 +57,7 @@ import {
   CreateWorkshopReviewBody,
   CreateWorkshopReviewResponse,
   ListWorkshopReviewsResponse,
+  SummarizeWorkshopReviewsBody,
   SummarizeWorkshopReviewsResponse,
 } from "@workspace/api-zod";
 
@@ -1016,25 +1017,43 @@ router.post("/workshop-reviews", (req, res) => {
     created_at: createdAt,
   }));
 });
-router.post("/workshop-reviews/summary", async (_req, res) => {
-  const recentReviews = db.prepare(`
-    SELECT rating, comment FROM customer_reviews
-    ORDER BY id DESC
-    LIMIT 100
-  `).all();
+router.post("/workshop-reviews/summary", async (req, res) => {
+  const parsed = SummarizeWorkshopReviewsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Choose saved reviews or provide sample reviews to summarize." });
+    return;
+  }
+  const { source, sample_reviews } = parsed.data;
+  const recentReviews = source === "sample"
+    ? (sample_reviews ?? []).filter((review) => review.rating <= 2)
+    : db.prepare(`
+      SELECT rating, comment FROM customer_reviews
+      WHERE rating <= 2
+      ORDER BY id DESC
+      LIMIT 100
+    `).all();
+  if ((source === "sample" && !sample_reviews?.length)
+    || (source === "saved" && sample_reviews !== undefined)) {
+    res.status(400).json({ error: source === "sample"
+      ? "Provide at least one sample review to summarize."
+      : "Saved-review summaries cannot include sample review data." });
+    return;
+  }
   if (recentReviews.length === 0) {
-    res.status(400).json({ error: "Save at least one customer review before requesting an AI summary." });
+    res.status(400).json({ error: "No low-rated reviews (1–2 stars) are available to summarize." });
     return;
   }
   try {
-    const summary = await summarizeCustomerReviews(recentReviews);
+    const summary = await summarizeCustomerReviews(recentReviews, { source });
     res.json(SummarizeWorkshopReviewsResponse.parse({
       ...summary,
       review_count: recentReviews.length,
+      source,
       generated_at: new Date().toISOString(),
     }));
-  } catch {
-    res.status(503).json({ error: "AI review summary is unavailable. Your saved reviews are unchanged; try again later." });
+  } catch (error) {
+    req.log?.warn({ source, err: error }, "Workshop review summary generation failed");
+    res.status(503).json({ error: "AI review summary is unavailable. Try again later." });
   }
 });
 router.post("/sample-e-invoices/generate", async (req, res) => {

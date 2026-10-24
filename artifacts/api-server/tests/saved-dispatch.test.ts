@@ -55,6 +55,7 @@ test('additive migration preserves legacy history and atomically saves canonical
       tech_id: 1, technician_name: 'Amir Hakim', van_id: 1,
       parts: input.parts, customer_site: demoSites.central,
       status: 'Active', completed_at: null, conversation_id: null,
+      technician_response: null, technician_response_at: null, boss_acknowledged_at: null,
       shop_location: SHOP_LOCATION,
     });
     assert.equal(saved.technicians[0].status, 'Busy');

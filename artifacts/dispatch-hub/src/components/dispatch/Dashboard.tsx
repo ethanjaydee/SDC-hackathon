@@ -16,6 +16,7 @@ import { InlineError, StatusBadge } from './shared';
 import { ConnectionStatus, useConnection } from './ConnectionStatus';
 import { RouteBoundary } from './RouteBoundary';
 import { ThemeToggle } from './theme';
+import { TechnicianAvatar } from './TechnicianAvatar';
 import { DemoSessionProvider, useDemoSession } from './session';
 import RoleChooser from './RoleChooser';
 import TransportPage from './TransportPage';
@@ -60,12 +61,12 @@ function Workspace() {
   useEffect(() => {
     if (isTechnician && hubQ.data && !me) signOut();
   }, [isTechnician, hubQ.data, me, signOut]);
-  const bossOnly = (path: string) => path.startsWith('/technicians') || path.startsWith('/workshop-analysis') || path.startsWith('/today') || path.startsWith('/suppliers') || path.startsWith('/reorders');
+  const bossOnly = (path: string) => path.startsWith('/technicians') || path.startsWith('/workshop-analysis') || path.startsWith('/today') || path.startsWith('/suppliers') || path.startsWith('/reorders') || path.startsWith('/map');
 
   const items = [
     { to: '/', label: 'Overview', Icon: Activity },
     { to: '/intake', label: 'Work Order', Icon: Inbox },
-    { to: '/map', label: 'Map', Icon: MapIcon },
+    ...(!isTechnician ? [{ to: '/map', label: 'Map', Icon: MapIcon }] : []),
     ...(isTechnician ? [] : [{ to: '/technicians', label: 'Technicians', Icon: Users }]),
     { to: '/transport', label: 'Transport', Icon: Truck, count: lowStockCount || undefined },
     { to: '/log', label: 'Service History', Icon: History },
@@ -98,7 +99,7 @@ function Workspace() {
     <div className="space-y-2">
     <div role="note" aria-label={`Demo profile: ${profileName}, ${profileRole}`} className="rounded-lg border border-sidebar-border bg-card/60 p-3">
       <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">{profileName[0]}</span>
+        {isTechnician && me ? <TechnicianAvatar id={me.id} name={me.name} /> : <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">{profileName[0]}</span>}
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center justify-between gap-2">
             <p className="truncate text-sm font-semibold text-foreground">{profileName}</p>
@@ -118,10 +119,10 @@ function Workspace() {
 
   return (
     <div className="min-h-[100dvh] lg:grid lg:grid-cols-[256px_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-5 border-r border-sidebar-border bg-sidebar p-4 lg:flex" aria-label="Dispatch Hub navigation">
+      <aside className="sticky top-0 hidden h-[100dvh] self-start flex-col gap-5 border-r border-sidebar-border bg-sidebar p-4 lg:flex" aria-label="Dispatch Hub navigation">
         <Brand />
         <p className="px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Workshop</p>
-        <div className="-mt-3 flex-1 overflow-y-auto">{nav('dispatch-navigation-desktop')}</div>
+        <div className="sidebar-nav-scroll -mt-3 min-h-0 flex-1 overflow-y-auto">{nav('dispatch-navigation-desktop')}</div>
         {sideFooter}
       </aside>
 
@@ -130,7 +131,7 @@ function Workspace() {
           onCloseAutoFocus={(event) => { event.preventDefault(); menuButton.current?.focus(); }}>
           <SheetTitle asChild><div><Brand /></div></SheetTitle>
           <SheetDescription className="sr-only">Navigate between Dispatch Hub sections</SheetDescription>
-          <div className="flex-1 overflow-y-auto">{nav('dispatch-navigation-mobile')}</div>
+          <div className="sidebar-nav-scroll min-h-0 flex-1 overflow-y-auto">{nav('dispatch-navigation-mobile')}</div>
           {sideFooter}
         </SheetContent>
       </Sheet>
@@ -183,7 +184,7 @@ function Workspace() {
                 <Route path="/suppliers"><Redirect to="/transport" replace /></Route>
                 <Route path="/reorders"><Redirect to="/transport" replace /></Route>
                 <Route path="/today"><LogPage hub={hub} notice={notice} todayOnly /></Route>
-                <Route path="/log">{isTechnician ? <TechnicianHistory hub={hub} notice={notice} /> : <LogPage hub={hub} notice={notice} />}</Route>
+                <Route path="/log">{isTechnician ? <TechnicianHistory hub={hub} /> : <LogPage hub={hub} notice={notice} />}</Route>
                 <Route component={NotFound} />
               </Switch>
               )}

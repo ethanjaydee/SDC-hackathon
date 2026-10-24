@@ -85,3 +85,7 @@ export * from './transportVanStatus';
 export * from './workshopReviewInput';
 export * from './workshopReviewList';
 export * from './workshopReviewSummary';
+export * from './workshopReviewSummaryInput';
+export * from './workshopReviewSummaryInputSource';
+export * from './workshopReviewSummarySample';
+export * from './workshopReviewSummarySource';

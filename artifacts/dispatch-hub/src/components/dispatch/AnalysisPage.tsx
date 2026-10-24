@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getGetConversationThreadQueryKey, getListConversationsQueryKey,
-  getGetHubDataQueryKey,
-  getGetTechnicianRouteQueryKey, recommendTechnicians, useAnalyzeConversation, useGetTechnicianRoute, useGetConversationThread, useSendTelegramReply, useGetTelegramStatus, getGetTelegramStatusQueryKey, useSetConversationSite,
-  useRespondToDispatch,
+  recommendTechnicians, useAnalyzeConversation, useGetConversationThread, useSendTelegramReply, useGetTelegramStatus, getGetTelegramStatusQueryKey, useSetConversationSite,
   type Technician, type DemoSiteId,
 } from '@workspace/api-client-react';
-import { DEMO_CUSTOMER_SITES } from './demoLocations';
+import { DEMO_CUSTOMER_SITES, DEMO_CUSTOMER_VISIT_DETAILS } from './demoLocations';
 import { MiniRouteMap } from './MiniRouteMap';
 import { SlideToApprove } from './SlideToApprove';
+import { CompletionControl } from './CompletionControl';
+import { TechnicianAvatar } from './TechnicianAvatar';
 import { rankQualifiedTechnicians } from './matching';
 import { APPROVER, type DispatchState } from './useDispatchHub';
 import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, fieldClass } from './shared';
@@ -38,7 +38,6 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
     },
   });
   const analyze = useAnalyzeConversation();
-  const responseMutation = useRespondToDispatch();
   const tgQ = useGetTelegramStatus({ query: { queryKey: getGetTelegramStatusQueryKey(), refetchInterval: 15_000 } });
   const [replyText, setReplyText] = useState('');
   const sendReply = useSendTelegramReply({
@@ -139,24 +138,6 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   const customerReview = technicianReviews.length
     ? technicianReviews[(conversationId + 1) % technicianReviews.length]
     : null;
-  const mutationResponse = responseMutation.data?.dispatch_id === thread?.dispatch_activity_id
-    ? responseMutation.data
-    : null;
-  const technicianResponse = savedDispatch?.technician_response ?? mutationResponse?.response ?? null;
-  const technicianResponseAt = savedDispatch?.technician_response_at ?? mutationResponse?.responded_at ?? null;
-  const canRespondToDispatch = isTech && technicianId != null
-    && savedDispatch?.tech_id === technicianId
-    && savedDispatch.status === 'Active'
-    && technicianResponse == null;
-  const submitTechnicianResponse = (response: 'Accepted' | 'Rejected') => {
-    if (thread?.dispatch_activity_id == null || technicianId == null) return;
-    responseMutation.mutate({
-      id: thread.dispatch_activity_id,
-      data: { technician_id: technicianId, response },
-    }, {
-      onSuccess: () => { void qc.invalidateQueries({ queryKey: getGetHubDataQueryKey() }); },
-    });
-  };
   const analyzedId = thread?.analyzed_through_message_id ?? null;
   const siteId = thread?.customer_site_id ?? null;
   const analysisSignature = JSON.stringify([analysis?.issue, analysis?.parts, complexity, analysis?.analysis_source]);
@@ -178,12 +159,6 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   const match = matches.find((m) => m.id === selectedId) ?? null;
   const selectedCandidate = match ? recs?.candidates.find((c) => c.technician_id === match.id) : undefined;
   const keyStr = recKey.join('|');
-  const myRouteId = technicianId ?? 0;
-  const mySiteId = site?.id ?? 'central';
-  const myRouteQ = useGetTechnicianRoute(myRouteId, mySiteId, {
-    query: { queryKey: getGetTechnicianRouteQueryKey(myRouteId, mySiteId), enabled: isTech && myRouteId > 0 && !!site, staleTime: 5 * 60_000 },
-  });
-
   const runAnalysis = () => {
     if (!validId || analyze.isPending) return;
     analyze.mutate({ id: conversationId }, {
@@ -226,10 +201,10 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
   }
 
   const shop = hub.shop;
-  const directionsUrl = site
+  const shopDirectionsUrl = site
     ? `https://www.google.com/maps/dir/?api=1&origin=${shop.lat},${shop.lng}&destination=${site.lat},${site.lng}&travelmode=driving` : null;
-  const fmtKm = (m: number) => `${(m / 1000).toFixed(1)} km`;
-  const fmtMin = (s: number) => `${Math.max(1, Math.round(s / 60))} min`;
+  const customerDirectionsUrl = site
+    ? `https://www.google.com/maps/dir/?api=1&destination=${site.lat},${site.lng}&travelmode=driving` : null;
   const earlierMessages = orderedMessages.slice(0, -2);
   const recentMessages = orderedMessages.slice(-2);
   const isTelegram = thread.source === 'Telegram';
@@ -277,7 +252,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="outline"><Link href="/intake"><ArrowLeft size={14} /> Back to inbox</Link></Button>
-          {dispatchSaved && <Button asChild variant="outline"><Link href="/log">View dispatch log</Link></Button>}
+          {dispatchSaved && !isTech && <Button asChild variant="outline"><Link href="/log">View dispatch log</Link></Button>}
         </div>
       </header>
 
@@ -434,20 +409,6 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
         </div>
 
         <div className="min-w-0 space-y-4">
-          {isTech && site && (
-            <Card title={<><MapPin size={15} /> Route from shop</>} aside={directionsUrl ? (
-              <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary" data-testid="link-google-directions">
-                Open directions in Google Maps <ExternalLink size={11} />
-              </a>) : undefined}>
-              <MiniRouteMap customer={site} shop={hub.shop} polyline={myRouteQ.data?.status === 'ready' ? myRouteQ.data.polyline : null} />
-              <div className="mt-2 text-xs" data-testid="tech-route-summary" role="status">
-                {myRouteQ.isFetching ? <span className="text-muted-foreground">Loading the Google route…</span>
-                  : myRouteQ.data?.status === 'ready' && myRouteQ.data.distance_meters != null && myRouteQ.data.duration_seconds != null
-                    ? <span><b className="font-mono text-sm">{fmtMin(myRouteQ.data.duration_seconds)}</b> · {fmtKm(myRouteQ.data.distance_meters)} · Google, shop to customer</span>
-                    : <span className="text-pending">{myRouteQ.isError ? 'The route could not be loaded.' : myRouteQ.data?.status === 'not_configured' ? 'Google Routes is not configured on the server. No route line, distance, or time is shown.' : 'Google did not return a route. No route line, distance, or time is shown.'}</span>}
-              </div>
-            </Card>
-          )}
           {dispatchSaved && (
             <Card title={assignedTechnician ? `Customer review · ${assignedTechnician.name}` : 'Customer review'} aside={<StatusBadge tone="pending">Sample review</StatusBadge>}>
               {assignedTechnician && customerReview ? (
@@ -462,53 +423,13 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
               ) : <p className="text-sm text-muted-foreground">No technician review sample is available for this assignment.</p>}
             </Card>
           )}
-          {dispatchSaved && isTech && (
-            <Card title="Technician response" aside={
-              <StatusBadge tone={technicianResponse === 'Accepted' ? 'ok' : technicianResponse === 'Rejected' ? 'err' : 'pending'}>
-                {technicianResponse ?? 'Awaiting response'}
-              </StatusBadge>
-            }>
-              <div className="space-y-3" data-testid="technician-response-panel">
-                {technicianResponse === 'Accepted' ? (
-                  <p className="text-sm leading-relaxed">
-                    {assignedTechnician?.name ?? 'The assigned technician'} accepted this job
-                    {technicianResponseAt ? ` · ${dateTime(technicianResponseAt)}` : ''}. The dispatch remains active.
-                  </p>
-                ) : technicianResponse === 'Rejected' ? (
-                  <p className="rounded-lg border border-err/25 bg-err/[0.06] p-3 text-sm leading-relaxed">
-                    {assignedTechnician?.name ?? 'The assigned technician'} rejected this job
-                    {technicianResponseAt ? ` · ${dateTime(technicianResponseAt)}` : ''}. The dispatch, technician, van and reserved parts remain allocated for the Boss to handle.
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No accept or reject response has been recorded yet.</p>
-                )}
-                {canRespondToDispatch && (
-                  <>
-                    <p className="text-xs text-muted-foreground">Reject records your response only; it does not release the assignment, van or reserved parts.</p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" onClick={() => submitTechnicianResponse('Accepted')} disabled={responseMutation.isPending} data-testid="button-accept-dispatch">
-                        {responseMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                        Accept job
-                      </Button>
-                      <Button type="button" variant="destructive" onClick={() => submitTechnicianResponse('Rejected')} disabled={responseMutation.isPending} data-testid="button-reject-dispatch">
-                        Reject job
-                      </Button>
-                    </div>
-                  </>
-                )}
-                {responseMutation.isError && (
-                  <p role="alert" className="text-xs text-err">{errorText(responseMutation.error, 'The response could not be saved. Choose again to retry.')}</p>
-                )}
-              </div>
-            </Card>
-          )}
           {analysis && analysisIsCurrent && !dispatchSaved && (
             <>
               {isTech && <JobBrief />}
 
               {!isTech && site && match && (
-                <Card title={<><MapPin size={15} /> Route</>} aside={directionsUrl ? (
-                  <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary" data-testid="link-google-directions">
+                <Card title={<><MapPin size={15} /> Route</>} aside={shopDirectionsUrl ? (
+                  <a href={shopDirectionsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary" data-testid="link-google-directions">
                     Open directions in Google Maps <ExternalLink size={11} />
                   </a>) : undefined}>
                   <MiniRouteMap customer={site} shop={shop}
@@ -541,7 +462,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                               <dl className="grid gap-3 sm:grid-cols-2">
                                 <div className="rounded-lg border bg-muted/30 p-3">
                                   <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Technician</dt>
-                                  <dd className="mt-1 font-semibold">{match.name}</dd>
+                                  <dd className="mt-1 flex items-center gap-2 font-semibold"><TechnicianAvatar id={match.id} name={match.name} className="h-8 w-8" />{match.name}</dd>
                                 </div>
                                 <div className="rounded-lg border bg-muted/30 p-3">
                                   <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Van</dt>
@@ -565,7 +486,61 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
               )}
             </>
           )}
-          {!dispatchSaved && <p className="text-xs text-muted-foreground">Only this saved conversation is analyzed. Dispatch approval is a separate action and rechecks current technician and stock data.</p>}
+          {isTech && (
+            <Card title={<><MapPin size={15} /> Customer visit</>} aside={
+              <StatusBadge tone={!dispatchSaved ? 'pending' : savedDispatch?.status === 'Completed' ? 'ok' : 'busy'}>
+                {!dispatchSaved ? 'Sample details' : savedDispatch?.status === 'Completed' ? 'Completed' : savedDispatch ? 'Accepted' : 'Syncing assignment'}
+              </StatusBadge>
+            }>
+              {site ? (
+                <>
+                  <dl className="grid gap-3 rounded-lg border border-card-border bg-muted/20 p-3 text-sm sm:grid-cols-2">
+                    <div className="min-w-0 sm:col-span-2">
+                      <dt className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Customer address · sample</dt>
+                      <dd className="mt-1 break-words font-medium">{DEMO_CUSTOMER_VISIT_DETAILS[site.id]?.address ?? `${site.label}, ${site.area}, Selangor, Malaysia`}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Contact number · sample</dt>
+                      <dd className="mt-1 font-medium">{DEMO_CUSTOMER_VISIT_DETAILS[site.id]?.contact ?? '0000-000-000 (sample only)'}</dd>
+                    </div>
+                    <div className="flex items-end">
+                      {customerDirectionsUrl ? (
+                        <a href={customerDirectionsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline" data-testid="link-customer-directions">
+                          Open customer directions in Google Maps <ExternalLink size={13} />
+                        </a>
+                      ) : <span className="text-xs text-muted-foreground">Directions unavailable until a site is selected.</span>}
+                    </div>
+                  </dl>
+                  {!dispatchSaved && <p className="mt-3 text-xs leading-5 text-muted-foreground">Sliding assigns this job to you, reserves the required parts and allocates an available van.</p>}
+                </>
+              ) : (
+                <p className="rounded-lg border border-pending/30 bg-pending/[0.06] p-3 text-sm text-muted-foreground">
+                  {dispatchSaved ? hub.hubQ.isLoading ? 'Loading the saved customer site…' : 'The saved customer site is not available.' : 'A sample customer site must be selected before you can accept this job.'}
+                </p>
+              )}
+              {!dispatchSaved && hub.approveError && <div className="mt-3"><InlineError>{hub.approveError}</InlineError></div>}
+              <div className="mt-4">
+                {dispatchSaved ? (
+                  savedDispatchEntry?.dispatch ? (
+                    <CompletionControl entry={savedDispatchEntry} hub={hub} completedBy={selfTech?.name} buttonLabel="Complete job" />
+                  ) : <p role="status" className="text-xs text-muted-foreground">Syncing the accepted work order…</p>
+                ) : (
+                  <SlideToApprove
+                    onConfirm={approve}
+                    resetKey={`accept|${conversationId}|${siteId ?? 'none'}|${match?.id ?? 'none'}|${analyzedId ?? 'none'}`}
+                    idleLabel="Slide to accept this work order"
+                    pendingLabel="Allocating your van and parts…"
+                    successLabel="Work order accepted"
+                    sliderLabel="Slide right to accept this work order"
+                    disabled={!site || !analysisIsCurrent || !match || threadQ.isError || hub.writePending || hub.connectionLost || hub.approve.isPending}
+                    disabledLabel={hub.connectionLost ? 'Hub offline' : !site ? 'Customer site required' : !analysisIsCurrent ? 'Preparing job analysis' : !match ? whyNot : 'Acceptance unavailable'}
+                    testId="slide-accept-work-order"
+                  />
+                )}
+              </div>
+            </Card>
+          )}
+          {!dispatchSaved && !isTech && <p className="text-xs text-muted-foreground">Only this saved conversation is analyzed. Dispatch approval is a separate action and rechecks current technician and stock data.</p>}
         </div>
       </div>
     </div>

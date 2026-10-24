@@ -3,7 +3,9 @@ import { ArrowLeft, Briefcase, FlaskConical, HardHat, Radio } from 'lucide-react
 import { getGetHubDataQueryKey, useGetHubData } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { InlineError, initials } from './shared';
+import { InlineError } from './shared';
+import { TechnicianAvatar } from './TechnicianAvatar';
+import { CatSticker } from './CatSticker';
 import { LevelBadge } from './techMeta';
 import { useDemoSession } from './session';
 
@@ -18,6 +20,7 @@ export default function RoleChooser() {
         <div className="flex items-center gap-2.5">
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground"><Radio size={18} strokeWidth={2.5} /></span>
           <span className="font-display text-xl font-semibold tracking-tight">Dispatch Hub</span>
+          <CatSticker pose="sleepy" />
         </div>
         <div>
           <h1 className="text-[34px] font-semibold leading-[1.05] md:text-[44px]">{picking ? 'Which technician are you?' : 'Choose a demo role'}</h1>
@@ -55,7 +58,7 @@ export default function RoleChooser() {
                     <li key={t.id}>
                       <button type="button" data-testid={`button-identity-${t.id}`} onClick={() => choose({ role: 'technician', technicianId: t.id })}
                         className="flex w-full items-center gap-3 rounded-xl border border-card-border bg-card p-3 text-left transition-colors hover:border-primary/50">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary font-mono text-xs font-semibold">{initials(t.name)}</span>
+                        <TechnicianAvatar id={t.id} name={t.name} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold">{t.name}</span>
                           <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><LevelBadge tech={t} /></span>

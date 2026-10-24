@@ -4,7 +4,8 @@ import { useGenerateSampleEInvoice } from '@workspace/api-client-react';
 import type { SampleEInvoice, Technician } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Card, EmptyState, InlineError, Mono, StatusBadge, errorText, fieldClass, initials } from './shared';
+import { Card, EmptyState, InlineError, Mono, StatusBadge, errorText, fieldClass } from './shared';
+import { TechnicianAvatar } from './TechnicianAvatar';
 import { LevelBadge, ratingText } from './techMeta';
 import { badgeSurfaceForRank, rankBadges } from './serviceHistoryUtils';
 import { getDemoServiceHistory, type SampleCompletedJob } from './demoServiceHistory';
@@ -72,7 +73,7 @@ function SampleInvoiceAction({ technician, job }: { technician: Technician; job:
       <Button type="button" size="sm" variant="outline" onClick={() => void generate()} disabled={invoiceMutation.isPending || pdfPending}
         data-testid={`button-generate-invoice-${job.job_number}`}>
         <FileText size={14} />
-        {invoiceMutation.isPending ? 'Generating…' : pdfPending ? 'Preparing PDF…' : 'Generate & download PDF'}
+        {invoiceMutation.isPending ? 'Generating…' : pdfPending ? 'Preparing PDF…' : 'Generate & download e-invoice'}
       </Button>
       {invoiceMutation.isError && (
         <InlineError testId={`error-sample-invoice-${job.job_number}`} onRetry={() => void generate()} retrying={invoiceMutation.isPending || pdfPending}>
@@ -106,7 +107,7 @@ function SampleInvoiceAction({ technician, job }: { technician: Technician; job:
   );
 }
 
-function SampleHistoryTable({ technician }: { technician: Technician }) {
+export function TechnicianWorkHistoryTable({ technician }: { technician: Technician }) {
   const jobs = getDemoServiceHistory(technician);
   const assetBase = `${import.meta.env.BASE_URL}completion-proofs/`;
 
@@ -198,7 +199,7 @@ function SampleProof({ tech }: { tech: Technician }) {
         <DialogTitle>{tech.name} — work history</DialogTitle>
         <DialogDescription>Fictional sample history for this technician. Sample content is not a real dispatch record.</DialogDescription>
       </DialogHeader>
-      <SampleHistoryTable technician={tech} />
+      <TechnicianWorkHistoryTable technician={tech} />
     </DialogContent>
   );
 }
@@ -210,7 +211,7 @@ export function BadgeButton({ t, rank, podium }: { t: Technician; rank: number; 
       <DialogTrigger asChild>
         <button type="button" data-testid={`work-badge-${t.id}`} aria-label={`Open work history for ${t.name}`}
           className={`group flex w-full min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition-[border-color,transform,background-color] duration-200 hover:-translate-y-0.5 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${surface}`}>
-          <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-xs font-semibold text-primary">{initials(t.name)}</span>
+          <TechnicianAvatar id={t.id} name={t.name} className="h-11 w-11" />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{t.name}</span>
             <span className="mt-1 flex flex-wrap items-center gap-1.5"><LevelBadge tech={t} /></span>

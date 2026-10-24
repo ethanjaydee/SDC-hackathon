@@ -1,14 +1,11 @@
 import { useState } from 'react';
-import { ArrowRight, Check, CircleAlert, Lightbulb, RefreshCw, Sparkles, Star } from 'lucide-react';
-import {
-  getListWorkshopReviewsQueryKey,
-  useListWorkshopReviews,
-  useSummarizeWorkshopReviews,
-} from '@workspace/api-client-react';
+import { ArrowRight, CircleAlert, Lightbulb, RefreshCw, Sparkles, Star } from 'lucide-react';
+import { useSummarizeWorkshopReviews } from '@workspace/api-client-react';
 import type { WorkshopReviewSummary } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, EmptyState, errorText, fieldClass, InlineError, PageHead, StatusBadge, type Hub } from './shared';
-import { filterReviewSamples, getDemoReviewGroups } from './demoReviewSamples';
+import { filterReviewSamples, getDemoReviewGroups, getOverallLowRatedReviews } from './demoReviewSamples';
+import { TechnicianAvatar } from './TechnicianAvatar';
 
 function formatReviewDate(value: string) {
   const date = new Date(value);
@@ -43,12 +40,12 @@ function ReviewLevelPanel({ group }: { group: ReturnType<typeof getDemoReviewGro
 
   return (
     <section className="min-w-0 rounded-xl border border-card-border bg-muted/20 p-3.5" aria-labelledby={`sample-review-${group.level}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <h3 id={`sample-review-${group.level}`} className="font-display text-base font-semibold">{group.level}</h3>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">{group.note}</p>
         </div>
-        <div className="shrink-0 text-right" aria-live="polite">
+        <div className="ml-auto shrink-0 text-right" aria-live="polite">
           <p className="font-mono text-sm font-semibold tabular">{average?.toFixed(1) ?? '—'}<span className="text-muted-foreground">/5</span></p>
           <p className="text-[10px] text-muted-foreground">{reviews.length} of {group.count} samples</p>
         </div>
@@ -76,7 +73,10 @@ function ReviewLevelPanel({ group }: { group: ReturnType<typeof getDemoReviewGro
           {reviews.map((review) => (
             <li key={`${review.technicianId}-${review.id}`} className="rounded-md border border-card-border bg-card px-2.5 py-2" data-testid={`sample-review-${review.id}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] font-semibold">{review.technicianName ?? 'Sample technician'}</span>
+                <span className="flex min-w-0 items-center gap-2 text-[11px] font-semibold">
+                  {review.technicianId != null && <TechnicianAvatar id={review.technicianId} name={review.technicianName ?? 'Sample technician'} className="h-7 w-7" />}
+                  {review.technicianName ?? 'Sample technician'}
+                </span>
                 <Stars rating={review.rating} />
               </div>
               <p className="mt-1 text-[11px] font-medium text-foreground/85">{review.job}</p>
@@ -100,25 +100,18 @@ function SummaryPanel({ summary }: { summary: WorkshopReviewSummary }) {
       <div className="rounded-lg border border-primary/20 bg-primary/[0.055] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary">Overview</p>
-          <StatusBadge tone="ok">{summary.review_count} reviews considered</StatusBadge>
+          <StatusBadge tone="pending">
+            {summary.review_count} low-rated reviews · 1–2 stars
+          </StatusBadge>
         </div>
         <p className="mt-2 text-sm leading-6">{summary.overview}</p>
+        {summary.source === 'sample' && (
+          <p role="note" className="mt-3 rounded-md border border-pending/20 bg-pending/[0.06] px-3 py-2 text-xs text-muted-foreground">
+            This AI summary uses the overall fictional review examples and is illustrative only.
+          </p>
+        )}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <section className="rounded-lg border border-card-border bg-card p-4" aria-labelledby="review-strengths-title">
-          <h3 id="review-strengths-title" className="flex items-center gap-2 text-sm font-semibold">
-            <Check size={15} className="text-ok" /> Keep doing
-          </h3>
-          {summary.strengths.length ? (
-            <ul className="mt-3 space-y-2">
-              {summary.strengths.map((item, index) => (
-                <li key={`${index}-${item}`} className="flex gap-2 text-sm leading-5 text-muted-foreground">
-                  <span className="mt-[0.55rem] h-1 w-1 shrink-0 rounded-full bg-ok" />{item}
-                </li>
-              ))}
-            </ul>
-          ) : <p className="mt-3 text-sm text-muted-foreground">No recurring strengths identified yet.</p>}
-        </section>
+      <div>
         <section className="rounded-lg border border-card-border bg-card p-4" aria-labelledby="review-improvements-title">
           <h3 id="review-improvements-title" className="flex items-center gap-2 text-sm font-semibold">
             <ArrowRight size={15} className="text-primary" /> Improvement opportunities
@@ -143,14 +136,15 @@ function SummaryPanel({ summary }: { summary: WorkshopReviewSummary }) {
 
 export default function ReviewsPage({ hub }: Hub) {
   const { technicians } = hub;
-  const reviewsQuery = useListWorkshopReviews({
-    query: { queryKey: getListWorkshopReviewsQueryKey() },
-  });
   const summarizeReviews = useSummarizeWorkshopReviews();
 
-  const data = reviewsQuery.data;
   const summary = summarizeReviews.data;
   const sampleGroups = getDemoReviewGroups(technicians);
+  const overallLowRatedReviews = getOverallLowRatedReviews(technicians);
+  const noLowRatedReviews = overallLowRatedReviews.length === 0;
+  const generateSummary = () => summarizeReviews.mutate({
+    data: { source: 'sample', sample_reviews: overallLowRatedReviews },
+  });
 
   return (
     <div className="space-y-5" data-testid="reviews-page">
@@ -164,7 +158,7 @@ export default function ReviewsPage({ hub }: Hub) {
 
       <p role="note" className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/[0.045] px-4 py-3 text-xs leading-5 text-muted-foreground" data-testid="reviews-visibility-notice">
         <CircleAlert size={14} className="mt-0.5 shrink-0 text-primary" />
-        Saved reviews are visible to signed-in workspace accounts. No customer names are collected.
+        The briefing uses all 1- and 2-star reviews across Easy, Normal and Hard, regardless of the filters below. No saving is required.
       </p>
 
       <div className="space-y-4">
@@ -174,13 +168,13 @@ export default function ReviewsPage({ hub }: Hub) {
         >
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="max-w-lg text-xs leading-5 text-muted-foreground">
-                Generate a focused read of saved feedback. Recommendations are starting points for staff review, not automatic changes.
+                AI summarizes the overall 1- and 2-star reviews across all technicians and job levels, focusing on complaints and improvements.
               </p>
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => summarizeReviews.mutate()}
-                disabled={summarizeReviews.isPending || !data?.review_count}
+                onClick={generateSummary}
+                disabled={summarizeReviews.isPending || noLowRatedReviews || hub.hubQ.isLoading}
                 className="shrink-0"
                 data-testid="button-generate-review-summary"
               >
@@ -202,11 +196,11 @@ export default function ReviewsPage({ hub }: Hub) {
             ) : summarizeReviews.isError ? (
               <InlineError
                 testId="review-summary-error"
-                onRetry={() => summarizeReviews.mutate()}
+                onRetry={generateSummary}
                 retrying={summarizeReviews.isPending}
                 retryLabel="Try again"
               >
-                {errorText(summarizeReviews.error, 'AI summary is unavailable right now. Your saved feedback is safe; try again shortly.')}
+                {errorText(summarizeReviews.error, 'AI summary is unavailable right now. Try again shortly.')}
               </InlineError>
             ) : summary ? (
               <SummaryPanel summary={summary} />
@@ -214,11 +208,11 @@ export default function ReviewsPage({ hub }: Hub) {
               <div data-testid="review-summary-empty">
                 <EmptyState
                   icon={<Sparkles size={17} />}
-                  title={data?.review_count ? 'Ready when you are' : 'No saved reviews yet'}
+                  title={noLowRatedReviews ? 'No low-rated reviews' : 'Low-rating improvement briefing'}
                 >
-                  {data?.review_count
-                    ? 'Generate a summary when you want recommendations based on saved customer feedback.'
-                    : 'Customer reviews will appear here when feedback is available.'}
+                  {noLowRatedReviews
+                    ? 'No 1- or 2-star reviews are available to summarize.'
+                    : 'Generate a summary of low-rated feedback only. The briefing excludes 3-, 4- and 5-star reviews.'}
                 </EmptyState>
               </div>
             )}
@@ -230,7 +224,7 @@ export default function ReviewsPage({ hub }: Hub) {
         aside={<StatusBadge tone="pending">Illustrative only</StatusBadge>}
       >
         <p className="mb-4 rounded-lg border border-pending/20 bg-pending/[0.045] px-3 py-2 text-xs leading-5 text-muted-foreground" role="note" data-testid="review-samples-notice">
-          These examples are fictional. They are not saved customer reviews and are excluded from AI summaries and saved-review totals.
+          These examples are fictional. The AI improvement briefing includes all 1- and 2-star reviews shown here; no review is saved when generating a summary.
         </p>
         <div className="grid gap-3 xl:grid-cols-3" data-testid="review-sample-levels">
           {sampleGroups.map((group) => <ReviewLevelPanel key={group.level} group={group} />)}

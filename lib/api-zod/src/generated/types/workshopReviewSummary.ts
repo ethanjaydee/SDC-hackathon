@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { WorkshopReviewSummarySource } from './workshopReviewSummarySource';
 
 export interface WorkshopReviewSummary {
   /**
@@ -29,5 +30,6 @@ export interface WorkshopReviewSummary {
      * @maximum 100
      */
   review_count: number;
+  source: WorkshopReviewSummarySource;
   generated_at: Date;
 }
