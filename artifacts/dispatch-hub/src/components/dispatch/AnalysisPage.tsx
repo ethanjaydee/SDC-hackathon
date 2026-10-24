@@ -462,7 +462,11 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                               <dl className="grid gap-3 sm:grid-cols-2">
                                 <div className="rounded-lg border bg-muted/30 p-3">
                                   <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Technician</dt>
-                                  <dd className="mt-1 flex items-center gap-2 font-semibold"><TechnicianAvatar id={match.id} name={match.name} className="h-8 w-8" />{match.name}</dd>
+                                  <dd className="mt-1 flex flex-wrap items-center gap-2 font-semibold">
+                                    <TechnicianAvatar id={match.id} name={match.name} className="h-8 w-8" />
+                                    <span>{match.name}</span>
+                                    <StatusBadge tone="idle">{match.level != null ? `Level ${match.level}` : 'Level unavailable'}</StatusBadge>
+                                  </dd>
                                 </div>
                                 <div className="rounded-lg border bg-muted/30 p-3">
                                   <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Van</dt>
