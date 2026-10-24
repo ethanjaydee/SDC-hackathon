@@ -11,14 +11,14 @@ import { Scene07 } from './video_scenes/Scene07';
 import { Scene08 } from './video_scenes/Scene08';
 
 export const SCENE_DURATIONS: Record<string, number> = {
-  roles: 5050,
-  overview: 5350,
-  workorder: 5100,
-  dispatch: 4500,
-  field: 5050,
-  transport: 4950,
-  history: 5500,
-  insight: 4500,
+  roles: 2000,
+  identity: 1600,
+  technician: 1800,
+  inbox: 2400,
+  brief: 4400,
+  accept: 2600,
+  active: 2100,
+  complete: 3100,
 };
 
 export const VIDEO_ASPECT_RATIO: VideoAspectRatio = '16:9';
@@ -36,13 +36,13 @@ const SCENE_START_SEC: Record<string, number> = (() => {
 const SCENES = [Scene01, Scene02, Scene03, Scene04, Scene05, Scene06, Scene07, Scene08];
 const SCENE_COMPONENTS: Record<string, ComponentType> = {
   roles: Scene01,
-  overview: Scene02,
-  workorder: Scene03,
-  dispatch: Scene04,
-  field: Scene05,
-  transport: Scene06,
-  history: Scene07,
-  insight: Scene08,
+  identity: Scene02,
+  technician: Scene03,
+  inbox: Scene04,
+  brief: Scene05,
+  accept: Scene06,
+  active: Scene07,
+  complete: Scene08,
 };
 const AUDIO_SEEK_EPSILON_SEC = 0.18;
 

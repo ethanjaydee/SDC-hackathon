@@ -1,3 +1,3 @@
-import { OverviewScene } from '../Scenes';
+import { TechnicianIdentityScene } from '../TechnicianScenes';
 
-export function Scene02() { return <OverviewScene />; }
+export function Scene02() { return <TechnicianIdentityScene />; }

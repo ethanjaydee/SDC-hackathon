@@ -1,3 +1,3 @@
-import { InsightScene } from '../Scenes';
+import { CompletedWorkOrderScene } from '../TechnicianScenes';
 
-export function Scene08() { return <InsightScene />; }
+export function Scene08() { return <CompletedWorkOrderScene />; }

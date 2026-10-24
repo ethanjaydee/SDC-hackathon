@@ -16,12 +16,12 @@ export interface SceneDetails {
 }
 
 export const SCENE_DETAILS: Record<string, SceneDetails> = {
-  roles: { title: 'Demo roles', filePath: 'src/components/video/video_scenes/Scene01.tsx' },
-  overview: { title: 'Boss overview', filePath: 'src/components/video/video_scenes/Scene02.tsx' },
-  workorder: { title: 'Work order and analysis', filePath: 'src/components/video/video_scenes/Scene03.tsx' },
-  dispatch: { title: 'Route and dispatch', filePath: 'src/components/video/video_scenes/Scene04.tsx' },
-  field: { title: 'Technician field view', filePath: 'src/components/video/video_scenes/Scene05.tsx' },
-  transport: { title: 'Transport and inventory', filePath: 'src/components/video/video_scenes/Scene06.tsx' },
-  history: { title: 'Service history and reviews', filePath: 'src/components/video/video_scenes/Scene07.tsx' },
-  insight: { title: 'Workshop analysis', filePath: 'src/components/video/video_scenes/Scene08.tsx' },
+  roles: { title: 'Enter Technician view', filePath: 'src/components/video/video_scenes/Scene01.tsx' },
+  identity: { title: 'Choose technician identity', filePath: 'src/components/video/video_scenes/Scene02.tsx' },
+  technician: { title: 'Technician home', filePath: 'src/components/video/video_scenes/Scene03.tsx' },
+  inbox: { title: 'Open a Work Order', filePath: 'src/components/video/video_scenes/Scene04.tsx' },
+  brief: { title: 'AI brief + Google Maps', filePath: 'src/components/video/video_scenes/Scene05.tsx' },
+  accept: { title: 'Slide to accept', filePath: 'src/components/video/video_scenes/Scene06.tsx' },
+  active: { title: 'Finish the job', filePath: 'src/components/video/video_scenes/Scene07.tsx' },
+  complete: { title: 'Completed status', filePath: 'src/components/video/video_scenes/Scene08.tsx' },
 };
