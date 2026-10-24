@@ -1,10 +1,9 @@
 import { createContext, useContext, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { Cat, Moon, Sparkles, Sun } from 'lucide-react';
+import { BookOpen, Cat, Moon, Sparkles, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cycleTheme, parseStoredTheme, shouldShowCatDecorations, themeLabel, type Theme } from './themeModel';
 import { useCatButtonMotion } from './useCatButtonMotion';
-import { CatPopIn } from './CatPopIn';
 
 const ThemeCtx = createContext<{
   theme: Theme;
@@ -58,7 +57,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeCtx.Provider value={{ theme, setTheme, catDecorations, setCatDecorations }}>
       {children}
-      {showCats && <CatPopIn />}
     </ThemeCtx.Provider>
   );
 }
@@ -76,7 +74,7 @@ export function ThemeToggle() {
     : next === 'cyberpunk'
       ? <Sparkles size={16} />
       : next === 'cat'
-        ? <Cat size={16} />
+        ? <BookOpen size={16} className="text-amber-400" />
         : <Sun size={16} />;
   const showCats = shouldShowCatDecorations(theme, catDecorations);
 

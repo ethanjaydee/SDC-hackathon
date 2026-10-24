@@ -272,41 +272,6 @@ html[data-cat-decorations='true'] .dh-cat-sticker { display: inline-block; }
   78% { transform: translateY(-6px) rotate(-8deg); }
   84% { transform: translateY(1px) rotate(4deg); }
 }
-.dh-cat-pop-in {
-  position: fixed;
-  z-index: 40;
-  display: grid;
-  width: 52px;
-  height: 48px;
-  place-items: center;
-  border-radius: 999px;
-  background: hsl(42 70% 99% / .92);
-  box-shadow: 0 5px 20px hsl(244 22% 25% / .18);
-  pointer-events: none;
-  animation: dh-cat-pop 640ms cubic-bezier(.18,.82,.28,1.22) both;
-}
-.dh-cat-pop-face { width: 42px; height: 38px; }
-.dh-cat-pop-sparkle {
-  position: absolute;
-  top: -7px;
-  right: 0;
-  color: hsl(39 88% 53%);
-  font-size: 18px;
-  animation: dh-cat-sparkle 720ms ease-out both;
-}
-@keyframes dh-cat-pop {
-  0% { opacity: 0; transform: translateY(22px) scale(.28) rotate(-24deg); }
-  72% { opacity: 1; transform: translateY(-5px) scale(1.12) rotate(8deg); }
-  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
-}
-@keyframes dh-cat-sparkle {
-  0% { opacity: 0; transform: scale(.2) rotate(-35deg); }
-  65% { opacity: 1; transform: scale(1.25) rotate(18deg); }
-  100% { opacity: .8; transform: scale(1) rotate(0); }
-}
 @media (prefers-reduced-motion: reduce) {
-  .dh-cat-sticker,
-  .dh-cat-pop-in,
-  .dh-cat-pop-sparkle { animation: none; }
-  .dh-cat-pop-in { opacity: 0; }
+  .dh-cat-sticker { animation: none; }
 }
