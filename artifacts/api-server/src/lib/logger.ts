@@ -7,6 +7,7 @@ export const logger = pino({
   redact: [
     "req.headers.authorization",
     "req.headers.cookie",
+    "req.headers['x-telegram-bot-api-secret-token']",
     "res.headers['set-cookie']",
   ],
   ...(isProduction

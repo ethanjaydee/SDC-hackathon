@@ -33,3 +33,4 @@ TELEGRAM_RECEIVER_ENABLED = "false"
 
 [userenv.production]
 TELEGRAM_RECEIVER_ENABLED = "true"
+TELEGRAM_WEBHOOK_URL = "https://sdc-hackathon-2.replit.app/api/messaging/telegram/webhook"

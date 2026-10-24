@@ -68,11 +68,33 @@ export const GetTechnicianRouteResponse = zod.object({
  */
 export const GetTelegramStatusResponse = zod.object({
   "configured": zod.boolean(),
+  "mode": zod.enum(['polling', 'webhook']).optional(),
   "connected": zod.boolean(),
   "bot_username": zod.string().nullable(),
   "bot_url": zod.string().nullable(),
   "error": zod.string().nullable(),
   "last_received_at": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Receive a Telegram update authenticated by its secret header
+ */
+export const ReceiveTelegramWebhookHeader = zod.object({
+  "X-Telegram-Bot-Api-Secret-Token": zod.string()
+})
+
+export const receiveTelegramWebhookBodyUpdateIdMin = 0;
+
+
+
+export const ReceiveTelegramWebhookBody = zod.object({
+  "update_id": zod.number().int().min(receiveTelegramWebhookBodyUpdateIdMin),
+  "message": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const ReceiveTelegramWebhookResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 

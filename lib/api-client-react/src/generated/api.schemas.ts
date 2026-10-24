@@ -183,8 +183,30 @@ export interface SampleEInvoice {
   generated_at: string;
 }
 
+export type TelegramWebhookUpdateMessage = { [key: string]: unknown };
+
+export interface TelegramWebhookUpdate {
+  /** @minimum 0 */
+  update_id: number;
+  message?: TelegramWebhookUpdateMessage;
+  [key: string]: unknown;
+ }
+
+export interface TelegramWebhookReceipt {
+  ok: boolean;
+}
+
+export type TelegramStatusMode = typeof TelegramStatusMode[keyof typeof TelegramStatusMode];
+
+
+export const TelegramStatusMode = {
+  polling: 'polling',
+  webhook: 'webhook',
+} as const;
+
 export interface TelegramStatus {
   configured: boolean;
+  mode?: TelegramStatusMode;
   connected: boolean;
   /** @nullable */
   bot_username: string | null;

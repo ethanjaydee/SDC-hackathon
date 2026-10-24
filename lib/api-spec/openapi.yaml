@@ -69,6 +69,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TelegramStatus"
+  /messaging/telegram/webhook:
+    post:
+      operationId: receiveTelegramWebhook
+      tags: [hub]
+      summary: Receive a Telegram update authenticated by its secret header
+      parameters:
+        - name: X-Telegram-Bot-Api-Secret-Token
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramWebhookUpdate"
+      responses:
+        "200":
+          description: Update saved, ignored or already processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramWebhookReceipt"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/InvalidRequest"
+        "503":
+          $ref: "#/components/responses/InvalidRequest"
   /conversations/{id}/site:
     parameters:
       - name: id
@@ -707,11 +736,26 @@ components:
         currency: { type: string, enum: [MYR] }
         sample_note: { type: string, minLength: 1, maxLength: 240 }
         generated_at: { type: string, format: date-time }
+    TelegramWebhookUpdate:
+      type: object
+      required: [update_id]
+      additionalProperties: true
+      properties:
+        update_id: { type: integer, minimum: 0 }
+        message:
+          type: object
+          additionalProperties: true
+    TelegramWebhookReceipt:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
     TelegramStatus:
       type: object
       required: [configured, connected, bot_username, bot_url, error, last_received_at]
       properties:
         configured: { type: boolean }
+        mode: { type: string, enum: [polling, webhook] }
         connected: { type: boolean }
         bot_username: { type: ["string", "null"] }
         bot_url: { type: ["string", "null"] }

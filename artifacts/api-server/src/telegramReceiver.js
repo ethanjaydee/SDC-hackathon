@@ -1,5 +1,7 @@
-import { analyzeConversation, getTelegramCheckpoint, ingestTelegramUpdate } from "./hub.js";
+import { getTelegramCheckpoint } from "./hub.js";
 import { registerTelegramSender } from "./telegramTransport.js";
+import { createTelegramCall, processTelegramUpdate, telegramFailureMessage } from "./telegramUpdates.js";
+import { createTelegramWebhook } from "./telegramWebhook.js";
 
 const state = {
   configured: Boolean(process.env.TELEGRAM_BOT_TOKEN),
@@ -8,35 +10,43 @@ const state = {
   bot_url: null,
   error: null,
   last_received_at: null,
+  mode: process.env.TELEGRAM_WEBHOOK_URL ? "webhook" : "polling",
 };
 export const getTelegramStatus = () => ({ ...state });
-
-const failureMessage = (code) => code === 401 || code === 404
-  ? "Telegram rejected the bot token. Update TELEGRAM_BOT_TOKEN securely and restart the API."
-  : code === 409
-    ? "This bot has another receiver or a webhook. Stop the other receiver before connecting here."
-    : code === "webhook"
-      ? "An existing webhook is configured for this bot. It has not been changed or deleted."
-      : code === 429
-        ? "Telegram rate-limited the receiver. It will retry automatically."
-        : "Telegram could not be reached. The receiver will retry automatically.";
-
-const sendPrivateReply = async (call, chatId, text) => {
-  try {
-    await call("sendMessage", { chat_id: chatId, text, disable_web_page_preview: true });
-  } catch (error) {
-    state.error = error?.safeCode === 403
-      ? "Request saved, but Telegram could not send a bot reply. Open the bot and tap Start."
-      : "Request saved, but Telegram could not send a confirmation.";
-  }
-};
+let webhookReceiver = null;
+export async function ensureTelegramWebhookReady() {
+  if (webhookReceiver) await webhookReceiver.ready();
+}
+export async function receiveTelegramWebhook(update, suppliedSecret) {
+  return webhookReceiver ? webhookReceiver.handle(update, suppliedSecret)
+    : { status: 503, body: { error: "Telegram webhook receiving is not enabled in this environment." } };
+}
 
 /** Never log request URLs/errors: Telegram embeds credentials in its API URL. */
-export function startTelegramReceiver({ token = process.env.TELEGRAM_BOT_TOKEN, apiFetch = fetch } = {}) {
+export function startTelegramReceiver({
+  token = process.env.TELEGRAM_BOT_TOKEN, apiFetch = fetch,
+  webhookUrl = process.env.TELEGRAM_WEBHOOK_URL, sessionSecret = process.env.SESSION_SECRET,
+} = {}) {
+  state.configured = Boolean(token);
+  state.mode = webhookUrl ? "webhook" : "polling";
   if (!token) return () => {};
   if (process.env.TELEGRAM_RECEIVER_ENABLED === "false") {
     state.error = "Telegram receiving is disabled for this environment.";
     return () => {};
+  }
+  if (webhookUrl) {
+    const receiver = createTelegramWebhook({
+      token, url: webhookUrl, sessionSecret, apiFetch, report: (fields) => Object.assign(state, fields),
+    });
+    webhookReceiver = receiver;
+    // HTTP requests also await setup, so cold starts do not depend on background
+    // CPU. Errors remain visible and subsequent requests can retry safely.
+    void receiver.ready().catch(() => {});
+    return () => {
+      receiver.stop();
+      if (webhookReceiver === receiver) webhookReceiver = null;
+      state.connected = false;
+    };
   }
   const controller = new AbortController();
   const signal = controller.signal;
@@ -48,22 +58,8 @@ export function startTelegramReceiver({ token = process.env.TELEGRAM_BOT_TOKEN, 
     const timer = setTimeout(finish, ms);
     signal.addEventListener("abort", finish, { once: true });
   });
-  const call = async (method, body = {}, timeoutMs = 35000) => {
-    try {
-      const response = await apiFetch(`https://api.telegram.org/bot${token}/${method}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
-      });
-      const payload = await response.json();
-      if (!payload.ok) throw { safeCode: Number(payload.error_code) || 0 };
-      return payload.result;
-    } catch (error) {
-      // Only a numeric, locally assigned code escapes this boundary.
-      throw { safeCode: typeof error?.safeCode === "number" ? error.safeCode : 0 };
-    }
-  };
+  const botCall = createTelegramCall(token, apiFetch, signal);
+  const call = (method, body = {}, timeoutMs = 35000) => botCall(method, body, timeoutMs);
   const run = async () => {
     while (!signal.aborted) {
       try {
@@ -80,7 +76,6 @@ export function startTelegramReceiver({ token = process.env.TELEGRAM_BOT_TOKEN, 
           (chatId, text) => call("sendMessage", { chat_id: chatId, text, disable_web_page_preview: true }, 10000),
         );
         state.last_received_at = getTelegramCheckpoint(bot.id).last_received_at;
-        state.error = null;
         while (!signal.aborted) {
           const checkpoint = getTelegramCheckpoint(bot.id);
           const updates = await call("getUpdates", {
@@ -94,44 +89,13 @@ export function startTelegramReceiver({ token = process.env.TELEGRAM_BOT_TOKEN, 
           backoff = 2000;
           for (const update of updates) {
             if (signal.aborted) break;
-            const text = typeof update.message?.text === "string" ? update.message.text.trim() : "";
-            const privateChat = update.message?.chat?.type === "private" &&
-              Number.isSafeInteger(update.message.chat.id) && !update.message.from?.is_bot;
-            const result = ingestTelegramUpdate(bot.id, update);
-            if (result.imported) {
-              state.last_received_at = getTelegramCheckpoint(bot.id).last_received_at;
-              let reviewed = true;
-              try {
-                await analyzeConversation(result.conversationId);
-              } catch {
-                reviewed = false;
-                state.error = "Message saved. Mock review failed; open the conversation to retry analysis.";
-              }
-              if (privateChat) {
-                const confirmation = reviewed
-                  ? `Received. Your request is in Dispatch Hub as conversation #${result.conversationId}; mock review is ready. Open Customer conversations and choose the newest Telegram chat. Nothing is dispatched automatically.`
-                  : `Received as conversation #${result.conversationId}. Open Customer conversations in Dispatch Hub to review the message and retry mock analysis. Nothing is dispatched automatically.`;
-                await sendPrivateReply(call, update.message.chat.id, confirmation);
-              }
-            } else if (!result.duplicate && privateChat && result.conversationId == null) {
-              const command = text.match(/^\/([a-z0-9_]+)(?:@\w+)?(?:\s|$)/i)?.[1]?.toLowerCase();
-              const replies = {
-                start: "Welcome. Send a private text repair request here. It will appear in Dispatch Hub as a customer conversation for mock review; select a sample site before dispatching. Use /new before a separate request. Please use test data only.",
-                help: "Send a private text repair request to add it to Dispatch Hub. Use /new before a separate request. Only private text is imported; photos and voice notes are not. Analysis is mock-only and dispatch is never automatic.",
-                new: "Ready for a separate request. Send its repair details in your next message. Your existing conversation and history are unchanged.",
-              };
-              await sendPrivateReply(
-                call,
-                update.message.chat.id,
-                replies[command] ?? "Send a text repair request, or use /new to begin a separate request.",
-              );
-            }
+            await processTelegramUpdate(bot.id, update, call, (fields) => Object.assign(state, fields));
           }
         }
       } catch (error) {
         if (signal.aborted) break;
         state.connected = false;
-        state.error = failureMessage(error?.safeCode);
+        state.error = telegramFailureMessage(error?.safeCode);
         await wait(backoff);
         backoff = Math.min(backoff * 2, 30000);
       }

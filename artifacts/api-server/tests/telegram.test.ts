@@ -54,8 +54,15 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
   let db;
   let stop = () => {};
   const previousSessionSecret = process.env.SESSION_SECRET;
+  const previousReceiverEnabled = process.env.TELEGRAM_RECEIVER_ENABLED;
+  const previousWebhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
+  const actualFetch = global.fetch;
   try {
+    process.env.TELEGRAM_RECEIVER_ENABLED = 'true';
+    delete process.env.TELEGRAM_WEBHOOK_URL;
     process.env.SESSION_SECRET = 'unit-test-only-telegram-address-key';
+    global.fetch = (input, init) => String(input).startsWith('http://127.0.0.1:')
+      ? actualFetch(input, init) : Promise.resolve(Response.json({ ok: false }, { status: 503 }));
     process.chdir(dir);
     const hub = await import('../src/hub.js');
     const receiver = await import('../src/telegramReceiver.js');
@@ -193,10 +200,15 @@ test('Telegram polling imports private messages once, auto-reviews, persists cur
   } finally {
     stop();
     process.chdir(cwd);
+    global.fetch = actualFetch;
     if (server) await new Promise<void>((done) => server!.close(() => done()));
     db?.close();
     if (previousSessionSecret === undefined) delete process.env.SESSION_SECRET;
     else process.env.SESSION_SECRET = previousSessionSecret;
+    if (previousReceiverEnabled === undefined) delete process.env.TELEGRAM_RECEIVER_ENABLED;
+    else process.env.TELEGRAM_RECEIVER_ENABLED = previousReceiverEnabled;
+    if (previousWebhookUrl === undefined) delete process.env.TELEGRAM_WEBHOOK_URL;
+    else process.env.TELEGRAM_WEBHOOK_URL = previousWebhookUrl;
     rmSync(dir, { recursive: true, force: true });
   }
 });

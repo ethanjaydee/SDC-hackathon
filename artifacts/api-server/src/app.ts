@@ -32,8 +32,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api", router);
 
 const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
-  req.log.error({ err: error }, "Request failed");
   const badJson = error instanceof SyntaxError && "body" in error;
+  if (badJson) req.log.warn("Invalid JSON request body");
+  else req.log.error({ err: error }, "Request failed");
   res.status(badJson ? 400 : 500).json({
     error: badJson ? "Invalid JSON request body." : "The hub could not complete this request. Please try again.",
   });

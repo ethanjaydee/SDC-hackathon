@@ -5,9 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { TelegramStatusMode } from './telegramStatusMode';
 
 export interface TelegramStatus {
   configured: boolean;
+  mode?: TelegramStatusMode;
   connected: boolean;
   /** @nullable */
   bot_username: string | null;

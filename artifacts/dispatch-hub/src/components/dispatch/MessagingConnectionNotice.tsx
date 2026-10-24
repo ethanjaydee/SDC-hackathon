@@ -14,7 +14,7 @@ export function MessagingConnectionNotice() {
   const description = receiverPaused
     ? 'Telegram receiving is paused in this environment to avoid competing receivers. New messages appear in the active Telegram inbox, not here.'
     : status?.error ?? (connected
-    ? 'Open the bot, tap Start, then send a private text repair request. It appears in this inbox as a customer conversation and is automatically sent to the mock analyzer. Send /new before your next separate repair request.'
+    ? `Open the bot, tap Start, then send a private text repair request. It appears in this inbox as a customer conversation and is automatically sent for AI analysis.${status?.mode === 'webhook' ? ' Messages are delivered securely by Telegram webhook.' : ''} Send /new before your next separate repair request.`
     : statusQ.isError
       ? 'The receiver status could not be checked. It refreshes automatically.'
       : status?.configured
