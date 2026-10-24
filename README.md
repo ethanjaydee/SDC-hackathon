@@ -283,7 +283,7 @@ Proof of use: [`submission/SDC2026_Kebanggaan_Universiti_Malaya_(KUM)_Runpod_POU
 
 ## Submission Checklist
 - [x] Team name, domain (Domain 1 / Domain 2) and SDG track filled in
-- [ ] Slide deck link added
+- [x] Slide deck link added
 - [ ] Demo video link added
 - [x] Replit used, with proof of use in `submission/`
 - [x] RunPod usage and proof confirmed, if required by the competition
