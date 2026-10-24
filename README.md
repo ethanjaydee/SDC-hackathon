@@ -267,11 +267,11 @@ Proof of use: [`submission/SDC2026_Kebangaan_Universiti_Malaya_(KUM)_Runpod_POU.
 
 | Name        | Role                | GitHub                                   |
 | ----------- | ------------------- | ---------------------------------------- |
-| Member Name | Team Lead | [@username](https://github.com/username) |
+| Tan Kai Xue | Team Lead | [@TanKaiXue-2026](https://github.com/TanKaiXue-2026) |
 | Ethan Jeremy Daniel | Backend | [@ethanjaydee](https://github.com/ethanjaydee)
-| Member Name | Frontend            | [@username](https://github.com/username) |
-| Member Name | Project Manager   | [@username](https://github.com/username) |
-| Member Name| Market Research | [@username](https://github.com/username) |
+| Lim Xin Er | Frontend            | [@username](https://github.com/username) |
+| Chin Yue Herng | Project Manager   | [@username](https://github.com/username) |
+| Lim Li Wen| Market Research | [@username](https://github.com/username) |
 
 ---
 
@@ -282,9 +282,9 @@ Proof of use: [`submission/SDC2026_Kebangaan_Universiti_Malaya_(KUM)_Runpod_POU.
 - [ ] Demo video link added
 - [x] Replit used, with proof of use in `submission/`
 - [x] RunPod usage and proof confirmed, if required by the competition
-- [ ] Preliminary submission completed (`SDC2026_TeamName_Preliminary.pdf`)
+- [x] Preliminary submission completed (`SDC2026_TeamName_Preliminary.pdf`)
 - [x] Technology declaration completed (`SDC2026_TeamName_TechDeclaration.pdf`)
-- [ ] Submission files renamed with your team name (replace `TeamName`)
+- [x] Submission files renamed with your team name (replace `TeamName`)
 - [x] Local and Replit "How to Run" steps verified
 - [x] No API keys or secrets committed to the repository
 
