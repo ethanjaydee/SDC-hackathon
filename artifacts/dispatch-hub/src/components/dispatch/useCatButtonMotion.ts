@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
-import type { Theme } from './themeModel';
 
 /** Decorative native-click feedback; never intercept or replay the button's action. */
-export function useCatButtonMotion(theme: Theme) {
+export function useCatButtonMotion(enabled: boolean) {
   useEffect(() => {
-    if (theme !== 'cat') return;
+    if (!enabled) return;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const animations = new Map<HTMLElement, Animation>();
     const cancelAll = () => {
@@ -36,5 +35,5 @@ export function useCatButtonMotion(theme: Theme) {
       reducedMotion.removeEventListener('change', cancelAll);
       cancelAll();
     };
-  }, [theme]);
+  }, [enabled]);
 }

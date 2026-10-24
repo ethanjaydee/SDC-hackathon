@@ -11,3 +11,4 @@
 - [Technician self-visibility](technician-self-visibility.md) — technician-facing review and history pages show only the current technician's records.
 - [Technician work-order flow](technician-work-order-flow.md) — keep the map boss-only; accepted work orders retain the saved site and let the technician complete the job there.
 - [Demo technician portraits](dispatch-demo-portraits.md) — profile pictures are fictional illustrations, not verified staff photos; replace only with authorized assets.
+- [Layered cat styling](dispatch-layered-cat-styling.md) — keep the Cat palette in the theme cycle and make cat decorations a separate toggle that layers over any palette.

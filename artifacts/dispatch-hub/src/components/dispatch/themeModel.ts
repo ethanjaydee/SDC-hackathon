@@ -23,3 +23,7 @@ export function themeLabel(theme: Theme): string {
       return 'cat';
   }
 }
+
+export function shouldShowCatDecorations(theme: Theme, independentlyEnabled: boolean): boolean {
+  return independentlyEnabled || theme === 'cat';
+}
