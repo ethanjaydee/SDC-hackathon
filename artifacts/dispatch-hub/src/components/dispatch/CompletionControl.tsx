@@ -7,6 +7,7 @@ import { ConfirmAction, StatusBadge, dateTime } from './shared';
 export function CompletionControl({ entry, hub, completedBy, buttonLabel }: { entry: Activity; hub: DispatchState; completedBy?: string; buttonLabel?: string }) {
   const job = entry.dispatch;
   if (!job) return null;
+  if (job.status === 'Cancelled') return <StatusBadge tone="idle">Cancelled · demo reset</StatusBadge>;
   if (job.status === 'Completed') {
     return <StatusBadge tone="ok" data-testid={`completed-dispatch-${entry.id}`}>
       Completed{job.completed_at ? ` · ${dateTime(job.completed_at)}` : ''}

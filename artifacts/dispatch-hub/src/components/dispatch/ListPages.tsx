@@ -150,7 +150,7 @@ const kindOf = (e: Activity): Exclude<Kind, 'all'> =>
   e.action_details.startsWith('Technician response:') ? 'Response'
     : e.action_details.startsWith('Dispatched conversation acknowledged:') ? 'Acknowledged'
       : e.completion_dispatch_id != null ? 'Completed'
-        : e.action_details.startsWith('Technician availability reset:') ? 'Reset' : 'Approved';
+        : /^(Technician availability reset:|Demo work orders reset:)/.test(e.action_details) ? 'Reset' : 'Approved';
 const kindTone = { Approved: 'busy', Completed: 'ok', Reset: 'idle', Response: 'pending', Acknowledged: 'idle' } as const;
 const toneForEvent = (e: Activity) => kindOf(e) === 'Response'
   ? (e.action_details.toLowerCase().includes('rejected') ? 'err' : 'ok')

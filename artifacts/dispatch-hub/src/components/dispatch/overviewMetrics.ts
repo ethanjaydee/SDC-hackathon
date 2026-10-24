@@ -2,7 +2,7 @@ type RequestLink = { dispatch_activity_id: number | null };
 type DispatchRecord = {
   id: number;
   completion_dispatch_id: number | null;
-  dispatch: { status: 'Active' | 'Completed' | 'Unknown' } | null;
+  dispatch: { status: 'Active' | 'Completed' | 'Unknown' | 'Cancelled' } | null;
 };
 
 /** Missing or legacy completion records remain unknown, never assumed undone. */

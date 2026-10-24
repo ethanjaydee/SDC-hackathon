@@ -265,6 +265,7 @@ export const SavedDispatchStatus = {
   Active: 'Active',
   Completed: 'Completed',
   Unknown: 'Unknown',
+  Cancelled: 'Cancelled',
 } as const;
 
 /**
@@ -340,6 +341,24 @@ export interface Activity {
   action_details: string;
   approved_by: string;
   dispatch: SavedDispatch | null;
+}
+
+export type DemoWorkOrderResetInputConfirmation = typeof DemoWorkOrderResetInputConfirmation[keyof typeof DemoWorkOrderResetInputConfirmation];
+
+
+export const DemoWorkOrderResetInputConfirmation = {
+  RESET_DEMO_WORK_ORDERS: 'RESET_DEMO_WORK_ORDERS',
+} as const;
+
+export interface DemoWorkOrderResetInput {
+  confirmation: DemoWorkOrderResetInputConfirmation;
+}
+
+export interface DemoWorkOrderResetResult {
+  /** @minimum 0 */
+  reset_count: number;
+  /** @minimum 0 */
+  cancelled_count: number;
 }
 
 export type TechnicianDispatchResponseInputResponse = typeof TechnicianDispatchResponseInputResponse[keyof typeof TechnicianDispatchResponseInputResponse];

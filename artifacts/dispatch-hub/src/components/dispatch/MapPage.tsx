@@ -12,7 +12,7 @@ import { decodeGooglePolyline } from './routeGeometry';
 import { useDemoSession } from './session';
 import { getBusyVanMapLocations } from './busyVanMapLocations';
 
-const dispatchTone = { Active: 'busy', Completed: 'ok', Unknown: 'idle' } as const;
+const dispatchTone = { Active: 'busy', Completed: 'ok', Unknown: 'idle', Cancelled: 'idle' } as const;
 
 function formatRouteDistance(meters: number) {
   return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;

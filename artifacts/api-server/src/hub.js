@@ -14,6 +14,7 @@ import { sendTelegramMessage, TelegramDeliveryError } from "./telegramTransport.
 import { generateSampleEInvoice } from "./sampleEInvoice.js";
 import { createTechnicianResponseRecorder, TechnicianResponseError } from "./dispatchResponse.js";
 import { createDispatchAcknowledger, DispatchAcknowledgementError } from "./dispatchAcknowledgement.js";
+import { prepareDemoWorkOrderReset, createDemoWorkOrderResetter } from "./demoWorkOrderReset.js";
 import {
   AnalyzeRequestBody,
   AnalyzeRequestResponse,
@@ -30,6 +31,8 @@ import {
   AcknowledgeDispatchResponse,
   ResetTechnicianAvailabilityBody,
   ResetTechnicianAvailabilityResponse,
+  ResetDemoWorkOrdersBody,
+  ResetDemoWorkOrdersResponse,
   GetHubDataResponse,
   ListSupplierCatalogProvidersResponse,
   ListSupplierQuotesQueryParams,
@@ -310,6 +313,8 @@ const seedDemoConversations = db.transaction(() => {
 seedDemoConversations.immediate();
 seedWorkshopDemo(db);
 seedTransportPool(db);
+prepareDemoWorkOrderReset(db);
+const resetDemoWorkOrders = createDemoWorkOrderResetter(db);
 
 function getHubData() {
   return {
@@ -1083,6 +1088,18 @@ router.get("/conversations", (_req, res) => {
   res.json(ListConversationsResponse.parse({
     conversations: listConversationSummaries(),
   }));
+});
+router.post("/demo-work-orders/reset", (req, res, next) => {
+  const parsed = ResetDemoWorkOrdersBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Confirm the demo work-order reset before continuing." });
+    return;
+  }
+  try {
+    res.json(ResetDemoWorkOrdersResponse.parse(resetDemoWorkOrders.immediate()));
+  } catch (error) {
+    next(error);
+  }
 });
 router.patch("/conversations/:id/site", (req, res) => {
   const id = Number(req.params.id);

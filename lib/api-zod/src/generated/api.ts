@@ -230,7 +230,7 @@ export const GetHubDataResponse = zod.object({
   "action_details": zod.string(),
   "approved_by": zod.string(),
   "dispatch": zod.union([zod.object({
-  "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
+  "status": zod.enum(['Active', 'Completed', 'Unknown', 'Cancelled']).describe('Unknown means an older assignment cannot safely be completed.'),
   "completed_at": zod.string().nullable(),
   "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
   "technician_response_at": zod.coerce.date().nullable(),
@@ -925,7 +925,7 @@ export const ApproveDispatchResponse = zod.object({
   "action_details": zod.string(),
   "approved_by": zod.string(),
   "dispatch": zod.union([zod.object({
-  "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
+  "status": zod.enum(['Active', 'Completed', 'Unknown', 'Cancelled']).describe('Unknown means an older assignment cannot safely be completed.'),
   "completed_at": zod.string().nullable(),
   "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
   "technician_response_at": zod.coerce.date().nullable(),
@@ -1030,7 +1030,7 @@ export const CompleteDispatchResponse = zod.object({
   "action_details": zod.string(),
   "approved_by": zod.string(),
   "dispatch": zod.union([zod.object({
-  "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
+  "status": zod.enum(['Active', 'Completed', 'Unknown', 'Cancelled']).describe('Unknown means an older assignment cannot safely be completed.'),
   "completed_at": zod.string().nullable(),
   "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
   "technician_response_at": zod.coerce.date().nullable(),
@@ -1056,6 +1056,25 @@ export const CompleteDispatchResponse = zod.object({
   "conversation_id": zod.number().int().min(1).nullable()
 }),zod.null()])
 }))
+})
+
+
+/**
+ * @summary Restart all demo work orders without deleting history or Telegram conversations
+ */
+export const ResetDemoWorkOrdersBody = zod.object({
+  "confirmation": zod.enum(['RESET_DEMO_WORK_ORDERS'])
+})
+
+export const resetDemoWorkOrdersResponseResetCountMin = 0;
+
+export const resetDemoWorkOrdersResponseCancelledCountMin = 0;
+
+
+
+export const ResetDemoWorkOrdersResponse = zod.object({
+  "reset_count": zod.number().int().min(resetDemoWorkOrdersResponseResetCountMin),
+  "cancelled_count": zod.number().int().min(resetDemoWorkOrdersResponseCancelledCountMin)
 })
 
 
@@ -1136,7 +1155,7 @@ export const ResetTechnicianAvailabilityResponse = zod.object({
   "action_details": zod.string(),
   "approved_by": zod.string(),
   "dispatch": zod.union([zod.object({
-  "status": zod.enum(['Active', 'Completed', 'Unknown']).describe('Unknown means an older assignment cannot safely be completed.'),
+  "status": zod.enum(['Active', 'Completed', 'Unknown', 'Cancelled']).describe('Unknown means an older assignment cannot safely be completed.'),
   "completed_at": zod.string().nullable(),
   "technician_response": zod.union([zod.literal('Accepted'),zod.literal('Rejected'),zod.literal(null)]).nullable(),
   "technician_response_at": zod.coerce.date().nullable(),

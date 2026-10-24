@@ -16,4 +16,5 @@ export const SavedDispatchStatus = {
   Active: 'Active',
   Completed: 'Completed',
   Unknown: 'Unknown',
+  Cancelled: 'Cancelled',
 } as const;

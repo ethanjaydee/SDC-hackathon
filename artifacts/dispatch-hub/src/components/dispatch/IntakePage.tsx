@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
-import { ArrowRight, Check, FlaskConical, Inbox, Loader2, MessageSquareText, ScanSearch } from 'lucide-react';
+import { ArrowRight, Check, FlaskConical, Inbox, Loader2, MessageSquareText, RotateCcw, ScanSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getGetHubDataQueryKey, getListConversationsQueryKey, useAcknowledgeDispatch, useListConversations } from '@workspace/api-client-react';
+import { getGetHubDataQueryKey, getListConversationsQueryKey, useAcknowledgeDispatch, useListConversations, useResetDemoWorkOrders } from '@workspace/api-client-react';
 import { DEMO_CUSTOMER_SITES } from './demoLocations';
-import { Card, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, dateTime, errorText } from './shared';
+import { Card, ConfirmAction, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, dateTime, errorText } from './shared';
 import { useDemoSession } from './session';
 import { MessagingConnectionNotice } from './MessagingConnectionNotice';
 import { useToast } from '@/hooks/use-toast';
@@ -30,12 +30,19 @@ export default function IntakePage({ hub }: { hub: DispatchState }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const acknowledge = useAcknowledgeDispatch();
+  const reset = useResetDemoWorkOrders();
   const conversationsQ = useListConversations({
     query: { queryKey: getListConversationsQueryKey(), refetchInterval: 5_000, refetchOnWindowFocus: true },
   });
   const openConversation = (id: number) => navigate(`/analysis/${id}`);
 
   const { technicianId } = useDemoSession();
+  const resetWorkOrders = () => reset.mutate({ data: { confirmation: 'RESET_DEMO_WORK_ORDERS' } }, {
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries();
+      toast({ title: 'Demo work orders restored', description: `${result.reset_count} work orders are ready again. ${result.cancelled_count} active demo assignments cancelled.` });
+    },
+  });
   const all = conversationsQ.data?.conversations ?? [];
   const acknowledgedConversationIds = useMemo(() => new Set(hub.activity
     .filter((entry) => entry.dispatch?.boss_acknowledged_at != null)
@@ -58,8 +65,23 @@ export default function IntakePage({ hub }: { hub: DispatchState }) {
   return (
     <div className="space-y-5">
       <PageHead large kicker="Customer conversations" title="Work Order">
-        <StatusBadge tone="pending"><FlaskConical size={10} /> Demo work orders</StatusBadge>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge tone="pending"><FlaskConical size={10} /> Demo work orders</StatusBadge>
+          {technicianId == null && <ConfirmAction
+            title="Restart all demo work orders?"
+            description={<><p>All demo work orders, including hidden ones, will return as undispatched and their AI analyses will be cleared.</p><p>Active demo assignments will be cancelled. Their reserved parts will be returned and their technicians and vans released.</p><p>Completed service history, audit logs and Telegram conversations will be kept. Parts used by completed jobs will not be restored.</p></>}
+            confirmLabel="Reset demo work orders"
+            destructive
+            onConfirm={resetWorkOrders}
+            trigger={<Button type="button" variant="outline" size="sm" data-testid="button-reset-work-orders"
+              disabled={reset.isPending || hub.writePending || hub.connectionLost || conversationsQ.isLoading || acknowledge.isPending}>
+              {reset.isPending ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+              {reset.isPending ? 'Resetting…' : 'Reset work orders'}
+            </Button>}
+          />}
+        </div>
       </PageHead>
+      {reset.isError && <InlineError onRetry={resetWorkOrders} retrying={reset.isPending}>{errorText(reset.error, 'Work orders could not be reset. No changes were saved.')}</InlineError>}
 
       <MessagingConnectionNotice />
 

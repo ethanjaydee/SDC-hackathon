@@ -425,6 +425,26 @@ paths:
           $ref: "#/components/responses/InvalidRequest"
         "409":
           $ref: "#/components/responses/InvalidRequest"
+  /demo-work-orders/reset:
+    post:
+      operationId: resetDemoWorkOrders
+      tags: [hub]
+      summary: Restart all demo work orders without deleting history or Telegram conversations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemoWorkOrderResetInput"
+      responses:
+        "200":
+          description: Demo work orders restored to undispatched status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoWorkOrderResetResult"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
   /reset-technician:
     post:
       operationId: resetTechnicianAvailability
@@ -760,13 +780,24 @@ components:
         area: { type: string }
         lat: { type: number, minimum: -90, maximum: 90 }
         lng: { type: number, minimum: -180, maximum: 180 }
+    DemoWorkOrderResetInput:
+      type: object
+      required: [confirmation]
+      properties:
+        confirmation: { type: string, enum: [RESET_DEMO_WORK_ORDERS] }
+    DemoWorkOrderResetResult:
+      type: object
+      required: [reset_count, cancelled_count]
+      properties:
+        reset_count: { type: integer, minimum: 0 }
+        cancelled_count: { type: integer, minimum: 0 }
     SavedDispatch:
       type: object
       required: [tech_id, technician_name, van_id, parts, customer_site, status, completed_at, conversation_id, technician_response, technician_response_at, boss_acknowledged_at]
       properties:
         status:
           type: string
-          enum: [Active, Completed, Unknown]
+          enum: [Active, Completed, Unknown, Cancelled]
           description: Unknown means an older assignment cannot safely be completed.
         completed_at: { type: [string, "null"] }
         technician_response:
