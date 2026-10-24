@@ -245,7 +245,7 @@ Proof of use: [`submission/SDC2026_Kebangaan_Universiti_Malaya_(KUM)_Replit_POU.
 
 RunPod is used only for optional AI-assisted analysis and recommendations. The application sends validated task-specific requests to a RunPod Serverless `/runsync` endpoint when the relevant environment variables are configured. The core synthetic demo remains usable without RunPod.
 
-Proof of use: [`submission/SDC2026_Kebangaan_Universiti Malaya_(KUM)_Runpod_POU.pdf`](submission/SDC2026_Kebangaan_Universiti_Malaya (KUM)_Runpod_POU.pdf)
+Proof of use: [`submission/SDC2026_Kebangaan_Universiti_Malaya_(KUM)_Runpod_POU.pdf`](submission/SDC2026_Kebangaan_Universiti_Malaya_(KUM)_Runpod_POU.pdf)
 
 ---
 
