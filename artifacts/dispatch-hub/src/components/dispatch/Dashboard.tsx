@@ -60,12 +60,12 @@ function Workspace() {
   useEffect(() => {
     if (isTechnician && hubQ.data && !me) signOut();
   }, [isTechnician, hubQ.data, me, signOut]);
-  const bossOnly = (path: string) => path.startsWith('/technicians') || path.startsWith('/workshop-analysis') || path.startsWith('/today') || path.startsWith('/suppliers') || path.startsWith('/reorders');
+  const bossOnly = (path: string) => path.startsWith('/technicians') || path.startsWith('/workshop-analysis') || path.startsWith('/today') || path.startsWith('/suppliers') || path.startsWith('/reorders') || path.startsWith('/map');
 
   const items = [
     { to: '/', label: 'Overview', Icon: Activity },
     { to: '/intake', label: 'Work Order', Icon: Inbox },
-    { to: '/map', label: 'Map', Icon: MapIcon },
+    ...(!isTechnician ? [{ to: '/map', label: 'Map', Icon: MapIcon }] : []),
     ...(isTechnician ? [] : [{ to: '/technicians', label: 'Technicians', Icon: Users }]),
     { to: '/transport', label: 'Transport', Icon: Truck, count: lowStockCount || undefined },
     { to: '/log', label: 'Service History', Icon: History },

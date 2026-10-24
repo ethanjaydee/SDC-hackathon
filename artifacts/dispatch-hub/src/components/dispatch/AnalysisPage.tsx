@@ -12,6 +12,7 @@ import {
 import { DEMO_CUSTOMER_SITES, DEMO_CUSTOMER_VISIT_DETAILS } from './demoLocations';
 import { MiniRouteMap } from './MiniRouteMap';
 import { SlideToApprove } from './SlideToApprove';
+import { CompletionControl } from './CompletionControl';
 import { rankQualifiedTechnicians } from './matching';
 import { APPROVER, type DispatchState } from './useDispatchHub';
 import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, fieldClass } from './shared';
@@ -250,7 +251,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="outline"><Link href="/intake"><ArrowLeft size={14} /> Back to inbox</Link></Button>
-          {dispatchSaved && <Button asChild variant="outline"><Link href="/log">View dispatch log</Link></Button>}
+          {dispatchSaved && !isTech && <Button asChild variant="outline"><Link href="/log">View dispatch log</Link></Button>}
         </div>
       </header>
 
@@ -484,8 +485,12 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
               )}
             </>
           )}
-          {isTech && !dispatchSaved && (
-            <Card title={<><MapPin size={15} /> Customer visit</>} aside={<StatusBadge tone="pending">Sample details</StatusBadge>}>
+          {isTech && (
+            <Card title={<><MapPin size={15} /> Customer visit</>} aside={
+              <StatusBadge tone={!dispatchSaved ? 'pending' : savedDispatch?.status === 'Completed' ? 'ok' : 'busy'}>
+                {!dispatchSaved ? 'Sample details' : savedDispatch?.status === 'Completed' ? 'Completed' : savedDispatch ? 'Accepted' : 'Syncing assignment'}
+              </StatusBadge>
+            }>
               {site ? (
                 <>
                   <dl className="grid gap-3 rounded-lg border border-card-border bg-muted/20 p-3 text-sm sm:grid-cols-2">
@@ -505,28 +510,32 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                       ) : <span className="text-xs text-muted-foreground">Directions unavailable until a site is selected.</span>}
                     </div>
                   </dl>
-                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                    Sliding assigns this job to you, reserves the required parts and allocates an available van.
-                  </p>
+                  {!dispatchSaved && <p className="mt-3 text-xs leading-5 text-muted-foreground">Sliding assigns this job to you, reserves the required parts and allocates an available van.</p>}
                 </>
               ) : (
                 <p className="rounded-lg border border-pending/30 bg-pending/[0.06] p-3 text-sm text-muted-foreground">
-                  A sample customer site must be selected before you can accept this job.
+                  {dispatchSaved ? hub.hubQ.isLoading ? 'Loading the saved customer site…' : 'The saved customer site is not available.' : 'A sample customer site must be selected before you can accept this job.'}
                 </p>
               )}
-              {hub.approveError && <div className="mt-3"><InlineError>{hub.approveError}</InlineError></div>}
+              {!dispatchSaved && hub.approveError && <div className="mt-3"><InlineError>{hub.approveError}</InlineError></div>}
               <div className="mt-4">
-                <SlideToApprove
-                  onConfirm={approve}
-                  resetKey={`accept|${conversationId}|${siteId ?? 'none'}|${match?.id ?? 'none'}|${analyzedId ?? 'none'}`}
-                  idleLabel="Slide to accept this work order"
-                  pendingLabel="Allocating your van and parts…"
-                  successLabel="Work order accepted"
-                  sliderLabel="Slide right to accept this work order"
-                  disabled={!site || !analysisIsCurrent || !match || threadQ.isError || hub.writePending || hub.connectionLost || hub.approve.isPending}
-                  disabledLabel={hub.connectionLost ? 'Hub offline' : !site ? 'Customer site required' : !analysisIsCurrent ? 'Preparing job analysis' : !match ? whyNot : 'Acceptance unavailable'}
-                  testId="slide-accept-work-order"
-                />
+                {dispatchSaved ? (
+                  savedDispatchEntry?.dispatch ? (
+                    <CompletionControl entry={savedDispatchEntry} hub={hub} completedBy={selfTech?.name} buttonLabel="Complete job" />
+                  ) : <p role="status" className="text-xs text-muted-foreground">Syncing the accepted work order…</p>
+                ) : (
+                  <SlideToApprove
+                    onConfirm={approve}
+                    resetKey={`accept|${conversationId}|${siteId ?? 'none'}|${match?.id ?? 'none'}|${analyzedId ?? 'none'}`}
+                    idleLabel="Slide to accept this work order"
+                    pendingLabel="Allocating your van and parts…"
+                    successLabel="Work order accepted"
+                    sliderLabel="Slide right to accept this work order"
+                    disabled={!site || !analysisIsCurrent || !match || threadQ.isError || hub.writePending || hub.connectionLost || hub.approve.isPending}
+                    disabledLabel={hub.connectionLost ? 'Hub offline' : !site ? 'Customer site required' : !analysisIsCurrent ? 'Preparing job analysis' : !match ? whyNot : 'Acceptance unavailable'}
+                    testId="slide-accept-work-order"
+                  />
+                )}
               </div>
             </Card>
           )}

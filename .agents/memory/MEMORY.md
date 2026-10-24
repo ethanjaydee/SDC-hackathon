@@ -9,3 +9,4 @@
 - [History signature scope](dispatch-history-signatures.md) — no sign-off panels in technician histories; sample invoices explain that no signature is required.
 - [Review briefing scope](review-briefing-scope.md) — summarize overall 1–2-star reviews across all levels and technicians, independent of filters; no saving required.
 - [Technician self-visibility](technician-self-visibility.md) — technician-facing review and history pages show only the current technician's records.
+- [Technician work-order flow](technician-work-order-flow.md) — keep the map boss-only; accepted work orders retain the saved site and let the technician complete the job there.

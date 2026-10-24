@@ -72,7 +72,7 @@ function SampleInvoiceAction({ technician, job }: { technician: Technician; job:
       <Button type="button" size="sm" variant="outline" onClick={() => void generate()} disabled={invoiceMutation.isPending || pdfPending}
         data-testid={`button-generate-invoice-${job.job_number}`}>
         <FileText size={14} />
-        {invoiceMutation.isPending ? 'Generating…' : pdfPending ? 'Preparing PDF…' : 'Generate & download PDF'}
+        {invoiceMutation.isPending ? 'Generating…' : pdfPending ? 'Preparing PDF…' : 'Generate & download e-invoice'}
       </Button>
       {invoiceMutation.isError && (
         <InlineError testId={`error-sample-invoice-${job.job_number}`} onRetry={() => void generate()} retrying={invoiceMutation.isPending || pdfPending}>

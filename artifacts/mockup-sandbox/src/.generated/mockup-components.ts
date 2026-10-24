@@ -10,5 +10,9 @@ export const modules: ModuleMap = {
   "./components/mockups/dispatch-conversation/WideReview.tsx": () => import("../components/mockups/dispatch-conversation/WideReview.tsx"),
   "./components/mockups/dispatch-xiaomi/Current.tsx": () => import("../components/mockups/dispatch-xiaomi/Current.tsx"),
   "./components/mockups/dispatch-xiaomi/XiaomiOverview.tsx": () => import("../components/mockups/dispatch-xiaomi/XiaomiOverview.tsx"),
+  "./components/mockups/technician-overview/Current.tsx": () => import("../components/mockups/technician-overview/Current.tsx"),
+  "./components/mockups/technician-overview/Refined.tsx": () => import("../components/mockups/technician-overview/Refined.tsx"),
+  "./components/mockups/technician-reviews/Current.tsx": () => import("../components/mockups/technician-reviews/Current.tsx"),
+  "./components/mockups/technician-reviews/Refined.tsx": () => import("../components/mockups/technician-reviews/Refined.tsx"),
   "./components/mockups/templates/OrangePortraitEventPoster-v-q9dh/DeepOrangePoster.tsx": () => import("../components/mockups/templates/OrangePortraitEventPoster-v-q9dh/DeepOrangePoster.tsx")
 };

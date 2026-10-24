@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import type { DispatchState } from './useDispatchHub';
 import { ConfirmAction, StatusBadge, dateTime } from './shared';
 
-export function CompletionControl({ entry, hub }: { entry: Activity; hub: DispatchState }) {
+export function CompletionControl({ entry, hub, completedBy, buttonLabel }: { entry: Activity; hub: DispatchState; completedBy?: string; buttonLabel?: string }) {
   const job = entry.dispatch;
   if (!job) return null;
   if (job.status === 'Completed') {
@@ -19,11 +19,11 @@ export function CompletionControl({ entry, hub }: { entry: Activity; hub: Dispat
       title={`Complete dispatch #${entry.id}?`}
       description={<><p>{job.technician_name} becomes available again.</p><p>Consumed parts will not be restored to van stock.</p></>}
       confirmLabel="Complete job"
-      onConfirm={() => void hub.completeJob(entry.id)}
+       onConfirm={() => void hub.completeJob(entry.id, completedBy)}
       trigger={
         <Button type="button" size="sm" variant="outline" data-testid={`complete-dispatch-${entry.id}`}
           disabled={hub.writePending || hub.connectionLost}>
-          <CheckCircle2 size={13} className="text-ok" /> {pending ? 'Completing…' : `Complete job #${entry.id}`}
+          <CheckCircle2 size={13} className="text-ok" /> {pending ? 'Completing…' : buttonLabel ?? `Complete job #${entry.id}`}
         </Button>
       }
     />
