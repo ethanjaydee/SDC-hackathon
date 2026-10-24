@@ -269,14 +269,13 @@ Proof of use: [`submission/SDC2026_Kebangaan_Universiti_Malaya_(KUM)_Runpod_POU.
 | ----------- | ------------------- | ---------------------------------------- |
 | Tan Kai Xue | Team Lead | [@TanKaiXue-2026](https://github.com/TanKaiXue-2026) |
 | Ethan Jeremy Daniel | Backend | [@ethanjaydee](https://github.com/ethanjaydee)
-| Lim Xin Er | Frontend            | [@username](https://github.com/username) |
-| Chin Yue Herng | Project Manager   | [@username](https://github.com/username) |
-| Lim Li Wen| Market Research | [@username](https://github.com/username) |
+| Lim Xin Er | Frontend            | [@syniellim](https://github.com/syniellim) |
+| Chin Yue Herng | Project Manager   | [@YueHerng](https://github.com/YueHerng) |
+| Lim Li Wen| Market Research | [@wennn-92](https://github.com/wennn-92) |
 
 ---
 
 ## Submission Checklist
-
 - [x] Team name, domain (Domain 1 / Domain 2) and SDG track filled in
 - [ ] Slide deck link added
 - [ ] Demo video link added
