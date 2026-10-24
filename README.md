@@ -23,7 +23,7 @@
 | Live Demo         | https://sdc-hackathon-2.replit.app/                |
 | RunPod Endpoint   | https://api.runpod.ai/v2/b1dd8hy2hqo1nb/runsync      |
 | Slide Deck        | https://365umedumy-my.sharepoint.com/:p:/g/personal/24234145_siswa365_um_edu_my/IQAYz8h6vwXGRKwizqVyMSPpAdH1iLkdW-1v8sr_Q8_y0ho?e=SyClHj                    |
-| Demo Video        | https://example.com/demo-video                 |
+| Demo Video        | https://youtu.be/HK4yvCt_WsY?si=drTEvmp3gspPZqAl               |
 
 ---
 
@@ -284,7 +284,7 @@ Proof of use: [`submission/SDC2026_Kebanggaan_Universiti_Malaya_(KUM)_Runpod_POU
 ## Submission Checklist
 - [x] Team name, domain (Domain 1 / Domain 2) and SDG track filled in
 - [x] Slide deck link added
-- [ ] Demo video link added
+- [x] Demo video link added
 - [x] Replit used, with proof of use in `submission/`
 - [x] RunPod usage and proof confirmed, if required by the competition
 - [x] Preliminary submission completed (`SDC2026_TeamName_Preliminary.pdf`)
