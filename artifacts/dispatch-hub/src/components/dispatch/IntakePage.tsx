@@ -52,7 +52,19 @@ export default function IntakePage({ hub }: { hub: DispatchState }) {
   const conversations = technicianId == null
     ? all.filter((conversation) => conversation.dispatch_activity_id == null || !acknowledgedConversationIds.has(conversation.id))
     : all.filter((c) => c.technician_id == null || c.technician_id === technicianId);
-  const groups = LEVELS.map((meta) => ({ ...meta, items: conversations.filter((c) => complexityOf(c) === meta.level) }));
+  const telegramConversations = conversations.filter((c) => c.source === 'Telegram')
+    .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at) || b.id - a.id);
+  const groups = [
+    ...(telegramConversations.length > 0 ? [{
+      key: 'telegram', level: 'Telegram messages', dot: 'bg-sky-500',
+      blurb: 'Customer messages from Telegram · newest first.',
+      items: telegramConversations,
+    }] : []),
+    ...LEVELS.map((meta) => ({
+      ...meta, key: meta.level,
+      items: conversations.filter((c) => c.source !== 'Telegram' && complexityOf(c) === meta.level),
+    })),
+  ];
   const acknowledgeConversation = (dispatchId: number) => acknowledge.mutate({ id: dispatchId }, {
     onSuccess: async () => {
       await Promise.all([
@@ -85,7 +97,7 @@ export default function IntakePage({ hub }: { hub: DispatchState }) {
 
       <MessagingConnectionNotice />
 
-      <Card title={<><Inbox size={15} /> Work orders by difficulty</>} aside={<span className="font-mono">{conversations.length} work orders</span>}>
+      <Card title={<><Inbox size={15} /> Work orders</>} aside={<span className="font-mono">{conversations.length} work orders</span>}>
         {conversationsQ.isLoading ? <SkeletonRows rows={4} label="Loading saved conversations" />
           : conversationsQ.isError && !conversationsQ.data
             ? <InlineError onRetry={() => void conversationsQ.refetch()} retrying={conversationsQ.isFetching}>Saved conversations could not be loaded.</InlineError>
@@ -93,9 +105,9 @@ export default function IntakePage({ hub }: { hub: DispatchState }) {
               ? <EmptyState icon={<MessageSquareText size={17} />} title="No saved conversations">Synthetic demo chats will appear here when available.</EmptyState>
               : <div className="space-y-7">
                 {groups.map((group) => (
-                  <section key={group.level} aria-labelledby={`group-${group.level}`} data-testid={`group-${group.level}`}>
+                  <section key={group.key} aria-labelledby={`group-${group.key}`} data-testid={`group-${group.key}`}>
                     <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-card-border pb-2">
-                      <h3 id={`group-${group.level}`} className="flex items-center gap-2 font-display text-base font-semibold">
+                      <h3 id={`group-${group.key}`} className="flex items-center gap-2 font-display text-base font-semibold">
                         <span className={`h-2.5 w-2.5 rounded-full ${group.dot}`} aria-hidden="true" />{group.level}
                         <Mono className="text-muted-foreground">{group.items.length}</Mono>
                       </h3>
@@ -112,7 +124,7 @@ export default function IntakePage({ hub }: { hub: DispatchState }) {
                         : 'border-card-border bg-card hover:border-primary/35'}`}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                           <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">{conversation.source} · Chat <Mono>#{conversation.id}</Mono></p>
+                           <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">{conversation.source} · Chat <Mono>#{conversation.id}</Mono>{conversation.source === 'Telegram' && <> · {complexityOf(conversation)}</>}</p>
                           <h2 className="mt-1 truncate font-display text-base font-semibold">{conversation.subject}</h2>
                           <p className="mt-1 truncate text-xs text-muted-foreground">
                              {conversation.customer_name} · {site?.label ?? 'Site not assigned'}
