@@ -1,0 +1,202 @@
+/* Dispatch Hub theme accents: distinct palettes, shared legible status language. */
+html[data-theme='dark'] {
+  --background: 218 19% 11%;
+  --foreground: 38 22% 92%;
+  --border: 216 13% 25%;
+  --card: 218 17% 15%;
+  --card-foreground: 38 22% 92%;
+  --card-border: 216 13% 25%;
+  --sidebar: 218 20% 13%;
+  --sidebar-foreground: 38 18% 89%;
+  --sidebar-border: 216 13% 23%;
+  --sidebar-primary: 16 78% 61%;
+  --sidebar-primary-foreground: 218 20% 10%;
+  --sidebar-accent: 216 15% 20%;
+  --sidebar-accent-foreground: 38 22% 94%;
+  --sidebar-ring: 16 78% 61%;
+  --popover: 218 17% 16%;
+  --popover-foreground: 38 22% 92%;
+  --popover-border: 216 13% 27%;
+  --primary: 16 78% 61%;
+  --primary-foreground: 218 20% 10%;
+  --secondary: 216 15% 21%;
+  --secondary-foreground: 38 20% 91%;
+  --muted: 216 14% 20%;
+  --muted-foreground: 216 10% 70%;
+  --accent: 17 32% 23%;
+  --accent-foreground: 18 82% 82%;
+  --destructive: 350 68% 58%;
+  --destructive-foreground: 38 22% 96%;
+  --input: 216 13% 31%;
+  --ring: 16 78% 61%;
+  --st-idle: 216 10% 71%;
+  --st-pending: 38 91% 63%;
+  --st-busy: 207 82% 68%;
+  --st-ok: 151 55% 56%;
+  --st-err: 350 72% 66%;
+}
+
+html.dark[data-theme='cyberpunk'] {
+  --background: 257 28% 10%;
+  --foreground: 183 48% 92%;
+  --border: 270 24% 29%;
+  --card: 258 27% 14%;
+  --card-foreground: 183 48% 92%;
+  --card-border: 270 24% 31%;
+  --sidebar: 263 30% 12%;
+  --sidebar-foreground: 183 40% 90%;
+  --sidebar-border: 270 24% 27%;
+  --sidebar-primary: 166 100% 49%;
+  --sidebar-primary-foreground: 258 30% 9%;
+  --sidebar-accent: 270 24% 20%;
+  --sidebar-accent-foreground: 183 55% 94%;
+  --sidebar-ring: 166 100% 49%;
+  --popover: 258 27% 16%;
+  --popover-foreground: 183 48% 92%;
+  --popover-border: 270 24% 34%;
+  --primary: 166 100% 49%;
+  --primary-foreground: 258 30% 9%;
+  --secondary: 270 22% 22%;
+  --secondary-foreground: 183 42% 92%;
+  --muted: 270 22% 19%;
+  --muted-foreground: 265 13% 74%;
+  --accent: 323 40% 24%;
+  --accent-foreground: 322 100% 84%;
+  --destructive: 348 76% 62%;
+  --destructive-foreground: 258 30% 9%;
+  --input: 270 22% 34%;
+  --ring: 166 100% 58%;
+  --chart-1: 166 100% 49%;
+  --chart-2: 322 100% 70%;
+  --chart-3: 46 96% 65%;
+  --chart-4: 195 92% 67%;
+  --chart-5: 263 19% 70%;
+  --st-idle: 265 13% 74%;
+  --st-pending: 45 96% 66%;
+  --st-busy: 195 92% 67%;
+  --st-ok: 162 75% 57%;
+  --st-err: 348 82% 69%;
+  --button-outline: hsl(183 70% 80% / .22);
+  --badge-outline: hsl(183 70% 80% / .12);
+  --elevate-1: hsl(166 100% 65% / .09);
+  --elevate-2: hsl(166 100% 65% / .15);
+  --shadow-sm: 0 0 0 1px hsl(166 100% 49% / .1);
+  --shadow: 0 0 0 1px hsl(166 100% 49% / .13), 0 5px 18px hsl(257 50% 5% / .35);
+  --shadow-md: 0 0 0 1px hsl(166 100% 49% / .17), 0 12px 28px hsl(257 50% 5% / .42);
+  color-scheme: dark;
+}
+
+html[data-theme='cat'] {
+  --background: 35 57% 95%;
+  --foreground: 244 22% 25%;
+  --border: 34 29% 83%;
+  --card: 42 70% 99%;
+  --card-foreground: 244 22% 25%;
+  --card-border: 35 30% 84%;
+  --sidebar: 36 49% 91%;
+  --sidebar-foreground: 244 20% 29%;
+  --sidebar-border: 35 31% 82%;
+  --sidebar-primary: 332 52% 55%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 337 47% 88%;
+  --sidebar-accent-foreground: 245 24% 25%;
+  --sidebar-ring: 332 52% 55%;
+  --popover: 42 70% 99%;
+  --popover-foreground: 244 22% 25%;
+  --popover-border: 35 30% 82%;
+  --primary: 332 52% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 35 38% 88%;
+  --secondary-foreground: 244 21% 28%;
+  --muted: 35 39% 90%;
+  --muted-foreground: 245 12% 46%;
+  --accent: 194 52% 90%;
+  --accent-foreground: 198 53% 29%;
+  --destructive: 2 64% 49%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 35 24% 77%;
+  --ring: 332 52% 55%;
+  --chart-1: 332 52% 55%;
+  --chart-2: 187 47% 41%;
+  --chart-3: 39 78% 48%;
+  --chart-4: 259 47% 58%;
+  --chart-5: 245 12% 52%;
+  --st-idle: 245 12% 48%;
+  --st-pending: 36 84% 40%;
+  --st-busy: 201 70% 44%;
+  --st-ok: 151 48% 35%;
+  --st-err: 2 67% 47%;
+  --button-outline: hsl(244 22% 25% / .14);
+  --badge-outline: hsl(244 22% 25% / .08);
+  --elevate-1: hsl(332 52% 55% / .07);
+  --elevate-2: hsl(332 52% 55% / .12);
+  color-scheme: light;
+}
+
+.theme-toggle-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.theme-cat-sticker {
+  position: absolute;
+  z-index: 3;
+  width: 27px;
+  height: 23px;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-5deg);
+  overflow: visible;
+  fill: hsl(337 58% 94%);
+  stroke: hsl(332 48% 48%);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 2px hsl(244 22% 25% / .14));
+  pointer-events: none;
+  animation: cat-sticker-bob 2.8s ease-in-out infinite;
+}
+
+html[data-theme='cat'] .theme-toggle-wrap { padding-top: 10px; }
+
+@keyframes cat-sticker-bob {
+  0%, 100% { transform: translate(-50%, 0) rotate(-5deg); }
+  50% { transform: translate(-50%, -2px) rotate(2deg); }
+}
+
+html[data-theme='cat'] button:not([data-testid='button-theme-toggle']) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'%3E%3Cg fill='%23ad6482' fill-opacity='.16'%3E%3Cellipse cx='9' cy='11.5' rx='3.1' ry='2.5'/%3E%3Cellipse cx='4.5' cy='6.3' rx='1.5' ry='2' transform='rotate(-25 4.5 6.3)'/%3E%3Cellipse cx='8' cy='4.7' rx='1.5' ry='2'/%3E%3Cellipse cx='11.8' cy='5' rx='1.5' ry='2' transform='rotate(15 11.8 5)'/%3E%3Cellipse cx='14.3' cy='7.2' rx='1.35' ry='1.8' transform='rotate(25 14.3 7.2)'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 5px bottom 4px;
+  background-size: 14px 14px;
+}
+
+html[data-theme='cyberpunk'] button {
+  border-color: hsl(166 100% 49% / .3);
+  box-shadow: 0 0 8px hsl(166 100% 49% / .08);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+html[data-theme='cyberpunk'] button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: hsl(166 100% 66% / .82);
+  box-shadow: 0 0 0 1px hsl(166 100% 49% / .18), 0 0 13px hsl(166 100% 49% / .25), 0 0 25px hsl(322 100% 67% / .1);
+  animation: cyber-border-glow 2s ease-in-out infinite;
+}
+
+@keyframes cyber-border-glow {
+  0%, 100% { box-shadow: 0 0 0 1px hsl(166 100% 49% / .18), 0 0 13px hsl(166 100% 49% / .25), 0 0 25px hsl(322 100% 67% / .1); }
+  50% { box-shadow: 0 0 0 1px hsl(322 100% 70% / .4), 0 0 19px hsl(166 100% 49% / .4), 0 0 30px hsl(322 100% 67% / .2); }
+}
+
+html[data-theme='cyberpunk'] button:focus-visible {
+  box-shadow: 0 0 0 2px hsl(257 28% 10%), 0 0 0 4px hsl(166 100% 58% / .8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-cat-sticker { animation: none; }
+  html[data-theme='cyberpunk'] button { transition: none; }
+  html[data-theme='cyberpunk'] button:hover:not(:disabled) { transform: none; animation: none; }
+}

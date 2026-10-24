@@ -16,6 +16,7 @@ import { InlineError, StatusBadge } from './shared';
 import { ConnectionStatus, useConnection } from './ConnectionStatus';
 import { RouteBoundary } from './RouteBoundary';
 import { ThemeToggle } from './theme';
+import { TechnicianAvatar } from './TechnicianAvatar';
 import { DemoSessionProvider, useDemoSession } from './session';
 import RoleChooser from './RoleChooser';
 import TransportPage from './TransportPage';
@@ -98,7 +99,7 @@ function Workspace() {
     <div className="space-y-2">
     <div role="note" aria-label={`Demo profile: ${profileName}, ${profileRole}`} className="rounded-lg border border-sidebar-border bg-card/60 p-3">
       <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">{profileName[0]}</span>
+        {isTechnician && me ? <TechnicianAvatar id={me.id} name={me.name} /> : <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-sm font-semibold text-primary">{profileName[0]}</span>}
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center justify-between gap-2">
             <p className="truncate text-sm font-semibold text-foreground">{profileName}</p>

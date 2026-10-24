@@ -6,6 +6,7 @@ import { TechnicianWorkHistoryTable } from './ServiceHistory';
 import { ratingText } from './techMeta';
 import { getDemoReviewsForTechnician } from './demoReviewSamples';
 import { useDemoSession } from './session';
+import { TechnicianAvatar } from './TechnicianAvatar';
 
 function Stars({ n }: { n: number }) {
   return <span className="inline-flex gap-0.5" aria-label={`${n} out of 5 stars`}>{Array.from({ length: 5 }, (_, i) => <Star key={i} size={13} className={i < n ? 'fill-current text-pending' : 'text-muted-foreground/35'} aria-hidden="true" />)}</span>;
@@ -17,7 +18,9 @@ export function TechnicianHistory({ hub }: Hub) {
   const me = hub.technicians.find((t) => t.id === technicianId);
   return (
     <div className="space-y-5" data-testid="technician-history">
-      <PageHead kicker="Your work" title="Service History" sub={`Completed-job history for ${me?.name ?? 'you'} only.`} />
+      <PageHead kicker="Your work" title="Service History" sub={`Completed-job history for ${me?.name ?? 'you'} only.`}>
+        {me && <TechnicianAvatar id={me.id} name={me.name} className="h-12 w-12" />}
+      </PageHead>
       {me ? <TechnicianWorkHistoryTable technician={me} /> : (
         <EmptyState icon={<ActivityIcon size={16} />} title="Technician history unavailable">
           Your work history will appear when your technician profile loads.
@@ -48,7 +51,7 @@ export function TechnicianReviews({ hub }: Hub) {
       {!hub.hubQ.isLoading && !me ? (
         <EmptyState icon={<MessageSquareText size={17} />} title="Technician profile unavailable">Reviews appear when your technician profile loads.</EmptyState>
       ) : me && (
-        <Card title={<><MessageSquareText size={15} className="text-primary" />{me.name}</>} aside={<Mono>{reviews.length} reviews</Mono>}>
+        <Card title={<><TechnicianAvatar id={me.id} name={me.name} className="h-8 w-8" />{me.name}</>} aside={<Mono>{reviews.length} reviews</Mono>}>
           {reviews.length > 0 && average != null && (
             <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-pending/15 bg-pending/[0.035] px-3 py-2.5">
               <span className="font-mono text-2xl font-semibold leading-none tabular">{average.toFixed(1)}</span>
@@ -88,6 +91,7 @@ export function TechnicianOverview({ hub }: Hub) {
   return (
     <div className="space-y-5" data-testid="technician-overview">
       <PageHead large kicker="Your day" title={me ? `Hello, ${me.name.split(' ')[0]}` : 'Overview'} sub="Your active jobs, sample record and the vans available to take out.">
+        {me && <TechnicianAvatar id={me.id} name={me.name} className="h-14 w-14" />}
         {me && <StatusBadge tone={me.status === 'Available' ? 'ok' : 'err'}>{me.status}</StatusBadge>}
       </PageHead>
       {hub.completionError && <InlineError>{hub.completionError}</InlineError>}

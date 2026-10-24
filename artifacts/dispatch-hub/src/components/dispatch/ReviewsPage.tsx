@@ -5,6 +5,7 @@ import type { WorkshopReviewSummary } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, EmptyState, errorText, fieldClass, InlineError, PageHead, StatusBadge, type Hub } from './shared';
 import { filterReviewSamples, getDemoReviewGroups, getOverallLowRatedReviews } from './demoReviewSamples';
+import { TechnicianAvatar } from './TechnicianAvatar';
 
 function formatReviewDate(value: string) {
   const date = new Date(value);
@@ -72,7 +73,10 @@ function ReviewLevelPanel({ group }: { group: ReturnType<typeof getDemoReviewGro
           {reviews.map((review) => (
             <li key={`${review.technicianId}-${review.id}`} className="rounded-md border border-card-border bg-card px-2.5 py-2" data-testid={`sample-review-${review.id}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] font-semibold">{review.technicianName ?? 'Sample technician'}</span>
+                <span className="flex min-w-0 items-center gap-2 text-[11px] font-semibold">
+                  {review.technicianId != null && <TechnicianAvatar id={review.technicianId} name={review.technicianName ?? 'Sample technician'} className="h-7 w-7" />}
+                  {review.technicianName ?? 'Sample technician'}
+                </span>
                 <Stars rating={review.rating} />
               </div>
               <p className="mt-1 text-[11px] font-medium text-foreground/85">{review.job}</p>

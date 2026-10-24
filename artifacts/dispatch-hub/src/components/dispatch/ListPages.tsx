@@ -3,7 +3,8 @@ import { Link } from 'wouter';
 import { Boxes, CheckCircle2, History, LockKeyhole, RotateCcw, Users } from 'lucide-react';
 import type { Activity, Technician } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { Card, ConfirmAction, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, TechRow, dateTime, initials, techTone, type Hub } from './shared';
+import { Card, ConfirmAction, EmptyState, InlineError, Mono, PageHead, SkeletonRows, StatusBadge, TechRow, dateTime, techTone, type Hub } from './shared';
+import { TechnicianAvatar } from './TechnicianAvatar';
 import { CompletionControl } from './CompletionControl';
 import { LevelBadge, ratingText } from './techMeta';
 import { WorkBadges } from './ServiceHistory';
@@ -50,9 +51,7 @@ export function TechniciansPage({ hub }: Hub) {
       const available = t.status === 'Available';
       return (
         <span className="flex items-center gap-2" data-testid={`technician-${t.id}`}>
-          <span className={`grid h-7 w-7 place-items-center rounded-full font-mono text-[11px] ${available ? 'border border-ok/35 bg-ok/15 text-ok shadow-[0_0_14px_rgba(34,197,94,0.28)]' : 'bg-secondary'}`}>
-            {initials(t.name)}
-          </span>
+          <TechnicianAvatar id={t.id} name={t.name} className={`h-8 w-8 ${available ? 'ring-2 ring-ok/35' : ''}`} />
           <span className="font-medium">{t.name}</span>
         </span>
       );

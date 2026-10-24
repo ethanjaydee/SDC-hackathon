@@ -10,3 +10,4 @@
 - [Review briefing scope](review-briefing-scope.md) — summarize overall 1–2-star reviews across all levels and technicians, independent of filters; no saving required.
 - [Technician self-visibility](technician-self-visibility.md) — technician-facing review and history pages show only the current technician's records.
 - [Technician work-order flow](technician-work-order-flow.md) — keep the map boss-only; accepted work orders retain the saved site and let the technician complete the job there.
+- [Demo technician portraits](dispatch-demo-portraits.md) — profile pictures are fictional illustrations, not verified staff photos; replace only with authorized assets.

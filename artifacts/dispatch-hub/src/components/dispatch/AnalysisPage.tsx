@@ -13,6 +13,7 @@ import { DEMO_CUSTOMER_SITES, DEMO_CUSTOMER_VISIT_DETAILS } from './demoLocation
 import { MiniRouteMap } from './MiniRouteMap';
 import { SlideToApprove } from './SlideToApprove';
 import { CompletionControl } from './CompletionControl';
+import { TechnicianAvatar } from './TechnicianAvatar';
 import { rankQualifiedTechnicians } from './matching';
 import { APPROVER, type DispatchState } from './useDispatchHub';
 import { Card, InlineError, Mono, PageHead, PartChips, StatusBadge, dateTime, errorText, fieldClass } from './shared';
@@ -461,7 +462,7 @@ export default function AnalysisPage({ hub, conversationId, onApprove }: Props) 
                               <dl className="grid gap-3 sm:grid-cols-2">
                                 <div className="rounded-lg border bg-muted/30 p-3">
                                   <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Technician</dt>
-                                  <dd className="mt-1 font-semibold">{match.name}</dd>
+                                  <dd className="mt-1 flex items-center gap-2 font-semibold"><TechnicianAvatar id={match.id} name={match.name} className="h-8 w-8" />{match.name}</dd>
                                 </div>
                                 <div className="rounded-lg border bg-muted/30 p-3">
                                   <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Van</dt>

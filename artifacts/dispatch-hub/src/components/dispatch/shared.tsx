@@ -10,6 +10,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import type { DispatchState } from './useDispatchHub';
+import { TechnicianAvatar } from './TechnicianAvatar';
 
 export type Hub = { hub: DispatchState };
 export type Tone = 'idle' | 'pending' | 'busy' | 'ok' | 'err';
@@ -89,7 +90,7 @@ export function TechRow({ tech }: { tech: { id: number; name: string; status: st
   return (
     <div className="flex items-center justify-between gap-3" data-testid={`technician-${tech.id}`}>
       <div className="flex min-w-0 items-center gap-3">
-        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full font-mono text-xs font-semibold ${available ? 'border border-ok/35 bg-ok/15 text-ok shadow-[0_0_14px_rgba(34,197,94,0.28)]' : 'bg-secondary'}`}>{initials(tech.name)}</span>
+        <TechnicianAvatar id={tech.id} name={tech.name} className={cn('h-9 w-9', available && 'ring-2 ring-ok/35')} />
         <div className="min-w-0">
           <div className="truncate font-medium">{tech.name}</div>
         </div>
