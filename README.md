@@ -22,7 +22,7 @@
 | GitHub Repository | https://github.com/ethanjaydee/SDC-hackathon  |
 | Live Demo         | https://sdc-hackathon-2.replit.app/                |
 | RunPod Endpoint   | https://api.runpod.ai/v2/b1dd8hy2hqo1nb/runsync      |
-| Slide Deck        | https://example.com/slides                     |
+| Slide Deck        | https://365umedumy-my.sharepoint.com/:p:/g/personal/24234145_siswa365_um_edu_my/IQAYz8h6vwXGRKwizqVyMSPpAdH1iLkdW-1v8sr_Q8_y0ho?e=SyClHj                    |
 | Demo Video        | https://example.com/demo-video                 |
 
 ---
