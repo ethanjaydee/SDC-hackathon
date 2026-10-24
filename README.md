@@ -209,7 +209,7 @@ Configure the required values in the hosting environment rather than committing 
 - `RUNPOD_API_KEY`
 - `RUNPOD_ENDPOINT_URL`
 
-RunPod proof-of-use document: [`submission/SDC2026_TeamName_Runpod_POU.pdf`](submission/SDC2026_TeamName_Runpod_POU.pdf)
+RunPod proof-of-use document: [`submission/SDC2026_Kebangaan Universiti Malaya (KUM)_Runpod_POU.pdf`](submission/SDC2026_Kebangaan Universiti Malaya (KUM)_Runpod_POU.pdf)
 
 ### Google Routes
 
@@ -239,13 +239,13 @@ The repository is structured as a pnpm workspace for Replit development. Replit 
 
 Secrets for optional integrations should be stored in Replit Secrets and never committed to source control.
 
-Proof of use: [`submission/SDC2026_TeamName_Replit_POU.pdf`](submission/SDC2026_TeamName_Replit_POU.pdf)
+Proof of use: [`submission/SDC2026_Kebangaan Universiti Malaya (KUM)_Replit_POU.pdf`](submission/SDC2026_Kebangaan Universiti Malaya (KUM)_Replit_POU.pdf)
 
 ## How We Use RunPod *(Required if applicable)*
 
 RunPod is used only for optional AI-assisted analysis and recommendations. The application sends validated task-specific requests to a RunPod Serverless `/runsync` endpoint when the relevant environment variables are configured. The core synthetic demo remains usable without RunPod.
 
-Proof of use: [`submission/SDC2026_TeamName_Runpod_POU.pdf`](submission/SDC2026_TeamName_Runpod_POU.pdf)
+Proof of use: [`submission/SDC2026_Kebangaan Universiti Malaya (KUM)_Runpod_POU.pdf`](submission/SDC2026_Kebangaan Universiti Malaya (KUM)_Runpod_POU.pdf)
 
 ---
 
@@ -262,7 +262,6 @@ Proof of use: [`submission/SDC2026_TeamName_Runpod_POU.pdf`](submission/SDC2026_
 - [ ] Replace demo role selection with production authentication and authorization.
 - [ ] Move SQLite runtime data to durable production storage with backups.
 - [ ] Add production monitoring, rate limiting, and multi-instance coordination.
-- [ ] Improvement 4
 
 ## Team
 
@@ -280,8 +279,8 @@ Proof of use: [`submission/SDC2026_TeamName_Runpod_POU.pdf`](submission/SDC2026_
 - [x] Team name, domain (Domain 1 / Domain 2) and SDG track filled in
 - [ ] Slide deck link added
 - [ ] Demo video link added
-- [ ] Replit used, with proof of use in `submission/`
-- [ ] RunPod usage and proof confirmed, if required by the competition
+- [x] Replit used, with proof of use in `submission/`
+- [x] RunPod usage and proof confirmed, if required by the competition
 - [ ] Preliminary submission completed (`SDC2026_TeamName_Preliminary.pdf`)
 - [ ] Technology declaration completed (`SDC2026_TeamName_TechDeclaration.pdf`)
 - [ ] Submission files renamed with your team name (replace `TeamName`)
