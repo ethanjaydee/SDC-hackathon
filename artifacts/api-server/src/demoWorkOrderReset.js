@@ -57,8 +57,16 @@ export function createDemoWorkOrderResetter(db, now = () => new Date().toISOStri
     const reset = db.prepare(`UPDATE conversation_threads
       SET technician_id=NULL, analysis_json=NULL, analysis_message_id=NULL, updated_at=?
       WHERE source='Demo'`).run(now());
+    // Clear the inbox non-destructively. Active Telegram jobs keep their
+    // conversation, allocation and reply address so technicians can finish.
+    const cleared = db.prepare(`UPDATE conversation_threads SET inbox_cleared_at=?
+      WHERE source='Telegram' AND inbox_cleared_at IS NULL`).run(now());
+    // Future messages start a fresh conversation. Keep processed update IDs and
+    // polling checkpoints so Telegram retries cannot restore cleared messages.
+    db.prepare(`DELETE FROM telegram_threads WHERE conversation_id IN
+      (SELECT id FROM conversation_threads WHERE source='Telegram' AND inbox_cleared_at IS NOT NULL)`).run();
     db.prepare("INSERT INTO activity_log(timestamp,action_details,approved_by) VALUES(?,?,?)")
-      .run(now(), `Demo work orders reset: ${reset.changes} restored to undispatched; ${cancelledCount} active demo assignments cancelled and reserved stock returned. Completed history and Telegram conversations preserved.`, "Boss demo reset");
-    return { reset_count: reset.changes, cancelled_count: cancelledCount };
+      .run(now(), `Work orders reset: ${reset.changes} demo orders restored to undispatched; ${cancelledCount} active demo assignments cancelled and reserved stock returned; ${cleared.changes} Telegram conversations cleared from the Boss inbox. Completed history, Telegram assignments and audit records preserved.`, "Boss demo reset");
+    return { reset_count: reset.changes, cancelled_count: cancelledCount, telegram_cleared_count: cleared.changes };
   });
 }

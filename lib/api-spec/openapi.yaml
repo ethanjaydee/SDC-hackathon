@@ -458,7 +458,7 @@ paths:
     post:
       operationId: resetDemoWorkOrders
       tags: [hub]
-      summary: Restart all demo work orders without deleting history or Telegram conversations
+      summary: Restart demo work orders and clear the Telegram inbox without deleting dispatch history
       requestBody:
         required: true
         content:
@@ -467,7 +467,7 @@ paths:
               $ref: "#/components/schemas/DemoWorkOrderResetInput"
       responses:
         "200":
-          description: Demo work orders restored to undispatched status
+          description: Demo work orders restored and existing Telegram inbox conversations cleared
           content:
             application/json:
               schema:
@@ -831,10 +831,11 @@ components:
         confirmation: { type: string, enum: [RESET_DEMO_WORK_ORDERS] }
     DemoWorkOrderResetResult:
       type: object
-      required: [reset_count, cancelled_count]
+      required: [reset_count, cancelled_count, telegram_cleared_count]
       properties:
         reset_count: { type: integer, minimum: 0 }
         cancelled_count: { type: integer, minimum: 0 }
+        telegram_cleared_count: { type: integer, minimum: 0 }
     SavedDispatch:
       type: object
       required: [tech_id, technician_name, van_id, parts, customer_site, status, completed_at, conversation_id, technician_response, technician_response_at, boss_acknowledged_at]
@@ -1007,6 +1008,7 @@ components:
         complexity: { $ref: "#/components/schemas/JobComplexity" }
         customer_site_id: { type: ["string", "null"], enum: [north, central, south, null] }
         source: { type: string, enum: [Demo, Telegram] }
+        inbox_cleared_at: { type: ["string", "null"], format: date-time }
         technician_id: { type: ["integer", "null"], minimum: 1 }
         technician_name: { type: ["string", "null"] }
         mock_summary: { type: string }

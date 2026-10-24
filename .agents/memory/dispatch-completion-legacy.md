@@ -14,8 +14,8 @@ An explicit dispatcher availability reset may make an unassigned Busy demo techn
 
 **How to apply:** Preserve the distinction between an explicit demo status reset and a verified job completion when changing lifecycle behavior or migrating older assignments.
 
-A full demo work-order reset is a separate, explicitly authorized operation: restart all demo work orders as undispatched, cancelling their active demo assignments and returning reserved parts. Preserve completed service history, audit logs, Telegram conversations and Telegram assignments. Never return stock consumed by completed jobs or treat a cancellation as completion.
+A full work-order reset restarts demo work orders as undispatched, cancelling their active demo assignments and returning reserved parts. It also clears existing Telegram conversations from the Boss inbox by archiving them. Preserve completed service history, audit logs, Telegram transcripts and Telegram assignments; active Telegram jobs must remain available to their technicians. Never return stock consumed by completed jobs or treat a cancellation as completion.
 
-**Why:** The user chose to restart demo work orders, rather than only restore hidden cards, while retaining history and external conversations.
+**Why:** The user chose a full demo restart, then explicitly asked Reset to clear Telegram messages too. Clearing the inbox does not authorize deleting Telegram chats, audit history or live Telegram assignments.
 
-**How to apply:** Keep full work-order restart separate from availability-only reset. Unknown legacy assignments are not evidence for restoring stock or releasing a technician.
+**How to apply:** Keep full work-order restart separate from availability-only reset. Incoming messages after a reset start fresh conversations, but retain processed Telegram update IDs so retries cannot restore old messages. Unknown legacy assignments are not evidence for restoring stock or releasing a technician.

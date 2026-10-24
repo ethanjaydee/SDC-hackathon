@@ -139,6 +139,7 @@ export const SetConversationSiteResponse = zod.object({
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
+  "inbox_cleared_at": zod.coerce.date().nullish(),
   "technician_id": zod.number().int().min(1).nullable(),
   "technician_name": zod.string().nullable(),
   "mock_summary": zod.string(),
@@ -527,6 +528,7 @@ export const ListConversationsResponse = zod.object({
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
+  "inbox_cleared_at": zod.coerce.date().nullish(),
   "technician_id": zod.number().int().min(1).nullable(),
   "technician_name": zod.string().nullable(),
   "mock_summary": zod.string(),
@@ -582,6 +584,7 @@ export const GetConversationThreadResponse = zod.object({
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
+  "inbox_cleared_at": zod.coerce.date().nullish(),
   "technician_id": zod.number().int().min(1).nullable(),
   "technician_name": zod.string().nullable(),
   "mock_summary": zod.string(),
@@ -668,6 +671,7 @@ export const SendConversationMessageResponse = zod.object({
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
+  "inbox_cleared_at": zod.coerce.date().nullish(),
   "technician_id": zod.number().int().min(1).nullable(),
   "technician_name": zod.string().nullable(),
   "mock_summary": zod.string(),
@@ -751,6 +755,7 @@ export const SendTelegramReplyResponse = zod.object({
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
+  "inbox_cleared_at": zod.coerce.date().nullish(),
   "technician_id": zod.number().int().min(1).nullable(),
   "technician_name": zod.string().nullable(),
   "mock_summary": zod.string(),
@@ -826,6 +831,7 @@ export const AnalyzeConversationResponse = zod.object({
   "complexity": zod.enum(['Easy', 'Normal', 'Hard']).optional(),
   "customer_site_id": zod.union([zod.literal('north'),zod.literal('central'),zod.literal('south'),zod.literal(null)]).nullable(),
   "source": zod.enum(['Demo', 'Telegram']),
+  "inbox_cleared_at": zod.coerce.date().nullish(),
   "technician_id": zod.number().int().min(1).nullable(),
   "technician_name": zod.string().nullable(),
   "mock_summary": zod.string(),
@@ -1082,7 +1088,7 @@ export const CompleteDispatchResponse = zod.object({
 
 
 /**
- * @summary Restart all demo work orders without deleting history or Telegram conversations
+ * @summary Restart demo work orders and clear the Telegram inbox without deleting dispatch history
  */
 export const ResetDemoWorkOrdersBody = zod.object({
   "confirmation": zod.enum(['RESET_DEMO_WORK_ORDERS'])
@@ -1092,11 +1098,14 @@ export const resetDemoWorkOrdersResponseResetCountMin = 0;
 
 export const resetDemoWorkOrdersResponseCancelledCountMin = 0;
 
+export const resetDemoWorkOrdersResponseTelegramClearedCountMin = 0;
+
 
 
 export const ResetDemoWorkOrdersResponse = zod.object({
   "reset_count": zod.number().int().min(resetDemoWorkOrdersResponseResetCountMin),
-  "cancelled_count": zod.number().int().min(resetDemoWorkOrdersResponseCancelledCountMin)
+  "cancelled_count": zod.number().int().min(resetDemoWorkOrdersResponseCancelledCountMin),
+  "telegram_cleared_count": zod.number().int().min(resetDemoWorkOrdersResponseTelegramClearedCountMin)
 })
 
 

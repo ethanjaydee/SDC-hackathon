@@ -1826,7 +1826,7 @@ export const getResetDemoWorkOrdersUrl = () => {
 }
 
 /**
- * @summary Restart all demo work orders without deleting history or Telegram conversations
+ * @summary Restart demo work orders and clear the Telegram inbox without deleting dispatch history
  */
 export const resetDemoWorkOrders = async (demoWorkOrderResetInput: DemoWorkOrderResetInput, options?: Parameters<typeof customFetch>[1]): Promise<DemoWorkOrderResetResult> => {
 
@@ -1892,7 +1892,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ResetDemoWorkOrdersMutationVariables = {data: BodyType<DemoWorkOrderResetInput>}
 
     /**
- * @summary Restart all demo work orders without deleting history or Telegram conversations
+ * @summary Restart demo work orders and clear the Telegram inbox without deleting dispatch history
  */
 export const useResetDemoWorkOrders = <TError = ErrorType<InvalidRequestResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetDemoWorkOrders>>, TError,ResetDemoWorkOrdersMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

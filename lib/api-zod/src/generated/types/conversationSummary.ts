@@ -19,6 +19,8 @@ export interface ConversationSummary {
   /** @nullable */
   customer_site_id: ConversationSummaryCustomerSiteId;
   source: ConversationSummarySource;
+  /** @nullable */
+  inbox_cleared_at?: Date | null;
   /**
      * @minimum 1
      * @nullable

@@ -381,6 +381,8 @@ export interface DemoWorkOrderResetResult {
   reset_count: number;
   /** @minimum 0 */
   cancelled_count: number;
+  /** @minimum 0 */
+  telegram_cleared_count: number;
 }
 
 export type TechnicianDispatchResponseInputResponse = typeof TechnicianDispatchResponseInputResponse[keyof typeof TechnicianDispatchResponseInputResponse];
@@ -654,6 +656,8 @@ export interface ConversationSummary {
   /** @nullable */
   customer_site_id: ConversationSummaryCustomerSiteId;
   source: ConversationSummarySource;
+  /** @nullable */
+  inbox_cleared_at?: string | null;
   /**
      * @minimum 1
      * @nullable

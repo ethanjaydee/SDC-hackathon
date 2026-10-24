@@ -33,7 +33,7 @@ test('nullable conversation-site migration preserves IDs, messages and foreign k
     prepareTelegramStorage(db);
     prepareTelegramStorage(db); // Safe across restarts.
     assert.deepEqual(db.prepare('SELECT * FROM conversation_threads WHERE id = 7').get(), {
-      id: 7, customer_name: 'Existing sample customer', customer_site_id: 'south', source: 'Demo',
+      id: 7, customer_name: 'Existing sample customer', customer_site_id: 'south', source: 'Demo', inbox_cleared_at: null,
     });
     assert.equal(db.prepare('SELECT text FROM conversation_messages WHERE id = 11').get().text, 'Preserve this message');
     assert.equal(db.prepare('SELECT conversation_id FROM dispatches WHERE id = 3').get().conversation_id, 7);
@@ -42,8 +42,8 @@ test('nullable conversation-site migration preserves IDs, messages and foreign k
     assert.deepEqual(db.prepare('PRAGMA index_list(conversation_messages)').all().map((item) => item.name), ['conversation_messages_thread']);
     assert.deepEqual(db.pragma('foreign_key_check'), []);
     assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
-    db.prepare("INSERT INTO conversation_threads VALUES (8, 'Unknown customer', NULL, 'Telegram')").run();
-    assert.throws(() => db.prepare("INSERT INTO conversation_threads VALUES (9, 'Invalid site', 'invented', 'Telegram')").run());
+    db.prepare("INSERT INTO conversation_threads (id, customer_name, customer_site_id, source) VALUES (8, 'Unknown customer', NULL, 'Telegram')").run();
+    assert.throws(() => db.prepare("INSERT INTO conversation_threads (id, customer_name, customer_site_id, source) VALUES (9, 'Invalid site', 'invented', 'Telegram')").run());
   } finally { db.close(); }
 });
 

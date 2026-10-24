@@ -40,7 +40,7 @@ export default function IntakePage({ hub }: { hub: DispatchState }) {
   const resetWorkOrders = () => reset.mutate({ data: { confirmation: 'RESET_DEMO_WORK_ORDERS' } }, {
     onSuccess: async (result) => {
       await queryClient.invalidateQueries();
-      toast({ title: 'Demo work orders restored', description: `${result.reset_count} work orders are ready again. ${result.cancelled_count} active demo assignments cancelled.` });
+      toast({ title: 'Work orders reset', description: `${result.reset_count} demo work orders are ready again. ${result.cancelled_count} active demo assignments cancelled. ${result.telegram_cleared_count} Telegram conversations cleared.` });
     },
   });
   const all = conversationsQ.data?.conversations ?? [];
@@ -50,7 +50,8 @@ export default function IntakePage({ hub }: { hub: DispatchState }) {
     .filter((id): id is number => id != null)), [hub.activity]);
   // Technicians see unassigned requests and their own assigned ones only.
   const conversations = technicianId == null
-    ? all.filter((conversation) => conversation.dispatch_activity_id == null || !acknowledgedConversationIds.has(conversation.id))
+    ? all.filter((conversation) => conversation.inbox_cleared_at == null &&
+      (conversation.dispatch_activity_id == null || !acknowledgedConversationIds.has(conversation.id)))
     : all.filter((c) => c.technician_id == null || c.technician_id === technicianId);
   const telegramConversations = conversations.filter((c) => c.source === 'Telegram')
     .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at) || b.id - a.id);
@@ -80,9 +81,9 @@ export default function IntakePage({ hub }: { hub: DispatchState }) {
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge tone="pending"><FlaskConical size={10} /> Demo work orders</StatusBadge>
           {technicianId == null && <ConfirmAction
-            title="Restart all demo work orders?"
-            description={<><p>All demo work orders, including hidden ones, will return as undispatched and their AI analyses will be cleared.</p><p>Active demo assignments will be cancelled. Their reserved parts will be returned and their technicians and vans released.</p><p>Completed service history, audit logs and Telegram conversations will be kept. Parts used by completed jobs will not be restored.</p></>}
-            confirmLabel="Reset demo work orders"
+            title="Reset work orders and clear Telegram messages?"
+            description={<><p>All demo work orders, including hidden ones, will return as undispatched and their AI analyses will be cleared.</p><p>Active demo assignments will be cancelled. Their reserved parts will be returned and their technicians and vans released.</p><p>Existing Telegram messages will be cleared from the Boss inbox. New Telegram messages will start fresh conversations. Nothing will be deleted in Telegram itself.</p><p>Active Telegram jobs remain available to their technicians. Completed service history, audit logs and archived conversations will be kept. Parts used by completed jobs will not be restored.</p></>}
+            confirmLabel="Reset work orders"
             destructive
             onConfirm={resetWorkOrders}
             trigger={<Button type="button" variant="outline" size="sm" data-testid="button-reset-work-orders"

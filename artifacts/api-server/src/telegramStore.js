@@ -94,6 +94,9 @@ export function prepareTelegramStorage(db) {
     db.exec("ALTER TABLE conversation_threads ADD COLUMN source TEXT NOT NULL DEFAULT 'Demo' CHECK(source IN ('Demo', 'Telegram'))");
   }
   prepareStaffMessageRole(db);
+  if (!columns.some((column) => column.name === "inbox_cleared_at")) {
+    db.exec("ALTER TABLE conversation_threads ADD COLUMN inbox_cleared_at TEXT");
+  }
   db.exec(`
     CREATE TABLE IF NOT EXISTS telegram_receivers (
       bot_id TEXT PRIMARY KEY,

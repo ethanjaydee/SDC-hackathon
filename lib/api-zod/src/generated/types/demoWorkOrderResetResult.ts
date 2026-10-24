@@ -11,4 +11,6 @@ export interface DemoWorkOrderResetResult {
   reset_count: number;
   /** @minimum 0 */
   cancelled_count: number;
+  /** @minimum 0 */
+  telegram_cleared_count: number;
 }

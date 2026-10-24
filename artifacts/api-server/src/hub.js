@@ -369,18 +369,19 @@ function buildMockSummary(messages) {
   return lines.join(" ");
 }
 
-function listConversationSummaries() {
+function listConversationSummaries(includeCleared = false) {
   return db.prepare(`
     SELECT c.id, c.customer_name, c.subject, c.customer_site_id, c.source, c.technician_id,
-      t.name AS technician_name, c.mock_summary, c.updated_at,
+      t.name AS technician_name, c.mock_summary, c.updated_at, c.inbox_cleared_at,
       COUNT(m.id) AS message_count, d.activity_id AS dispatch_activity_id
     FROM conversation_threads c
     LEFT JOIN technicians t ON t.id = c.technician_id
     LEFT JOIN conversation_messages m ON m.conversation_id = c.id
     LEFT JOIN dispatches d ON d.conversation_id = c.id
+    WHERE ? OR c.inbox_cleared_at IS NULL OR d.status='Active'
     GROUP BY c.id
     ORDER BY c.updated_at DESC, c.id DESC
-  `).all().map((thread) => ({
+  `).all(includeCleared ? 1 : 0).map((thread) => ({
     ...thread,
     complexity: classifyRepair(`${thread.subject} ${db.prepare("SELECT text FROM conversation_messages WHERE conversation_id = ? AND sender_role = 'Customer' ORDER BY id").all(thread.id).map((item) => item.text).join(" ")}`),
     latest_message: db.prepare(`
@@ -391,7 +392,7 @@ function listConversationSummaries() {
 }
 
 function getConversationThread(id) {
-  const summary = listConversationSummaries().find((item) => item.id === id);
+  const summary = listConversationSummaries(true).find((item) => item.id === id);
   if (!summary) return null;
   const messages = db.prepare(`
     SELECT id, conversation_id, sender_role, sender_name, text, created_at
