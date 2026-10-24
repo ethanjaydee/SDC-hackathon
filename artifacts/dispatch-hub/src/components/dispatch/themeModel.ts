@@ -20,7 +20,7 @@ export function themeLabel(theme: Theme): string {
     case 'cyberpunk':
       return 'cyberpunk';
     case 'cat':
-      return 'cat';
+      return 'comfort/reading';
   }
 }
 

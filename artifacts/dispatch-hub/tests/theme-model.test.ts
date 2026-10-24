@@ -5,7 +5,8 @@ import { cycleTheme, parseStoredTheme, shouldShowCatDecorations, THEMES, themeLa
 test('theme cycle follows light, dark, cyberpunk, cat, then light', () => {
   const sequence = THEMES.map((theme) => {
     const next = cycleTheme(theme);
-    assert.equal(themeLabel(next), next === 'dark' ? 'night' : next);
+    const labels = { light: 'light', dark: 'night', cyberpunk: 'cyberpunk', cat: 'comfort/reading' } as const;
+    assert.equal(themeLabel(next), labels[next]);
     return next;
   });
 
