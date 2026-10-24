@@ -252,7 +252,10 @@ Proof of use: [`submission/SDC2026_TeamName_Runpod_POU.pdf`](submission/SDC2026_
 ## Challenges & Learnings
 
 - What challenges did you face, and how did you overcome them?
+- we lack of time, experience, knowledge about market demand but in the end we call through some company manager and ask some friends' parents to get info about their review for our app for improvement.
+  
 - What did your team learn?
+- we learn how we seperate our role, collaborate and using vibe coding which is a new experience, also we helping each other on some technical issue and teaching github stuff
 
 ## Future Improvements
 
