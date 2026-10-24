@@ -282,7 +282,7 @@ Proof of use: [`submission/SDC2026_Kebangaan_Universiti_Malaya_(KUM)_Runpod_POU.
 - [x] Replit used, with proof of use in `submission/`
 - [x] RunPod usage and proof confirmed, if required by the competition
 - [ ] Preliminary submission completed (`SDC2026_TeamName_Preliminary.pdf`)
-- [ ] Technology declaration completed (`SDC2026_TeamName_TechDeclaration.pdf`)
+- [x] Technology declaration completed (`SDC2026_TeamName_TechDeclaration.pdf`)
 - [ ] Submission files renamed with your team name (replace `TeamName`)
 - [x] Local and Replit "How to Run" steps verified
 - [ ] No API keys or secrets committed to the repository
