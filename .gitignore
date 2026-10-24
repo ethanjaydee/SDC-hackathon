@@ -48,5 +48,10 @@ Thumbs.db
 .cache/
 .local/
 
+# Local environment
+.env
+.env.*
+!.env.example
+
 # Local SQLite demo runtime data
 artifacts/api-server/data/

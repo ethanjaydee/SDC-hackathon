@@ -144,10 +144,17 @@ Install dependencies from the repository root:
 corepack.cmd pnpm install
 ```
 
+Create your local environment file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edit `.env` to add any optional integration credentials. The real `.env` file is ignored by Git; do not commit credentials.
+
 Start the API server in **PowerShell**:
 
 ```powershell
-$env:PORT = "8080"
 corepack.cmd pnpm --filter @workspace/api-server run build
 corepack.cmd pnpm --filter @workspace/api-server run start
 ```
@@ -155,8 +162,6 @@ corepack.cmd pnpm --filter @workspace/api-server run start
 Leave that terminal running. In a second PowerShell terminal, start the web app:
 
 ```powershell
-$env:PORT = "5173"
-$env:BASE_PATH = "/"
 corepack.cmd pnpm --filter @workspace/dispatch-hub dev
 ```
 
@@ -167,11 +172,12 @@ The API health endpoint is available at [http://localhost:8080/api/healthz](http
 On macOS/Linux, the equivalent environment setup is:
 
 ```bash
-PORT=8080 pnpm --filter @workspace/api-server run build
-PORT=8080 pnpm --filter @workspace/api-server run start
+cp .env.example .env
+pnpm --filter @workspace/api-server run build
+pnpm --filter @workspace/api-server run start
 
 # In a second terminal:
-PORT=5173 BASE_PATH=/ pnpm --filter @workspace/dispatch-hub dev
+pnpm --filter @workspace/dispatch-hub dev
 ```
 
 ### Useful Commands
