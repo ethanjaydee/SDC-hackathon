@@ -183,7 +183,7 @@ function Workspace() {
                 <Route path="/suppliers"><Redirect to="/transport" replace /></Route>
                 <Route path="/reorders"><Redirect to="/transport" replace /></Route>
                 <Route path="/today"><LogPage hub={hub} notice={notice} todayOnly /></Route>
-                <Route path="/log">{isTechnician ? <TechnicianHistory hub={hub} notice={notice} /> : <LogPage hub={hub} notice={notice} />}</Route>
+                <Route path="/log">{isTechnician ? <TechnicianHistory hub={hub} /> : <LogPage hub={hub} notice={notice} />}</Route>
                 <Route component={NotFound} />
               </Switch>
               )}

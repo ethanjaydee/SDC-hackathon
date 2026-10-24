@@ -114,7 +114,7 @@ export function SlideToApprove({
         </div>
       </div>
       <p id={`${testId}-help`} className="text-[11px] text-muted-foreground">Drag right, or focus the handle, press End, then Enter. Clicking the track does nothing.</p>
-      {status === 'failed' && <p role="alert" className="flex items-center gap-1.5 text-xs text-err"><TriangleAlert size={12} /> Approval did not go through. Check the message above, then slide again.</p>}
+      {status === 'failed' && <p role="alert" className="flex items-center gap-1.5 text-xs text-err"><TriangleAlert size={12} /> The action did not go through. Check the message above, then slide again.</p>}
     </div>
   );
 }

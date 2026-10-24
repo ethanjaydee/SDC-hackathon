@@ -14,6 +14,13 @@ export const DEMO_CUSTOMER_SITES: DemoCustomerSite[] = [
   { id: 'south', label: 'Demo customer · Cheras', area: 'Cheras', lat: 3.0993, lng: 101.7428 },
 ];
 
+/** Explicit mock contact details; never use these as real customer data. */
+export const DEMO_CUSTOMER_VISIT_DETAILS: Record<string, { address: string; contact: string }> = {
+  north: { address: 'Sample customer site, Petaling Jaya, Selangor, Malaysia', contact: '0000-000-000 (sample only)' },
+  central: { address: 'Sample customer site, Puchong, Selangor, Malaysia', contact: '0000-000-000 (sample only)' },
+  south: { address: 'Sample customer site, Cheras, Selangor, Malaysia', contact: '0000-000-000 (sample only)' },
+};
+
 const TECHNICIAN_POSITIONS: Record<number, DemoLocation> = {
   1: { label: 'Petaling Jaya · sample position', lat: 3.109, lng: 101.633 },
   2: { label: 'Puchong · sample position', lat: 3.025, lng: 101.617 },

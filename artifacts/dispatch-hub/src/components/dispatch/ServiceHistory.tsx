@@ -106,7 +106,7 @@ function SampleInvoiceAction({ technician, job }: { technician: Technician; job:
   );
 }
 
-function SampleHistoryTable({ technician }: { technician: Technician }) {
+export function TechnicianWorkHistoryTable({ technician }: { technician: Technician }) {
   const jobs = getDemoServiceHistory(technician);
   const assetBase = `${import.meta.env.BASE_URL}completion-proofs/`;
 
@@ -198,7 +198,7 @@ function SampleProof({ tech }: { tech: Technician }) {
         <DialogTitle>{tech.name} — work history</DialogTitle>
         <DialogDescription>Fictional sample history for this technician. Sample content is not a real dispatch record.</DialogDescription>
       </DialogHeader>
-      <SampleHistoryTable technician={tech} />
+      <TechnicianWorkHistoryTable technician={tech} />
     </DialogContent>
   );
 }
