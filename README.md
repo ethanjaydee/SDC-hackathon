@@ -270,7 +270,8 @@ Proof of use: [`submission/SDC2026_Kebangaan_Universiti_Malaya_(KUM)_Runpod_POU.
 | Member Name | Team Lead | [@username](https://github.com/username) |
 | Ethan Jeremy Daniel | Backend | [@ethanjaydee](https://github.com/ethanjaydee)
 | Member Name | Frontend            | [@username](https://github.com/username) |
-| Member Name | AI / Integrations   | [@username](https://github.com/username) |
+| Member Name | Project Manager   | [@username](https://github.com/username) |
+| Member Name| Market Research | [@username](https://github.com/username) |
 
 ---
 
@@ -285,7 +286,7 @@ Proof of use: [`submission/SDC2026_Kebangaan_Universiti_Malaya_(KUM)_Runpod_POU.
 - [x] Technology declaration completed (`SDC2026_TeamName_TechDeclaration.pdf`)
 - [ ] Submission files renamed with your team name (replace `TeamName`)
 - [x] Local and Replit "How to Run" steps verified
-- [ ] No API keys or secrets committed to the repository
+- [x] No API keys or secrets committed to the repository
 
 ## License
 
