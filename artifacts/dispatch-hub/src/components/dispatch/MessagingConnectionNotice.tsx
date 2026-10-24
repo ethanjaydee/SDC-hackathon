@@ -8,9 +8,12 @@ export function MessagingConnectionNotice() {
     query: { queryKey: getGetTelegramStatusQueryKey(), refetchInterval: 10_000, refetchOnWindowFocus: true },
   });
   const status = statusQ.data;
+  const receiverPaused = status?.error === 'Telegram receiving is disabled for this environment.';
   const connected = !statusQ.isError && status?.connected;
-  const label = statusQ.isLoading ? 'Checking…' : statusQ.isError ? 'Status unavailable' : status?.error ? 'Needs attention' : connected ? 'Receiving messages' : status?.configured ? 'Connecting…' : 'Not connected';
-  const description = status?.error ?? (connected
+  const label = statusQ.isLoading ? 'Checking…' : statusQ.isError ? 'Status unavailable' : receiverPaused ? 'Receiver paused' : status?.error ? 'Needs attention' : connected ? 'Receiving messages' : status?.configured ? 'Connecting…' : 'Not connected';
+  const description = receiverPaused
+    ? 'Telegram receiving is paused in this environment to avoid competing receivers. New messages appear in the active Telegram inbox, not here.'
+    : status?.error ?? (connected
     ? 'Open the bot, tap Start, then send a private text repair request. It appears in this inbox as a customer conversation and is automatically sent to the mock analyzer. Send /new before your next separate repair request.'
     : statusQ.isError
       ? 'The receiver status could not be checked. It refreshes automatically.'
@@ -22,7 +25,7 @@ export function MessagingConnectionNotice() {
       <div className="flex flex-wrap items-center gap-2">
         <MessageSquareText size={14} className="text-muted-foreground" />
         <h2 className="text-xs font-semibold">Telegram customer messages</h2>
-        <StatusBadge tone={connected ? 'ok' : 'pending'}>{label}</StatusBadge>
+        <StatusBadge tone={connected ? 'ok' : receiverPaused ? 'idle' : 'pending'}>{label}</StatusBadge>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
         {description}
