@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { DispatchState } from './useDispatchHub';
 import { TechnicianAvatar } from './TechnicianAvatar';
+import { CatSticker } from './CatSticker';
 
 export type Hub = { hub: DispatchState };
 export type Tone = 'idle' | 'pending' | 'busy' | 'ok' | 'err';
@@ -42,7 +43,9 @@ export function PageHead({ kicker, title, sub, children, large = false }: { kick
   return (
     <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between pb-2">
       <div className="min-w-0">
-        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary">{kicker}</p>
+        <p className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.16em] text-primary">
+          {kicker}<CatSticker pose="wink" className="dh-cat-page-mark" />
+        </p>
         <h1 className={`mt-1 leading-[1.05] font-semibold ${large ? 'text-[36px] md:text-[46px]' : 'text-[28px] md:text-[34px]'}`}>{title}</h1>
         {sub && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{sub}</p>}
       </div>
@@ -56,7 +59,9 @@ export function Card({ title, aside, children, className = '', bodyClassName = '
   return (
     <Surface role="region" aria-labelledby={titleId} className={cn('min-w-0 border-card-border shadow-sm', className)}>
       <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0 border-b border-card-border px-4 py-3 md:px-5">
-        <h2 id={titleId} className="flex items-center gap-2 text-[15px] font-semibold">{title}</h2>
+        <h2 id={titleId} className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">
+          <span className="inline-flex min-w-0 flex-wrap items-center gap-2">{title}</span><CatSticker pose="smile" className="dh-cat-card-mark" />
+        </h2>
         {aside && <div className="text-xs text-muted-foreground">{aside}</div>}
       </CardHeader>
       <CardContent className={cn('p-4 md:p-5', bodyClassName)}>{children}</CardContent>

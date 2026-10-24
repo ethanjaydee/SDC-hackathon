@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { Cat, Moon, Sparkles, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cycleTheme, parseStoredTheme, themeLabel, type Theme } from './themeModel';
+import { useCatButtonMotion } from './useCatButtonMotion';
 
 const ThemeCtx = createContext<{ theme: Theme; setTheme: (theme: Theme) => void }>({
   theme: 'light',
@@ -20,6 +21,7 @@ function initial(): Theme {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(initial);
+  useCatButtonMotion(theme);
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('dark', theme === 'dark' || theme === 'cyberpunk');

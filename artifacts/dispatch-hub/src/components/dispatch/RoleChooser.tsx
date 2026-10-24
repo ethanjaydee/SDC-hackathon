@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InlineError } from './shared';
 import { TechnicianAvatar } from './TechnicianAvatar';
+import { CatSticker } from './CatSticker';
 import { LevelBadge } from './techMeta';
 import { useDemoSession } from './session';
 
@@ -19,6 +20,7 @@ export default function RoleChooser() {
         <div className="flex items-center gap-2.5">
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground"><Radio size={18} strokeWidth={2.5} /></span>
           <span className="font-display text-xl font-semibold tracking-tight">Dispatch Hub</span>
+          <CatSticker pose="sleepy" />
         </div>
         <div>
           <h1 className="text-[34px] font-semibold leading-[1.05] md:text-[44px]">{picking ? 'Which technician are you?' : 'Choose a demo role'}</h1>

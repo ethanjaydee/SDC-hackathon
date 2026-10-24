@@ -46,15 +46,15 @@ html.dark[data-theme='cyberpunk'] {
   --sidebar: 263 30% 12%;
   --sidebar-foreground: 183 40% 90%;
   --sidebar-border: 270 24% 27%;
-  --sidebar-primary: 166 100% 49%;
+  --sidebar-primary: 322 100% 70%;
   --sidebar-primary-foreground: 258 30% 9%;
   --sidebar-accent: 270 24% 20%;
   --sidebar-accent-foreground: 183 55% 94%;
-  --sidebar-ring: 166 100% 49%;
+  --sidebar-ring: 322 100% 70%;
   --popover: 258 27% 16%;
   --popover-foreground: 183 48% 92%;
   --popover-border: 270 24% 34%;
-  --primary: 166 100% 49%;
+  --primary: 322 100% 70%;
   --primary-foreground: 258 30% 9%;
   --secondary: 270 22% 22%;
   --secondary-foreground: 183 42% 92%;
@@ -65,10 +65,10 @@ html.dark[data-theme='cyberpunk'] {
   --destructive: 348 76% 62%;
   --destructive-foreground: 258 30% 9%;
   --input: 270 22% 34%;
-  --ring: 166 100% 58%;
-  --chart-1: 166 100% 49%;
-  --chart-2: 322 100% 70%;
-  --chart-3: 46 96% 65%;
+  --ring: 322 100% 70%;
+  --chart-1: 322 100% 70%;
+  --chart-2: 28 100% 63%;
+  --chart-3: 48 96% 66%;
   --chart-4: 195 92% 67%;
   --chart-5: 263 19% 70%;
   --st-idle: 265 13% 74%;
@@ -174,29 +174,91 @@ html[data-theme='cat'] button:not([data-testid='button-theme-toggle']) {
 }
 
 html[data-theme='cyberpunk'] button {
-  border-color: hsl(166 100% 49% / .3);
-  box-shadow: 0 0 8px hsl(166 100% 49% / .08);
+  border-color: hsl(322 100% 70% / .45);
+  box-shadow: 0 0 0 1px hsl(322 100% 70% / .12), 0 0 10px hsl(275 95% 68% / .08);
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
 html[data-theme='cyberpunk'] button:hover:not(:disabled) {
   transform: translateY(-2px);
-  border-color: hsl(166 100% 66% / .82);
-  box-shadow: 0 0 0 1px hsl(166 100% 49% / .18), 0 0 13px hsl(166 100% 49% / .25), 0 0 25px hsl(322 100% 67% / .1);
+  border-color: hsl(28 100% 68% / .95);
+  box-shadow: 0 0 0 1px hsl(322 100% 70% / .3), 0 0 15px hsl(322 100% 70% / .22), 0 0 25px hsl(28 100% 63% / .15);
   animation: cyber-border-glow 2s ease-in-out infinite;
 }
 
 @keyframes cyber-border-glow {
-  0%, 100% { box-shadow: 0 0 0 1px hsl(166 100% 49% / .18), 0 0 13px hsl(166 100% 49% / .25), 0 0 25px hsl(322 100% 67% / .1); }
-  50% { box-shadow: 0 0 0 1px hsl(322 100% 70% / .4), 0 0 19px hsl(166 100% 49% / .4), 0 0 30px hsl(322 100% 67% / .2); }
+  0%, 100% { box-shadow: 0 0 0 1px hsl(322 100% 70% / .24), 0 0 12px hsl(322 100% 70% / .2), 0 0 22px hsl(275 95% 68% / .12); }
+  50% { box-shadow: 0 0 0 1px hsl(48 96% 66% / .4), 0 0 16px hsl(28 100% 63% / .28), 0 0 25px hsl(322 100% 70% / .2); }
 }
 
 html[data-theme='cyberpunk'] button:focus-visible {
-  box-shadow: 0 0 0 2px hsl(257 28% 10%), 0 0 0 4px hsl(166 100% 58% / .8);
+  box-shadow: 0 0 0 2px hsl(257 28% 10%), 0 0 0 4px hsl(322 100% 70% / .85), 0 0 16px hsl(28 100% 63% / .3);
+}
+
+/* Instagram-spectrum light, held at the edges so work surfaces stay quiet and readable. */
+html.dark[data-theme='cyberpunk'] body {
+  background-image:
+    radial-gradient(ellipse at 5% 0%, hsl(322 100% 55% / .12), transparent 34rem),
+    radial-gradient(ellipse at 96% 5%, hsl(28 100% 55% / .1), transparent 31rem),
+    radial-gradient(ellipse at 72% 100%, hsl(48 96% 60% / .055), transparent 30rem);
+}
+html.dark[data-theme='cyberpunk'] [aria-label='Dispatch Hub navigation'],
+html.dark[data-theme='cyberpunk'] [role='dialog'].bg-sidebar {
+  background-image:
+    linear-gradient(155deg, hsl(322 80% 55% / .09), transparent 42%),
+    linear-gradient(335deg, hsl(28 90% 55% / .07), transparent 48%);
+  box-shadow: inset -1px 0 hsl(322 100% 70% / .12), 3px 0 24px hsl(275 90% 55% / .06);
+}
+html.dark[data-theme='cyberpunk'] .bg-card {
+  background-image:
+    linear-gradient(140deg, hsl(322 80% 60% / .035), transparent 42%),
+    linear-gradient(320deg, hsl(28 90% 55% / .025), transparent 48%);
+  box-shadow: -1px 0 0 hsl(322 100% 70% / .38), 1px 0 0 hsl(28 100% 65% / .32), 0 6px 24px hsl(275 95% 60% / .09);
+}
+html.dark[data-theme='cyberpunk'] button:not(:disabled):not([data-testid='button-theme-toggle']) {
+  border-color: hsl(322 100% 70% / .43);
+}
+html.dark[data-theme='cyberpunk'] button[data-variant='default'],
+html.dark[data-theme='cyberpunk'] button.bg-primary {
+  border-color: hsl(48 96% 66% / .62);
+  box-shadow: inset 0 0 0 1px hsl(322 100% 70% / .18), 0 0 15px hsl(322 100% 70% / .1);
+}
+html.dark[data-theme='cyberpunk'] button[data-variant='outline']:hover:not(:disabled),
+html.dark[data-theme='cyberpunk'] button.bg-primary:hover:not(:disabled) {
+  border-color: hsl(48 96% 66% / .9);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .theme-cat-sticker { animation: none; }
   html[data-theme='cyberpunk'] button { transition: none; }
   html[data-theme='cyberpunk'] button:hover:not(:disabled) { transform: none; animation: none; }
+}
+
+/* Cat details are kept in the heading flow: never cover dispatch data or controls. */
+.dh-cat-sticker {
+  display: none;
+  width: 25px;
+  height: 23px;
+  flex: 0 0 auto;
+  overflow: visible;
+  color: hsl(332 54% 56%);
+  filter: drop-shadow(0 2px 2px hsl(332 46% 43% / .16));
+  pointer-events: none;
+  animation: dh-cat-peek 3.4s ease-in-out infinite;
+}
+.dh-cat-sticker path,
+.dh-cat-sticker circle,
+.dh-cat-sticker ellipse { vector-effect: non-scaling-stroke; }
+.dh-cat-sticker .dh-cat-fill { fill: hsl(35 78% 96%); stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.dh-cat-sticker .dh-cat-detail { fill: none; stroke: currentColor; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+.dh-cat-sticker .dh-cat-cheek { fill: hsl(340 70% 78% / .82); stroke: none; }
+html[data-theme='cat'] .dh-cat-sticker { display: inline-block; }
+.dh-cat-page-mark { margin-left: 2px; transform: rotate(-7deg); }
+.dh-cat-card-mark { width: 21px; height: 20px; margin-left: 1px; }
+@keyframes dh-cat-peek {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-2px) rotate(3deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dh-cat-sticker { animation: none; }
 }
